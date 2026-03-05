@@ -13,10 +13,20 @@ type CreateBookingPayload = {
 export async function GET() {
   try {
     const supabase = supabaseAdmin();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("bookings")
       .select("id, check_in, check_out, guests, channel, notes, total_amount, created_at")
       .order("check_in", { ascending: false });
+
+    // Backward-compatible fallback when total_amount is not present in older schemas.
+    if (error?.code === "42703" && error.message.includes("total_amount")) {
+      const retry = await supabase
+        .from("bookings")
+        .select("id, check_in, check_out, guests, channel, notes, created_at")
+        .order("check_in", { ascending: false });
+      data = (retry.data ?? []).map((row) => ({ ...row, total_amount: null }));
+      error = retry.error;
+    }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ bookings: data ?? [] }, { status: 200 });
@@ -61,4 +71,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
