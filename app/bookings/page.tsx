@@ -1,7 +1,10 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
+import { Card, CardHeader } from "@/components/card";
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
+import { CalendarDays, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
 
 type BookingForm = {
@@ -105,180 +108,129 @@ export default function BookingsPage() {
   }, []);
 
   return (
-    <section className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900">Bookings</h1>
+    <section className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold text-zinc-900">Bookings</h1>
+        <p className="text-sm text-zinc-500">Gestione prenotazioni e azioni collegate</p>
       </header>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">Nuova prenotazione</h2>
+      <Card>
+        <CardHeader title="Nuova prenotazione" subtitle="Inserisci i dati principali" />
         <div className="grid gap-3 md:grid-cols-3">
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            type="date"
-            value={form.check_in}
-            onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))}
-          />
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            type="date"
-            value={form.check_out}
-            onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))}
-          />
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            min={1}
-            value={form.guests}
-            onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))}
-          />
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={form.channel}
-            onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))}
-            placeholder="Canale"
-          />
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            min={0}
-            value={form.total_amount}
-            onChange={(e) => setForm((p) => ({ ...p, total_amount: Number(e.target.value) }))}
-            placeholder="Importo"
-          />
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm md:col-span-3"
-            value={form.notes}
-            onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-            placeholder="Note"
-          />
+          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
+          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
+          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="number" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
+          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="Canale" />
+          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="number" min={0} value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: Number(e.target.value) }))} placeholder="Importo" />
+          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none md:col-span-3" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note" />
         </div>
-        <button
-          className="mt-3 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
-          onClick={() => void createBooking()}
-          disabled={loading}
-        >
+        <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
+          <Plus className="h-4 w-4" />
           {loading ? "Creazione..." : "Crea prenotazione"}
         </button>
-      </div>
+      </Card>
 
-      {error && <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">Lista prenotazioni</h2>
-        <div className="space-y-3">
-          {bookings.map((b) => {
-            const isEditing = editId === b.id;
-            return (
-              <div key={b.id} className="rounded-xl border border-slate-200 p-3">
-                <div className="grid gap-2 md:grid-cols-6">
-                  <input
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50"
-                    type="date"
-                    value={b.check_in}
-                    disabled={!isEditing}
-                    onChange={(e) =>
-                      setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))
-                    }
-                  />
-                  <input
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50"
-                    type="date"
-                    value={b.check_out}
-                    disabled={!isEditing}
-                    onChange={(e) =>
-                      setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))
-                    }
-                  />
-                  <input
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50"
-                    type="number"
-                    value={b.guests}
-                    disabled={!isEditing}
-                    onChange={(e) =>
-                      setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))
-                    }
-                  />
-                  <input
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50"
-                    value={b.channel ?? ""}
-                    disabled={!isEditing}
-                    onChange={(e) =>
-                      setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))
-                    }
-                  />
-                  <input
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50"
-                    type="number"
-                    min={0}
-                    value={b.total_amount ?? 0}
-                    disabled={!isEditing}
-                    onChange={(e) =>
-                      setBookings((prev) =>
-                        prev.map((x) => (x.id === b.id ? { ...x, total_amount: Number(e.target.value) } : x)),
-                      )
-                    }
-                  />
-                  <input
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50"
-                    value={b.notes ?? ""}
-                    disabled={!isEditing}
-                    onChange={(e) =>
-                      setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))
-                    }
-                  />
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    className="rounded-md border border-slate-300 px-3 py-1 text-xs"
-                    onClick={() => void toggleActionsForBooking(b.id)}
-                  >
-                    Azioni collegate
-                  </button>
-                  {isEditing ? (
-                    <>
-                      <button
-                        className="rounded-md bg-emerald-600 px-3 py-1 text-xs text-white"
-                        onClick={() => void updateBooking(b.id)}
-                      >
-                        Salva
-                      </button>
-                      <button className="rounded-md border border-slate-300 px-3 py-1 text-xs" onClick={() => setEditId(null)}>
-                        Annulla
-                      </button>
-                    </>
-                  ) : (
-                    <button className="rounded-md border border-slate-300 px-3 py-1 text-xs" onClick={() => setEditId(b.id)}>
-                      Modifica
-                    </button>
-                  )}
-                  <button className="rounded-md border border-rose-300 px-3 py-1 text-xs text-rose-700" onClick={() => void deleteBooking(b.id)}>
-                    Elimina
-                  </button>
-                </div>
+      <Card>
+        <CardHeader title="Lista prenotazioni" subtitle="Modifica rapida inline" />
 
-                {expandedBookingId === b.id && (
-                  <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3">
-                    {(bookingActions[b.id] ?? []).length === 0 && (
-                      <p className="text-xs text-slate-500">Nessuna azione collegata</p>
-                    )}
-                    {(bookingActions[b.id] ?? []).map((a) => (
-                      <div key={a.id} className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2">
-                        <div className="space-x-2">
-                          <ActionTypeBadge actionType={a.action_type} />
-                          <span className="text-xs text-slate-500">{a.action_date}</span>
+        {bookings.length === 0 ? (
+          <p className="py-6 text-center text-sm text-zinc-500">Nessuna prenotazione disponibile.</p>
+        ) : (
+          <Table>
+            <TableHead>
+              <tr>
+                <TableHeaderCell>Check-in</TableHeaderCell>
+                <TableHeaderCell>Check-out</TableHeaderCell>
+                <TableHeaderCell>Ospiti</TableHeaderCell>
+                <TableHeaderCell>Canale</TableHeaderCell>
+                <TableHeaderCell>Importo</TableHeaderCell>
+                <TableHeaderCell>Note</TableHeaderCell>
+                <TableHeaderCell className="text-right">Azioni</TableHeaderCell>
+              </tr>
+            </TableHead>
+            <TableBody>
+              {bookings.map((b) => {
+                const isEditing = editId === b.id;
+
+                return (
+                  <Fragment key={b.id}>
+                    <TableRow>
+                      <TableCell>
+                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_in} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
+                      </TableCell>
+                      <TableCell>
+                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_out} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
+                      </TableCell>
+                      <TableCell>
+                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="number" value={b.guests} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
+                      </TableCell>
+                      <TableCell>
+                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.channel ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
+                      </TableCell>
+                      <TableCell>
+                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="number" min={0} value={b.total_amount ?? 0} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, total_amount: Number(e.target.value) } : x)))} />
+                      </TableCell>
+                      <TableCell>
+                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.notes ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <button className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => void toggleActionsForBooking(b.id)}>
+                            <CalendarDays className="h-3.5 w-3.5" />
+                            Azioni
+                          </button>
+
+                          {isEditing ? (
+                            <button className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700" onClick={() => void updateBooking(b.id)}>
+                              <Save className="h-3.5 w-3.5" />
+                              Salva
+                            </button>
+                          ) : (
+                            <button className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => setEditId(b.id)}>
+                              <PenLine className="h-3.5 w-3.5" />
+                              Modifica
+                            </button>
+                          )}
+
+                          <button className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50" onClick={() => void deleteBooking(b.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Elimina
+                          </button>
                         </div>
-                        <StatusBadge status={a.status} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {bookings.length === 0 && <p className="text-sm text-slate-500">Nessuna prenotazione.</p>}
-        </div>
-      </div>
+                      </TableCell>
+                    </TableRow>
+
+                    {expandedBookingId === b.id && (
+                      <TableRow key={`${b.id}-actions`} className="bg-zinc-50">
+                        <TableCell className="py-4" colSpan={7}>
+                          <div className="space-y-2">
+                            {(bookingActions[b.id] ?? []).length === 0 ? (
+                              <p className="text-xs text-zinc-500">Nessuna azione collegata</p>
+                            ) : (
+                              (bookingActions[b.id] ?? []).map((a) => (
+                                <div key={a.id} className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    <ActionTypeBadge actionType={a.action_type} />
+                                    <span className="text-xs text-zinc-500">{a.action_date}</span>
+                                  </div>
+                                  <StatusBadge status={a.status} />
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
     </section>
   );
 }
+

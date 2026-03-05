@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
+import { Card, CardHeader } from "@/components/card";
+import { CalendarRange, CheckCheck, RefreshCw } from "lucide-react";
 import type { Action } from "@/types/db";
 
 function groupByDate(actions: Action[]) {
@@ -63,45 +65,52 @@ export default function ActionsPage() {
   const grouped = useMemo(() => groupByDate(actions), [actions]);
 
   return (
-    <section className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900">Actions</h1>
+    <section className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold text-zinc-900">Actions</h1>
+        <p className="text-sm text-zinc-500">Azioni raggruppate per data</p>
       </header>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <Card>
+        <CardHeader title="Filtri" subtitle="Seleziona il range da visualizzare" />
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm text-slate-600">
+          <label className="text-sm text-zinc-600">
             Da
             <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 block rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
             />
           </label>
-          <label className="text-sm text-slate-600">
+          <label className="text-sm text-zinc-600">
             A
             <input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 block rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
             />
           </label>
-          <button className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700" onClick={() => void loadActions()}>
+          <button className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700" onClick={() => void loadActions()}>
+            <RefreshCw className="h-4 w-4" />
             Aggiorna
           </button>
         </div>
-      </div>
+      </Card>
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
       <div className="space-y-4">
         {Object.entries(grouped).map(([date, rows]) => (
-          <div key={date} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-700">{date}</h2>
-              <button className="rounded-md border border-slate-300 px-3 py-1 text-xs" onClick={() => void markDayDone(date)}>
+          <Card key={date}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-800">
+                <CalendarRange className="h-4 w-4 text-blue-600" />
+                {date}
+              </h2>
+              <button className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50" onClick={() => void markDayDone(date)}>
+                <CheckCheck className="h-3.5 w-3.5 text-emerald-600" />
                 Segna tutto FATTO
               </button>
             </div>
@@ -109,19 +118,19 @@ export default function ActionsPage() {
               {rows.map((a) => (
                 <button
                   key={a.id}
-                  className="w-full rounded-lg border border-slate-200 p-3 text-left hover:border-sky-300"
+                  className="w-full rounded-xl border border-zinc-200 p-3 text-left transition hover:border-blue-200 hover:bg-zinc-50"
                   onClick={() => setSelectedAction(a)}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <ActionTypeBadge actionType={a.action_type} />
-                      <span className="text-xs text-slate-500">{a.details ?? ""}</span>
+                      <span className="text-xs text-zinc-500">{a.details ?? ""}</span>
                     </div>
                     <StatusBadge status={a.status} />
                   </div>
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
-                      className="rounded-md border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-100"
                       onClick={(e) => {
                         e.stopPropagation();
                         void toggleStatus(a);
@@ -129,15 +138,17 @@ export default function ActionsPage() {
                     >
                       Toggle stato
                     </button>
-                    <span className="text-xs text-slate-500">Booking: {a.booking_id ?? "-"}</span>
+                    <span className="text-xs text-zinc-500">Booking: {a.booking_id ?? "-"}</span>
                   </div>
                 </button>
               ))}
             </div>
-          </div>
+          </Card>
         ))}
         {actions.length === 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Nessuna azione nel range.</div>
+          <Card>
+            <p className="py-4 text-center text-sm text-zinc-500">Nessuna azione nel range selezionato.</p>
+          </Card>
         )}
       </div>
 

@@ -1,6 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Card, CardHeader } from "@/components/card";
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
+import { AlertTriangle, CheckCircle2, Save } from "lucide-react";
 import type { Product } from "@/types/db";
 
 export default function InventoryPage() {
@@ -47,69 +50,90 @@ export default function InventoryPage() {
   const lowStock = useMemo(() => products.filter((p) => p.quantity < p.threshold).length, [products]);
 
   return (
-    <section className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900">Inventory</h1>
-        <p className="text-sm text-slate-500">{lowStock} prodotti sotto soglia</p>
+    <section className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold text-zinc-900">Inventory</h1>
+        <p className="text-sm text-zinc-500">{lowStock} prodotti sotto soglia</p>
       </header>
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex justify-end">
-          <button
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
-            onClick={() => void saveAll()}
-            disabled={saving}
-          >
-            {saving ? "Salvataggio..." : "Salva aggiornamenti"}
-          </button>
-        </div>
+      <Card>
+        <CardHeader
+          title="Stock prodotti"
+          subtitle="Aggiorna quantità e soglia"
+          action={
+            <button
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              onClick={() => void saveAll()}
+              disabled={saving}
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "Salvataggio..." : "Salva aggiornamenti"}
+            </button>
+          }
+        />
 
-        <div className="space-y-2">
-          {products.map((p) => {
-            const below = p.quantity < p.threshold;
-            return (
-              <div key={p.id} className={`grid gap-3 rounded-xl border p-3 md:grid-cols-5 ${below ? "border-amber-300 bg-amber-50" : "border-slate-200"}`}>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{p.name}</p>
-                  <p className="text-xs text-slate-500">{p.unit ?? "-"}</p>
-                </div>
-                <label className="text-xs text-slate-600">
-                  Quantita
-                  <input
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                    type="number"
-                    value={p.quantity}
-                    onChange={(e) =>
-                      setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, quantity: Number(e.target.value) } : x)))
-                    }
-                  />
-                </label>
-                <label className="text-xs text-slate-600">
-                  Soglia
-                  <input
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                    type="number"
-                    value={p.threshold}
-                    onChange={(e) =>
-                      setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, threshold: Number(e.target.value) } : x)))
-                    }
-                  />
-                </label>
-                <div className="flex items-center">
-                  {below ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Sotto soglia</span>
-                  ) : (
-                    <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">OK</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {products.length === 0 && <p className="text-sm text-slate-500">Nessun prodotto.</p>}
-        </div>
-      </div>
+        {products.length === 0 ? (
+          <p className="py-6 text-center text-sm text-zinc-500">Nessun prodotto presente.</p>
+        ) : (
+          <Table>
+            <TableHead>
+              <tr>
+                <TableHeaderCell>Prodotto</TableHeaderCell>
+                <TableHeaderCell>Unita</TableHeaderCell>
+                <TableHeaderCell>Quantita</TableHeaderCell>
+                <TableHeaderCell>Soglia</TableHeaderCell>
+                <TableHeaderCell>Stato</TableHeaderCell>
+              </tr>
+            </TableHead>
+            <TableBody>
+              {products.map((p) => {
+                const below = p.quantity < p.threshold;
+                return (
+                  <TableRow key={p.id} className={below ? "bg-amber-50/50" : ""}>
+                    <TableCell className="font-medium text-zinc-900">{p.name}</TableCell>
+                    <TableCell>{p.unit ?? "-"}</TableCell>
+                    <TableCell>
+                      <input
+                        className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-blue-600 focus:outline-none"
+                        type="number"
+                        value={p.quantity}
+                        onChange={(e) =>
+                          setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, quantity: Number(e.target.value) } : x)))
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <input
+                        className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-blue-600 focus:outline-none"
+                        type="number"
+                        value={p.threshold}
+                        onChange={(e) =>
+                          setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, threshold: Number(e.target.value) } : x)))
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {below ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          Sotto soglia
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          OK
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
     </section>
   );
 }

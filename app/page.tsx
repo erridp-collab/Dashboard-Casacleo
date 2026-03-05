@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Card, CardHeader } from "@/components/card";
 import { KpiCard } from "@/components/kpi-card";
+import { CalendarDays, ClipboardList, Euro, House } from "lucide-react";
 import type { Action, Booking, MonthlyFinancePoint } from "@/types/db";
 
 export default function DashboardPage() {
@@ -44,10 +46,10 @@ export default function DashboardPage() {
   const month = monthly[monthly.length - 1];
 
   return (
-    <section className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">Vista rapida operativa</p>
+    <section className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold text-zinc-900">Dashboard</h1>
+        <p className="text-sm text-zinc-500">Panoramica operativa giornaliera</p>
       </header>
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
@@ -58,7 +60,40 @@ export default function DashboardPage() {
         <KpiCard title="Revenue Mese" value={`EUR ${month?.revenue?.toFixed(0) ?? "0"}`} />
         <KpiCard title="Profitto Netto Mese" value={`EUR ${month?.netProfit?.toFixed(0) ?? "0"}`} />
       </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader title="Snapshot" subtitle="Stato rapido del giorno" />
+          <div className="space-y-3 text-sm text-zinc-700">
+            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
+              <span className="inline-flex items-center gap-2"><House className="h-4 w-4 text-blue-600" /> Bookings</span>
+              <span className="font-medium">{bookings.length}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
+              <span className="inline-flex items-center gap-2"><ClipboardList className="h-4 w-4 text-blue-600" /> Azioni oggi</span>
+              <span className="font-medium">{todayActions}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
+              <span className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4 text-blue-600" /> Azioni aperte</span>
+              <span className="font-medium">{openActions}</span>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Finance" subtitle="Mese corrente" />
+          <div className="space-y-3 text-sm text-zinc-700">
+            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
+              <span className="inline-flex items-center gap-2"><Euro className="h-4 w-4 text-emerald-600" /> Revenue</span>
+              <span className="font-medium">EUR {month?.revenue?.toFixed(0) ?? "0"}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
+              <span className="inline-flex items-center gap-2"><Euro className="h-4 w-4 text-emerald-600" /> Profitto netto</span>
+              <span className="font-medium">EUR {month?.netProfit?.toFixed(0) ?? "0"}</span>
+            </div>
+          </div>
+        </Card>
+      </div>
     </section>
   );
 }
-
