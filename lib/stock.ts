@@ -54,6 +54,79 @@ function shoppingDetails(products: StockProduct[]): string {
   return `Prodotti da reintegrare:\n${rows.join("\n")}`;
 }
 
+async function upsertShoppingAction(
+  existingIds: string[],
+  today: string,
+  details: string,
+): Promise<void> {
+  const supabase = supabaseAdmin();
+
+  if (existingIds.length === 0) {
+    const payloadVariants: Record<string, unknown>[] = [
+      {
+        booking_id: null,
+        action_date: today,
+        action_type: "SPESA",
+        status: "DA_FARE",
+        details,
+        amount: 0,
+      },
+      {
+        booking_id: null,
+        action_date: today,
+        action_type: "SPESA",
+        status: "DA_FARE",
+        details,
+      },
+      {
+        action_date: today,
+        action_type: "SPESA",
+        status: "DA_FARE",
+        details,
+      },
+      {
+        action_date: today,
+        action_type: "SPESA",
+        status: "DA_FARE",
+      },
+    ];
+
+    let lastError = "";
+    for (const payload of payloadVariants) {
+      const insertErr = await supabase.from("actions").insert(payload);
+      if (!insertErr.error) return;
+      lastError = insertErr.error.message;
+    }
+    throw new Error(lastError || "Unable to create SPESA action");
+  }
+
+  const primaryId = String(existingIds[0]);
+  const updateVariants: Record<string, unknown>[] = [
+    { action_date: today, details },
+    { action_date: today },
+    { details },
+  ];
+
+  let updated = false;
+  for (const payload of updateVariants) {
+    const updateErr = await supabase
+      .from("actions")
+      .update(payload)
+      .eq("id", primaryId);
+    if (!updateErr.error) {
+      updated = true;
+      break;
+    }
+  }
+  if (!updated) throw new Error("Unable to update existing SPESA action");
+
+  if (existingIds.length > 1) {
+    const extraIds = existingIds.slice(1);
+    const { error: cleanupErr } = await supabase.from("actions").delete().in("id", extraIds);
+    if (cleanupErr) throw new Error(cleanupErr.message);
+  }
+}
+
 export async function syncShoppingAction(): Promise<void> {
   const supabase = supabaseAdmin();
   const schema = await resolveProductSchema(supabase);
@@ -111,35 +184,7 @@ export async function syncShoppingAction(): Promise<void> {
 
   const today = new Date().toISOString().slice(0, 10);
   const details = shoppingDetails(lowStock);
-
-  if (existingIds.length === 0) {
-    const { error: insertErr } = await supabase.from("actions").insert({
-      booking_id: null,
-      action_date: today,
-      action_type: "SPESA",
-      status: "DA_FARE",
-      details,
-      amount: null,
-    });
-    if (insertErr) throw new Error(insertErr.message);
-    return;
-  }
-
-  const primaryId = String(existingIds[0]);
-  const { error: updateErr } = await supabase
-    .from("actions")
-    .update({
-      action_date: today,
-      details,
-    })
-    .eq("id", primaryId);
-  if (updateErr) throw new Error(updateErr.message);
-
-  if (existingIds.length > 1) {
-    const extraIds = existingIds.slice(1);
-    const { error: cleanupErr } = await supabase.from("actions").delete().in("id", extraIds);
-    if (cleanupErr) throw new Error(cleanupErr.message);
-  }
+  await upsertShoppingAction(existingIds, today, details);
 }
 
 export async function applyBookingConsumptions(checkIn: string, checkOut: string, guests: number): Promise<void> {
