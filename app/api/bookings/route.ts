@@ -41,8 +41,10 @@ async function hasDateConflict(checkIn: string, checkOut: string): Promise<boole
   const { data, error } = await supabase
     .from("bookings")
     .select("id")
-    .lte("check_in", checkOut)
-    .gte("check_out", checkIn)
+    // Overlap on half-open intervals: [check_in, check_out)
+    // This allows same-day turnover (existing.check_out === new.check_in).
+    .lt("check_in", checkOut)
+    .gt("check_out", checkIn)
     .limit(1);
 
   if (error) throw new Error(error.message);
