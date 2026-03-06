@@ -165,6 +165,83 @@ export default function BookingsPage() {
         {bookings.length === 0 ? (
           <p className="py-6 text-center text-sm text-zinc-500">Nessuna prenotazione disponibile.</p>
         ) : (
+          <>
+          <div className="space-y-3 md:hidden">
+            {bookings.map((b) => {
+              const isEditing = editId === b.id;
+              const linked = bookingActions[b.id] ?? [];
+
+              return (
+                <article key={b.id} className="rounded-xl border border-zinc-200 bg-white p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-900">{b.check_in} {"->"} {b.check_out}</h3>
+                      <p className="text-xs text-zinc-500">Ospiti: {b.guests} | Canale: {b.channel ?? "-"}</p>
+                    </div>
+                    <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                      EUR {amountDraftById[b.id] || b.total_amount || "-"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-2">
+                    <input name={`check_in_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_in} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
+                    <input name={`check_out_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_out} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
+                    <input name={`guests_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" type="number" value={b.guests} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
+                    <input name={`channel_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" value={b.channel ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
+                    <input name={`total_amount_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} disabled={!isEditing} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
+                    <input name={`notes_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" value={b.notes ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-zinc-300 px-2 text-xs hover:bg-zinc-100" onClick={() => void toggleActionsForBooking(b.id)}>
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      Azioni
+                    </button>
+                    {isEditing ? (
+                      <button className="inline-flex h-10 items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 text-xs text-white hover:bg-emerald-700" onClick={() => void updateBooking(b.id)}>
+                        <Save className="h-3.5 w-3.5" />
+                        Salva
+                      </button>
+                    ) : (
+                      <button className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-zinc-300 px-2 text-xs hover:bg-zinc-100" onClick={() => {
+                        setAmountDraftById((prev) => ({
+                          ...prev,
+                          [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
+                        }));
+                        setEditId(b.id);
+                      }}>
+                        <PenLine className="h-3.5 w-3.5" />
+                        Modifica
+                      </button>
+                    )}
+                  </div>
+                  <button className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1 rounded-lg border border-rose-200 px-2 text-xs text-rose-700 hover:bg-rose-50" onClick={() => void deleteBooking(b.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Elimina
+                  </button>
+
+                  {expandedBookingId === b.id && (
+                    <div className="mt-3 space-y-2 rounded-xl bg-zinc-50 p-2">
+                      {linked.length === 0 ? (
+                        <p className="text-xs text-zinc-500">Nessuna azione collegata</p>
+                      ) : (
+                        linked.map((a) => (
+                          <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-2 py-1.5">
+                            <div className="flex items-center gap-2">
+                              <ActionTypeBadge actionType={a.action_type} />
+                              <span className="text-xs text-zinc-500">{a.action_date}</span>
+                            </div>
+                            <StatusBadge status={a.status} />
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHead>
               <tr>
@@ -270,6 +347,8 @@ export default function BookingsPage() {
               })}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </Card>
     </section>

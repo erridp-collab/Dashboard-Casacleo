@@ -12,7 +12,7 @@ type CardHeaderProps = {
 };
 
 export function Card({ children, className = "" }: CardProps) {
-  return <section className={`rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm md:p-6 ${className}`}>{children}</section>;
 }
 
 export function CardHeader({ title, subtitle, action }: CardHeaderProps) {
@@ -26,4 +26,3 @@ export function CardHeader({ title, subtitle, action }: CardHeaderProps) {
     </div>
   );
 }
-

@@ -120,6 +120,26 @@ export default function InventoryPage() {
     return alerting.length > 0 ? alerting : monitored;
   }, [products]);
 
+  function stateBadge(state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE") {
+    if (state === "DA_RIFORNIRE") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          DA RIFORNIRE
+        </span>
+      );
+    }
+    if (state === "IN_ESAURIMENTO") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          IN ESAURIMENTO
+        </span>
+      );
+    }
+    return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">OK</span>;
+  }
+
   return (
     <section className="space-y-6">
       <header className="space-y-1">
@@ -138,6 +158,70 @@ export default function InventoryPage() {
         {visibleProducts.length === 0 ? (
           <p className="py-6 text-center text-sm text-zinc-500">Nessun prodotto in esaurimento.</p>
         ) : (
+          <>
+          <div className="space-y-3 md:hidden">
+            {visibleProducts.map((product) => {
+              const state = getRefillState(product);
+              const margin = Number((product.initialQuantity * 0.2).toFixed(2));
+              const draft = drafts[product.id] ?? { addQty: "", amount: "" };
+
+              return (
+                <article
+                  key={product.id}
+                  className={`rounded-xl border p-3 ${
+                    state === "DA_RIFORNIRE"
+                      ? "border-rose-200 bg-rose-50/60"
+                      : state === "IN_ESAURIMENTO"
+                        ? "border-amber-200 bg-amber-50/50"
+                        : "border-zinc-200"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-900">{product.name}</h3>
+                      <p className="text-xs text-zinc-500">{product.category ?? "-"}</p>
+                    </div>
+                    {stateBadge(state)}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-600">
+                    <p>Iniziale: <span className="font-medium text-zinc-800">{product.initialQuantity} {product.unit ?? ""}</span></p>
+                    <p>Attuale: <span className="font-medium text-zinc-800">{product.quantity} {product.unit ?? ""}</span></p>
+                    <p>Soglia: <span className="font-medium text-zinc-800">{product.threshold}</span></p>
+                    <p>Margine: <span className="font-medium text-zinc-800">{margin}</span></p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <input
+                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-blue-600 focus:outline-none"
+                      type="number"
+                      placeholder="+qta"
+                      value={draft.addQty}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({ ...prev, [product.id]: { ...draft, addQty: e.target.value } }))
+                      }
+                    />
+                    <input
+                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-blue-600 focus:outline-none"
+                      type="number"
+                      placeholder="EUR"
+                      value={draft.amount}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({ ...prev, [product.id]: { ...draft, amount: e.target.value } }))
+                      }
+                    />
+                  </div>
+                  <button
+                    className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1 rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    onClick={() => void restockProduct(product.id)}
+                    disabled={loading}
+                  >
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                    Registra rifornimento
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHead>
               <tr>
@@ -173,21 +257,7 @@ export default function InventoryPage() {
                     <TableCell>{product.quantity} {product.unit ?? ""}</TableCell>
                     <TableCell>{product.threshold} (margine {margin})</TableCell>
                     <TableCell>
-                      {state === "DA_RIFORNIRE" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                          DA RIFORNIRE
-                        </span>
-                      ) : state === "IN_ESAURIMENTO" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                          IN ESAURIMENTO
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                          OK
-                        </span>
-                      )}
+                      {stateBadge(state)}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
@@ -224,6 +294,8 @@ export default function InventoryPage() {
               })}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </Card>
     </section>

@@ -36,26 +36,41 @@ export default function FinancePage() {
       ...m,
       monthLabel: monthLabel(m.month),
     })) ?? [];
+  const latest = rows.slice(-3).reverse();
 
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-zinc-900">Finance</h1>
-        <p className="text-sm text-zinc-500">Trend degli ultimi 6 mesi</p>
+        <h1 className="text-2xl font-semibold text-zinc-900">Finance / Spese</h1>
+        <p className="text-sm text-zinc-500">Vista economica operativa degli ultimi 6 mesi</p>
       </header>
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
         <KpiCard title="Revenue (6 mesi)" value={`EUR ${data?.totals.revenue.toFixed(0) ?? "0"}`} />
         <KpiCard title="Spese (6 mesi)" value={`EUR ${data?.totals.expenses.toFixed(0) ?? "0"}`} />
         <KpiCard title="Profitto Netto (6 mesi)" value={`EUR ${data?.totals.netProfit.toFixed(0) ?? "0"}`} />
       </div>
 
+      <Card>
+        <CardHeader title="Ultimi mesi" subtitle="Riepilogo rapido leggibile su mobile" />
+        <div className="space-y-2">
+          {latest.map((row) => (
+            <div key={row.month} className="rounded-xl border border-zinc-200 px-3 py-2">
+              <p className="text-sm font-medium text-zinc-800">{row.monthLabel}</p>
+              <p className="text-xs text-zinc-500">
+                Revenue EUR {row.revenue.toFixed(0)} | Spese EUR {row.expenses.toFixed(0)} | Netto EUR {row.netProfit.toFixed(0)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader title="Revenue vs Spese" subtitle="Confronto mensile" action={<ChartColumn className="h-4 w-4 text-blue-600" />} />
-          <div className="h-72">
+          <div className="h-56 md:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
@@ -71,7 +86,7 @@ export default function FinancePage() {
 
         <Card>
           <CardHeader title="Occupancy Rate" subtitle="Tasso di occupazione" action={<LineChartIcon className="h-4 w-4 text-emerald-600" />} />
-          <div className="h-72">
+          <div className="h-56 md:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rows}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />

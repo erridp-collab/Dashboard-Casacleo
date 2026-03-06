@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
-import { CalendarRange, CheckCheck, RefreshCw } from "lucide-react";
+import { CalendarRange, CheckCheck, ChevronDown, RefreshCw } from "lucide-react";
 import type { Action } from "@/types/db";
 
 function groupByDate(actions: Action[]) {
@@ -112,7 +112,7 @@ export default function ActionsPage() {
 
       <Card>
         <CardHeader title="Filtri" subtitle="Seleziona il range da visualizzare" />
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm text-zinc-600">
             Da
             <input
@@ -135,11 +135,11 @@ export default function ActionsPage() {
               className="mt-1 block rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
             />
           </label>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700" onClick={() => void loadActions()}>
+          <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700" onClick={() => void loadActions()}>
             <RefreshCw className="h-4 w-4" />
             Aggiorna
           </button>
-          <label className="inline-flex items-center gap-2 text-sm text-zinc-600">
+          <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm text-zinc-600">
             <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
             Mostra FATTO
           </label>
@@ -156,7 +156,7 @@ export default function ActionsPage() {
                 <CalendarRange className="h-4 w-4 text-blue-600" />
                 {date}
               </h2>
-              <button className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50" onClick={() => void markDayDone(date)}>
+              <button className="inline-flex h-9 items-center gap-2 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50" onClick={() => void markDayDone(date)}>
                 <CheckCheck className="h-3.5 w-3.5 text-emerald-600" />
                 Segna tutto FATTO
               </button>
@@ -173,10 +173,13 @@ export default function ActionsPage() {
                     setSelectedAction(a);
                   }}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
                       <ActionTypeBadge actionType={a.action_type} />
-                      <span className="text-xs text-zinc-500">{a.details ?? ""}</span>
+                        <span className="text-xs text-zinc-500">Booking: {a.booking_id ?? "-"}</span>
+                      </div>
+                      {a.details ? <p className="truncate text-xs text-zinc-500">{a.details}</p> : null}
                     </div>
                     <button
                       className="rounded-full"
@@ -188,12 +191,15 @@ export default function ActionsPage() {
                       <StatusBadge status={a.status} />
                     </button>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-zinc-500">Booking: {a.booking_id ?? "-"}</span>
-                    {a.action_type.toUpperCase() === "SPESA" ? (
-                      <span className="text-xs text-zinc-500">Lista spesa in dettaglio (non checklist)</span>
-                    ) : null}
-                  </div>
+                  {a.details ? (
+                    <details className="mt-3 rounded-lg border border-zinc-100 bg-zinc-50 p-2">
+                      <summary className="flex cursor-pointer list-none items-center gap-1 text-xs text-zinc-600">
+                        <ChevronDown className="h-3.5 w-3.5" />
+                        Dettagli
+                      </summary>
+                      <p className="mt-2 whitespace-pre-line text-xs text-zinc-600">{a.details}</p>
+                    </details>
+                  ) : null}
                 </button>
               ))}
             </div>
