@@ -122,6 +122,12 @@ export async function PATCH(
 
     // Backward-compatible fallback when total_amount is not present in older schemas.
     if (isMissingTotalAmountError(error)) {
+      if (updates.total_amount !== undefined && updates.total_amount !== null) {
+        return NextResponse.json(
+          { error: "La colonna bookings.total_amount non esiste nel database. Aggiungila per salvare l'importo." },
+          { status: 400 },
+        );
+      }
       const retryUpdates = { ...updates };
       delete retryUpdates.total_amount;
       const retry = await supabase

@@ -211,6 +211,12 @@ export async function POST(req: Request) {
 
     // Backward-compatible fallback when total_amount is not present in older schemas.
     if (isMissingTotalAmountError(error)) {
+      if (parsedAmount !== null) {
+        return NextResponse.json(
+          { error: "La colonna bookings.total_amount non esiste nel database. Aggiungila per salvare l'importo." },
+          { status: 400 },
+        );
+      }
       const legacyPayload: Record<string, unknown> = { ...payload };
       delete legacyPayload.total_amount;
       const retry = await supabase
