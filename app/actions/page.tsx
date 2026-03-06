@@ -77,6 +77,8 @@ export default function ActionsPage() {
           <label className="text-sm text-zinc-600">
             Da
             <input
+              id="actions-from-date"
+              name="from"
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
@@ -86,6 +88,8 @@ export default function ActionsPage() {
           <label className="text-sm text-zinc-600">
             A
             <input
+              id="actions-to-date"
+              name="to"
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}

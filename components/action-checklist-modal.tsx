@@ -80,7 +80,7 @@ export function ActionChecklistModal({ actionId, title, onClose }: Props) {
         <div className="space-y-2">
           {items.map((item) => (
             <label key={item.id} className="flex items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2">
-              <input type="checkbox" checked={item.done} onChange={() => void toggleItem(item)} />
+              <input id={`checklist_item_${item.id}`} name={`checklist_item_${item.id}`} type="checkbox" checked={item.done} onChange={() => void toggleItem(item)} />
               <span className={item.done ? "text-zinc-500 line-through" : "text-zinc-800"}>{item.label}</span>
             </label>
           ))}

@@ -97,6 +97,8 @@ export default function InventoryPage() {
                     <TableCell>
                       <input
                         className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-blue-600 focus:outline-none"
+                        id={`quantity_${p.id}`}
+                        name={`quantity_${p.id}`}
                         type="number"
                         value={p.quantity}
                         onChange={(e) =>
@@ -107,6 +109,8 @@ export default function InventoryPage() {
                     <TableCell>
                       <input
                         className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-blue-600 focus:outline-none"
+                        id={`threshold_${p.id}`}
+                        name={`threshold_${p.id}`}
                         type="number"
                         value={p.threshold}
                         onChange={(e) =>

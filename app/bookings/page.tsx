@@ -144,12 +144,12 @@ export default function BookingsPage() {
       <Card>
         <CardHeader title="Nuova prenotazione" subtitle="Inserisci i dati principali" />
         <div className="grid gap-3 md:grid-cols-3">
-          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
-          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
-          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="number" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
-          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="Canale" />
-          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="Importo" />
-          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none md:col-span-3" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note" />
+          <input id="booking-check-in" name="check_in" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
+          <input id="booking-check-out" name="check_out" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
+          <input id="booking-guests" name="guests" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="number" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
+          <input id="booking-channel" name="channel" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="Canale" />
+          <input id="booking-total-amount" name="total_amount" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="Importo" />
+          <input id="booking-notes" name="notes" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none md:col-span-3" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note" />
         </div>
         <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
           <Plus className="h-4 w-4" />
@@ -185,20 +185,22 @@ export default function BookingsPage() {
                   <Fragment key={b.id}>
                     <TableRow>
                       <TableCell>
-                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_in} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
+                        <input name={`check_in_${b.id}`} id={`check_in_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_in} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
                       </TableCell>
                       <TableCell>
-                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_out} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
+                        <input name={`check_out_${b.id}`} id={`check_out_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_out} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
                       </TableCell>
                       <TableCell>
-                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="number" value={b.guests} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
+                        <input name={`guests_${b.id}`} id={`guests_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="number" value={b.guests} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
                       </TableCell>
                       <TableCell>
-                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.channel ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
+                        <input name={`channel_${b.id}`} id={`channel_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.channel ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
                       </TableCell>
                       <TableCell>
                         <input
                           className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50"
+                          name={`total_amount_${b.id}`}
+                          id={`total_amount_${b.id}`}
                           type="text"
                           inputMode="decimal"
                           value={amountDraftById[b.id] ?? ""}
@@ -207,7 +209,7 @@ export default function BookingsPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.notes ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
+                        <input name={`notes_${b.id}`} id={`notes_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.notes ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
