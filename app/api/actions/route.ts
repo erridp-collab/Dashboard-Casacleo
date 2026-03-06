@@ -15,7 +15,11 @@ export async function GET(req: Request) {
     const to = searchParams.get("to");
     const bookingId = searchParams.get("bookingId");
 
-    await syncShoppingAction();
+    try {
+      await syncShoppingAction();
+    } catch (syncErr: unknown) {
+      console.error("Non-blocking shopping sync failed in actions GET", syncErr);
+    }
 
     const supabase = supabaseAdmin();
     let q = supabase

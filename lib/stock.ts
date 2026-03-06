@@ -77,13 +77,25 @@ export async function syncShoppingAction(): Promise<void> {
   });
 
   const lowStock = products.filter((p) => p.quantity <= p.threshold);
-  const { data: existing, error: existingErr } = await supabase
+  let { data: existing, error: existingErr } = await supabase
     .from("actions")
     .select("id")
     .eq("action_type", "SPESA")
     .eq("status", "DA_FARE")
     .is("booking_id", null)
     .order("created_at", { ascending: true });
+
+  // Backward-compatible fallback when actions.created_at is not present.
+  if (existingErr?.code === "42703" && String(existingErr.message ?? "").includes("created_at")) {
+    const retry = await supabase
+      .from("actions")
+      .select("id")
+      .eq("action_type", "SPESA")
+      .eq("status", "DA_FARE")
+      .is("booking_id", null);
+    existing = retry.data;
+    existingErr = retry.error;
+  }
 
   if (existingErr) throw new Error(existingErr.message);
 
