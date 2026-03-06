@@ -6,6 +6,7 @@ type StockProduct = {
   name: string;
   quantity: number;
   threshold: number;
+  consumption_per_checkout?: number;
   unit: string | null;
 };
 
@@ -140,24 +141,22 @@ export async function applyBookingConsumptionDelta(
   direction: 1 | -1,
 ): Promise<void> {
   const consumptionByName = getBookingConsumption(checkIn, checkOut, guests);
-  if (consumptionByName.size === 0) {
-    await syncShoppingAction();
-    return;
-  }
 
   const supabase = supabaseAdmin();
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, ${schema.quantityColumn}`);
+    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, consumption_per_checkout`);
   if (error) throw new Error(error.message);
 
   for (const raw of data ?? []) {
     const row = raw as Record<string, unknown>;
     const rawName = String(row.name ?? "");
     const normalized = normalizeProductName(rawName);
-    const consume = consumptionByName.get(normalized);
-    if (!consume || consume <= 0) continue;
+    const fixedConsume = consumptionByName.get(normalized) ?? 0;
+    const perCheckoutConsume = toFixedNumber(row.consumption_per_checkout, 0);
+    const consume = fixedConsume + Math.max(0, perCheckoutConsume);
+    if (consume <= 0) continue;
 
     const productId = getProductId(row, schema);
     if (!productId) continue;

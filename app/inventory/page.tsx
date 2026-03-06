@@ -25,6 +25,8 @@ const MONITORED_CATEGORIES = new Set([
   "CAFFE",
   "ASCIUGAMANI E BAGNO",
   "LENZUOLA E COPERTE",
+  "TESSILI E BIANCHERIA",
+  "CUCINA",
 ]);
 
 function toNum(value: unknown, fallback = 0): number {
@@ -37,6 +39,22 @@ function stateForProduct(product: ProductRow): "OK" | "IN_ESAURIMENTO" | "DA_RIF
   if (product.quantity <= product.threshold) return "DA_RIFORNIRE";
   if (product.quantity <= product.threshold + margin) return "IN_ESAURIMENTO";
   return "OK";
+}
+
+function isMonitoredProduct(product: ProductRow): boolean {
+  const categoryKey = String(product.category ?? "").toUpperCase();
+  if (MONITORED_CATEGORIES.has(categoryKey)) return true;
+
+  const nameKey = product.name.toUpperCase();
+  return (
+    nameKey.includes("CAFFE") ||
+    nameKey.includes("CARTA IGIENICA") ||
+    nameKey.includes("SPUGNETT") ||
+    nameKey.includes("ASCIUGAMANI") ||
+    nameKey.includes("LENZUO") ||
+    nameKey.includes("COPRIPIUMINI") ||
+    nameKey.includes("TAPPETINI")
+  );
 }
 
 export default function InventoryPage() {
@@ -124,13 +142,13 @@ export default function InventoryPage() {
   }, []);
 
   const visibleProducts = useMemo(() => {
-    return products.filter((product) => {
-      const categoryKey = String(product.category ?? "").toUpperCase();
-      const monitored = MONITORED_CATEGORIES.has(categoryKey);
-      if (!monitored) return false;
+    const monitored = products.filter((product) => isMonitoredProduct(product));
+    const alerting = monitored.filter((product) => {
       const state = stateForProduct(product);
-      return state === "DA_RIFORNIRE" || state === "IN_ESAURIMENTO";
+      return state !== "OK";
     });
+    // Default view: alerting first, fallback to monitored defaults.
+    return alerting.length > 0 ? alerting : monitored;
   }, [products]);
 
   return (
@@ -170,7 +188,16 @@ export default function InventoryPage() {
                 const draft = drafts[product.id] ?? { addQty: "", amount: "" };
 
                 return (
-                  <TableRow key={product.id} className={state === "DA_RIFORNIRE" ? "bg-rose-50/50" : "bg-amber-50/40"}>
+                    <TableRow
+                      key={product.id}
+                      className={
+                        state === "DA_RIFORNIRE"
+                          ? "bg-rose-50/50"
+                          : state === "IN_ESAURIMENTO"
+                            ? "bg-amber-50/40"
+                            : ""
+                      }
+                    >
                     <TableCell className="font-medium text-zinc-900">{product.name}</TableCell>
                     <TableCell>{product.category ?? "-"}</TableCell>
                     <TableCell>{product.initialQuantity} {product.unit ?? ""}</TableCell>
@@ -182,10 +209,14 @@ export default function InventoryPage() {
                           <AlertTriangle className="h-3.5 w-3.5" />
                           DA RIFORNIRE
                         </span>
-                      ) : (
+                      ) : state === "IN_ESAURIMENTO" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
                           <AlertTriangle className="h-3.5 w-3.5" />
                           IN ESAURIMENTO
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                          OK
                         </span>
                       )}
                     </TableCell>
