@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { syncShoppingAction } from "@/lib/stock";
 
 type ProductBulkUpdate = {
   id: string;
@@ -70,6 +71,8 @@ export async function PUT(req: Request) {
       const { error } = await supabase.from("products").update(payload).eq("id", item.id);
       if (error) return NextResponse.json({ error: error.message, item }, { status: 400 });
     }
+
+    await syncShoppingAction();
 
     return NextResponse.json({ ok: true, updated: updates.length }, { status: 200 });
   } catch (e: unknown) {

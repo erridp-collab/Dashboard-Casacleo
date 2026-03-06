@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { applyBookingConsumptions } from "@/lib/stock";
 
 type CreateBookingPayload = {
   check_in: string;
@@ -237,6 +238,11 @@ export async function POST(req: Request) {
 
     await ensureActionWithChecklist(bookingId, check_out, "PULIZIA", CLEANING_CHECKLIST);
     await ensureActionWithChecklist(bookingId, check_out, "MANUTENZIONE", MAINTENANCE_CHECKLIST);
+    try {
+      await applyBookingConsumptions(check_in, check_out, parsedGuests);
+    } catch (stockErr: unknown) {
+      console.error("Stock consumption sync failed", stockErr);
+    }
 
     return NextResponse.json({ booking_id: bookingId }, { status: 200 });
   } catch (e: unknown) {
