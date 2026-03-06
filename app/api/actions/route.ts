@@ -52,7 +52,13 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: "Missing id/status" }, { status: 400 });
       }
 
-      const { error } = await supabase.from("actions").update({ status: body.status }).eq("id", body.id);
+      const patch: Record<string, unknown> = { status: body.status };
+      const completedAmount = Number(body.completion?.amount ?? NaN);
+      if (Number.isFinite(completedAmount) && completedAmount > 0) {
+        patch.amount = completedAmount;
+      }
+
+      const { error } = await supabase.from("actions").update(patch).eq("id", body.id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
       await applyActionStatusEffects(body.id, body.status, body.completion);
 

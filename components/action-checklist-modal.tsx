@@ -8,9 +8,10 @@ type Props = {
   actionId: string | null;
   title: string;
   onClose: () => void;
+  onActionStatusChange?: (actionId: string, nextStatus: "DA_FARE" | "FATTO") => void;
 };
 
-export function ActionChecklistModal({ actionId, title, onClose }: Props) {
+export function ActionChecklistModal({ actionId, title, onClose, onActionStatusChange }: Props) {
   const [items, setItems] = useState<ActionChecklistItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +49,9 @@ export function ActionChecklistModal({ actionId, title, onClose }: Props) {
     }
 
     setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, done: nextDone } : x)));
+    if (data?.action_id && (data?.next_status === "DA_FARE" || data?.next_status === "FATTO")) {
+      onActionStatusChange?.(String(data.action_id), data.next_status);
+    }
   }
 
   useEffect(() => {

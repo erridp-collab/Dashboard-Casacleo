@@ -21,6 +21,7 @@ export default function ActionsPage() {
   const [to, setTo] = useState(today);
   const [actions, setActions] = useState<Action[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
+  const [showDone, setShowDone] = useState(false);
   const [error, setError] = useState("");
 
   async function loadActions() {
@@ -48,6 +49,22 @@ export default function ActionsPage() {
         payload.completion = { mode: "EXTERNAL", external_amount: amount };
       } else {
         payload.completion = { mode: "SELF" };
+      }
+    }
+
+    if (next === "FATTO" && action.action_type.toUpperCase() === "SPESA") {
+      const amountRaw = prompt("Importo spesa/rifornimento (EUR, opzionale)", "");
+      if (amountRaw === null) return;
+      const trimmed = amountRaw.trim();
+      if (trimmed !== "") {
+        const amount = Number(trimmed.replace(",", "."));
+        if (!Number.isFinite(amount) || amount <= 0) {
+          setError("Importo spesa non valido");
+          return;
+        }
+        payload.completion = { mode: "SPESA", amount };
+      } else {
+        payload.completion = { mode: "SPESA" };
       }
     }
 
@@ -80,7 +97,11 @@ export default function ActionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const grouped = useMemo(() => groupByDate(actions), [actions]);
+  const visibleActions = useMemo(
+    () => (showDone ? actions : actions.filter((a) => a.status !== "FATTO")),
+    [actions, showDone],
+  );
+  const groupedVisible = useMemo(() => groupByDate(visibleActions), [visibleActions]);
 
   return (
     <section className="space-y-6">
@@ -118,13 +139,17 @@ export default function ActionsPage() {
             <RefreshCw className="h-4 w-4" />
             Aggiorna
           </button>
+          <label className="inline-flex items-center gap-2 text-sm text-zinc-600">
+            <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
+            Mostra FATTO
+          </label>
         </div>
       </Card>
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
       <div className="space-y-4">
-        {Object.entries(grouped).map(([date, rows]) => (
+        {Object.entries(groupedVisible).map(([date, rows]) => (
           <Card key={date}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-800">
@@ -140,7 +165,9 @@ export default function ActionsPage() {
               {rows.map((a) => (
                 <button
                   key={a.id}
-                  className="w-full rounded-xl border border-zinc-200 p-3 text-left transition hover:border-blue-200 hover:bg-zinc-50"
+                  className={`w-full rounded-xl border border-zinc-200 p-3 text-left transition hover:border-blue-200 hover:bg-zinc-50 ${
+                    a.status === "FATTO" ? "opacity-70 line-through" : ""
+                  }`}
                   onClick={() => {
                     if (a.action_type.toUpperCase() === "SPESA") return;
                     setSelectedAction(a);
@@ -172,7 +199,7 @@ export default function ActionsPage() {
             </div>
           </Card>
         ))}
-        {actions.length === 0 && (
+        {visibleActions.length === 0 && (
           <Card>
             <p className="py-4 text-center text-sm text-zinc-500">Nessuna azione nel range selezionato.</p>
           </Card>
@@ -183,6 +210,9 @@ export default function ActionsPage() {
         actionId={selectedAction?.id ?? null}
         title={selectedAction ? `Checklist ${selectedAction.action_type}` : "Checklist"}
         onClose={() => setSelectedAction(null)}
+        onActionStatusChange={(actionId, nextStatus) => {
+          setActions((prev) => prev.map((a) => (a.id === actionId ? { ...a, status: nextStatus } : a)));
+        }}
       />
     </section>
   );

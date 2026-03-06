@@ -47,7 +47,10 @@ export async function PATCH(req: Request) {
 
     await applyActionStatusEffects(String(itemRow.action_id), nextStatus);
 
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return NextResponse.json(
+      { ok: true, action_id: String(itemRow.action_id), next_status: nextStatus },
+      { status: 200 },
+    );
   } catch (e: unknown) {
     return NextResponse.json(
       { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
