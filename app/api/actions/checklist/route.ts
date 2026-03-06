@@ -14,12 +14,36 @@ export async function PATCH(req: Request) {
     }
 
     const supabase = supabaseAdmin();
+    const { data: itemRow, error: findErr } = await supabase
+      .from("action_checklist")
+      .select("id, action_id")
+      .eq("id", body.id)
+      .maybeSingle();
+    if (findErr) return NextResponse.json({ error: findErr.message }, { status: 400 });
+    if (!itemRow) return NextResponse.json({ error: "Checklist item not found" }, { status: 404 });
+
     const { error } = await supabase
       .from("action_checklist")
       .update({ done: body.done })
       .eq("id", body.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    const { data: rows, error: rowsErr } = await supabase
+      .from("action_checklist")
+      .select("done")
+      .eq("action_id", itemRow.action_id);
+    if (rowsErr) return NextResponse.json({ error: rowsErr.message }, { status: 400 });
+
+    const allDone = (rows ?? []).length > 0 && (rows ?? []).every((row) => Boolean(row.done));
+    const nextStatus = allDone ? "FATTO" : "DA_FARE";
+
+    const { error: actionErr } = await supabase
+      .from("actions")
+      .update({ status: nextStatus })
+      .eq("id", itemRow.action_id);
+    if (actionErr) return NextResponse.json({ error: actionErr.message }, { status: 400 });
+
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
     return NextResponse.json(
@@ -28,4 +52,3 @@ export async function PATCH(req: Request) {
     );
   }
 }
-

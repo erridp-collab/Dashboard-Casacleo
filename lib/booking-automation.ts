@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getChecklistTemplate } from "@/lib/checklist-templates";
 
 type BookingRow = {
   id: string;
@@ -12,30 +13,6 @@ type DesiredAction = {
   action_type: string;
   status: "DA_FARE";
   details: string | null;
-};
-
-const CHECKLIST_TEMPLATES: Record<string, string[]> = {
-  PULIZIA: [
-    "Spolvera tutte le superfici",
-    "Pulisci bagno e sanitari",
-    "Cambia e sistema la biancheria",
-    "Controlla e svuota i cestini",
-  ],
-  LAVATRICI: [
-    "Avvia ciclo lenzuola",
-    "Avvia ciclo asciugamani",
-    "Asciuga e piega i set",
-  ],
-  MANUT_3: [
-    "Controlla porte e finestre",
-    "Usa disgorgante doccia",
-    "Lava coperte extra",
-  ],
-  MANUT_4: [
-    "Lava piumino",
-    "Lava coprimaterasso",
-    "Lava copricuscino",
-  ],
 };
 
 const MANAGED_ACTION_TYPES = ["PULIZIA", "PREPARA_LETTO", "LAVATRICI", "MANUT_3", "MANUT_4", "MANUTENZIONE"];
@@ -52,10 +29,10 @@ function actionKey(action: { booking_id: string | null; action_type: string; act
 }
 
 async function ensureChecklist(actionId: string, actionType: string): Promise<void> {
-  const checklist = CHECKLIST_TEMPLATES[actionType];
+  const supabase = supabaseAdmin();
+  const checklist = await getChecklistTemplate(supabase, actionType);
   if (!checklist || checklist.length === 0) return;
 
-  const supabase = supabaseAdmin();
   const { data: existingRows, error: existingErr } = await supabase
     .from("action_checklist")
     .select("id")
@@ -64,35 +41,22 @@ async function ensureChecklist(actionId: string, actionType: string): Promise<vo
   if (existingErr) throw new Error(existingErr.message);
   if ((existingRows ?? []).length > 0) return;
 
-  const baseRows = checklist.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    label,
-  }));
+  const variants: Record<string, unknown>[][] = [
+    checklist.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, label })),
+    checklist.map((label) => ({ action_id: actionId, done: false, label })),
+    checklist.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, item_text: label })),
+    checklist.map((label) => ({ action_id: actionId, done: false, item_text: label })),
+    checklist.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, item: label })),
+    checklist.map((label) => ({ action_id: actionId, done: false, item: label })),
+  ];
 
-  let insert = await supabase.from("action_checklist").insert(baseRows);
-  if (!insert.error) return;
-  if (insert.error.code !== "42703") throw new Error(insert.error.message);
-
-  const itemTextRows = checklist.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    item_text: label,
-  }));
-  insert = await supabase.from("action_checklist").insert(itemTextRows);
-  if (!insert.error) return;
-  if (insert.error.code !== "42703") throw new Error(insert.error.message);
-
-  const itemRows = checklist.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    item: label,
-  }));
-  const finalInsert = await supabase.from("action_checklist").insert(itemRows);
-  if (finalInsert.error) throw new Error(finalInsert.error.message);
+  let lastError = "";
+  for (const rows of variants) {
+    const insert = await supabase.from("action_checklist").insert(rows);
+    if (!insert.error) return;
+    lastError = insert.error.message;
+  }
+  throw new Error(lastError || "Unable to seed action checklist");
 }
 
 function buildDesiredActions(bookings: BookingRow[]): DesiredAction[] {

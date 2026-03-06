@@ -1,35 +1,6 @@
 import { NextResponse } from "next/server";
+import { getChecklistTemplate } from "@/lib/checklist-templates";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-
-const CHECKLIST_TEMPLATES: Record<string, string[]> = {
-  PULIZIA: [
-    "Spolvera tutte le superfici",
-    "Pulisci bagno e sanitari",
-    "Cambia e sistema la biancheria",
-    "Controlla e svuota i cestini",
-  ],
-  LAVATRICI: [
-    "Avvia ciclo lenzuola",
-    "Avvia ciclo asciugamani",
-    "Asciuga e piega i set",
-  ],
-  MANUT_3: [
-    "Controlla porte e finestre",
-    "Usa disgorgante doccia",
-    "Lava coperte extra",
-  ],
-  MANUT_4: [
-    "Lava piumino",
-    "Lava coprimaterasso",
-    "Lava copricuscino",
-  ],
-  MANUTENZIONE: [
-    "Verifica luci e prese elettriche",
-    "Controlla rubinetti e scarichi",
-    "Verifica climatizzazione/riscaldamento",
-    "Segnala eventuali danni o anomalie",
-  ],
-};
 
 async function fetchChecklist(supabase: ReturnType<typeof supabaseAdmin>, actionId: string) {
   let { data, error } = await supabase
@@ -55,7 +26,7 @@ async function seedChecklistFromTemplate(
   actionId: string,
   actionType: string,
 ) {
-  const template = CHECKLIST_TEMPLATES[actionType.toUpperCase()];
+  const template = await getChecklistTemplate(supabase, actionType);
   if (!template || template.length === 0) return;
 
   const variants: Record<string, unknown>[][] = [

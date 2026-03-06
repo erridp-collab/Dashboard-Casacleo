@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { href: "/actions", label: "Actions", icon: ClipboardList },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/warehouse", label: "Warehouse", icon: Boxes },
-  { href: "/inventory", label: "Inventory", icon: Warehouse },
+  { href: "/inventory", label: "Rifornimento", icon: Warehouse },
   { href: "/finance", label: "Finance", icon: Euro },
 ];
 

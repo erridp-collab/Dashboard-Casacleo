@@ -33,10 +33,28 @@ export default function ActionsPage() {
 
   async function toggleStatus(action: Action) {
     const next = action.status === "DA_FARE" ? "FATTO" : "DA_FARE";
+    const payload: Record<string, unknown> = { id: action.id, status: next };
+
+    if (next === "FATTO" && action.action_type.toUpperCase().includes("PULIZIA")) {
+      const external = confirm("Pulizia esterna? OK = esterna, Annulla = fatta da te");
+      if (external) {
+        const amountRaw = prompt("Importo pulizia esterna (EUR)", "");
+        if (amountRaw === null) return;
+        const amount = Number(amountRaw.replace(",", ".").trim());
+        if (!Number.isFinite(amount) || amount <= 0) {
+          setError("Importo pulizia esterna non valido");
+          return;
+        }
+        payload.completion = { mode: "EXTERNAL", external_amount: amount };
+      } else {
+        payload.completion = { mode: "SELF" };
+      }
+    }
+
     const res = await fetch("/api/actions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: action.id, status: next }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "Errore update");
@@ -130,18 +148,17 @@ export default function ActionsPage() {
                       <ActionTypeBadge actionType={a.action_type} />
                       <span className="text-xs text-zinc-500">{a.details ?? ""}</span>
                     </div>
-                    <StatusBadge status={a.status} />
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
-                      className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-100"
+                      className="rounded-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         void toggleStatus(a);
                       }}
                     >
-                      Toggle stato
+                      <StatusBadge status={a.status} />
                     </button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <span className="text-xs text-zinc-500">Booking: {a.booking_id ?? "-"}</span>
                   </div>
                 </button>
