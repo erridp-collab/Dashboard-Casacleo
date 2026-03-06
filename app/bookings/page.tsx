@@ -13,7 +13,7 @@ type BookingForm = {
   guests: number;
   channel: string;
   notes: string;
-  total_amount: number;
+  total_amount: string;
 };
 
 const INITIAL_FORM: BookingForm = {
@@ -22,14 +22,22 @@ const INITIAL_FORM: BookingForm = {
   guests: 2,
   channel: "airbnb",
   notes: "",
-  total_amount: 0,
+  total_amount: "",
 };
+
+function parseAmountInput(value: string): number | null {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
 
 export default function BookingsPage() {
   const [form, setForm] = useState<BookingForm>(INITIAL_FORM);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
   const [bookingActions, setBookingActions] = useState<Record<string, Action[]>>({});
+  const [amountDraftById, setAmountDraftById] = useState<Record<string, string>>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -41,16 +49,30 @@ export default function BookingsPage() {
       setError(data.error ?? "Errore caricamento prenotazioni");
       return;
     }
-    setBookings(data.bookings ?? []);
+    const rows = data.bookings ?? [];
+    setBookings(rows);
+    setAmountDraftById(
+      Object.fromEntries(
+        rows.map((b: Booking) => [b.id, b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount)]),
+      ),
+    );
   }
 
   async function createBooking() {
     setError("");
+    const parsedAmount = parseAmountInput(form.total_amount);
+    if (Number.isNaN(parsedAmount)) {
+      setError("Importo non valido");
+      return;
+    }
     setLoading(true);
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        total_amount: parsedAmount,
+      }),
     });
     const data = await res.json();
     setLoading(false);
@@ -62,6 +84,11 @@ export default function BookingsPage() {
   async function updateBooking(id: string) {
     const row = bookings.find((b) => b.id === id);
     if (!row) return;
+    const parsedAmount = parseAmountInput(amountDraftById[id] ?? "");
+    if (Number.isNaN(parsedAmount)) {
+      setError("Importo non valido");
+      return;
+    }
     const res = await fetch(`/api/bookings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -71,7 +98,7 @@ export default function BookingsPage() {
         guests: row.guests,
         channel: row.channel,
         notes: row.notes,
-        total_amount: row.total_amount ?? 0,
+        total_amount: parsedAmount,
       }),
     });
     const data = await res.json();
@@ -121,7 +148,7 @@ export default function BookingsPage() {
           <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
           <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="number" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
           <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="Canale" />
-          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="number" min={0} value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: Number(e.target.value) }))} placeholder="Importo" />
+          <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="Importo" />
           <input className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none md:col-span-3" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note" />
         </div>
         <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
@@ -170,7 +197,14 @@ export default function BookingsPage() {
                         <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.channel ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
                       </TableCell>
                       <TableCell>
-                        <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="number" min={0} value={b.total_amount ?? 0} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, total_amount: Number(e.target.value) } : x)))} />
+                        <input
+                          className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50"
+                          type="text"
+                          inputMode="decimal"
+                          value={amountDraftById[b.id] ?? ""}
+                          disabled={!isEditing}
+                          onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                        />
                       </TableCell>
                       <TableCell>
                         <input className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.notes ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
@@ -188,7 +222,13 @@ export default function BookingsPage() {
                               Salva
                             </button>
                           ) : (
-                            <button className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => setEditId(b.id)}>
+                            <button className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => {
+                              setAmountDraftById((prev) => ({
+                                ...prev,
+                                [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
+                              }));
+                              setEditId(b.id);
+                            }}>
                               <PenLine className="h-3.5 w-3.5" />
                               Modifica
                             </button>

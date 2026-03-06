@@ -7,7 +7,7 @@ type UpdateBookingPayload = {
   guests?: number;
   channel?: string | null;
   notes?: string | null;
-  total_amount?: number | null;
+  total_amount?: number | string | null;
 };
 
 const UUID_V4ISH = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -17,6 +17,22 @@ function formatDbError(error: { message?: string; code?: string; details?: strin
     .filter(Boolean)
     .join(" | ");
   return details || "Database error";
+}
+
+function toAmount(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const normalized = value.trim().replace(",", ".");
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function isValidIsoDate(date: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(date);
 }
 
 export async function PATCH(
@@ -32,19 +48,63 @@ export async function PATCH(
 
     const body = (await req.json()) as UpdateBookingPayload;
     const updates: Record<string, unknown> = {};
+    const supabase = supabaseAdmin();
+    const { data: current, error: currentErr } = await supabase
+      .from("bookings")
+      .select("id, check_in, check_out, guests")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (currentErr) return NextResponse.json({ error: formatDbError(currentErr) }, { status: 400 });
+    if (!current) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
     if (body.check_in !== undefined) updates.check_in = body.check_in;
     if (body.check_out !== undefined) updates.check_out = body.check_out;
     if (body.guests !== undefined) updates.guests = body.guests;
     if (body.channel !== undefined) updates.channel = body.channel;
     if (body.notes !== undefined) updates.notes = body.notes;
-    if (body.total_amount !== undefined) updates.total_amount = body.total_amount;
+    if (body.total_amount !== undefined) {
+      const amount = toAmount(body.total_amount);
+      if (body.total_amount !== null && body.total_amount !== "" && amount === null) {
+        return NextResponse.json({ error: "Importo non valido" }, { status: 400 });
+      }
+      updates.total_amount = amount;
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "No updates provided" }, { status: 400 });
     }
 
-    const supabase = supabaseAdmin();
+    const nextCheckIn = String(body.check_in ?? current.check_in);
+    const nextCheckOut = String(body.check_out ?? current.check_out);
+    const nextGuests = Number(body.guests ?? current.guests);
+
+    if (!isValidIsoDate(nextCheckIn) || !isValidIsoDate(nextCheckOut)) {
+      return NextResponse.json({ error: "Formato data non valido (YYYY-MM-DD)" }, { status: 400 });
+    }
+    if (nextCheckIn >= nextCheckOut) {
+      return NextResponse.json({ error: "Check-out deve essere successivo al check-in" }, { status: 400 });
+    }
+    if (!Number.isFinite(nextGuests) || nextGuests <= 0) {
+      return NextResponse.json({ error: "Numero ospiti non valido" }, { status: 400 });
+    }
+
+    const { data: conflictRows, error: conflictErr } = await supabase
+      .from("bookings")
+      .select("id")
+      .neq("id", id)
+      .lte("check_in", nextCheckOut)
+      .gte("check_out", nextCheckIn)
+      .limit(1);
+
+    if (conflictErr) return NextResponse.json({ error: formatDbError(conflictErr) }, { status: 400 });
+    if ((conflictRows ?? []).length > 0) {
+      return NextResponse.json(
+        { error: "Esiste gia una prenotazione nello stesso giorno o in sovrapposizione" },
+        { status: 409 },
+      );
+    }
+
     let { data, error } = await supabase
       .from("bookings")
       .update(updates)
