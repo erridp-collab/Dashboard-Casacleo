@@ -47,7 +47,7 @@ updated as (
     consumption_per_checkout = s.consumption_per_checkout
   from seed s
   where lower(trim(p.name)) = lower(trim(s.name))
-  returning p.id
+  returning 1
 )
 insert into public.products (name, category, unit, quantity, threshold, max_qty, consumption_per_checkout)
 select s.name, s.category, s.unit, s.quantity, s.threshold, s.max_qty, s.consumption_per_checkout
