@@ -58,34 +58,23 @@ async function seedChecklistFromTemplate(
   const template = CHECKLIST_TEMPLATES[actionType.toUpperCase()];
   if (!template || template.length === 0) return;
 
-  const baseRows = template.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    label,
-  }));
-  let insert = await supabase.from("action_checklist").insert(baseRows);
-  if (!insert.error) return;
-  if (insert.error.code !== "42703") throw new Error(insert.error.message);
+  const variants: Record<string, unknown>[][] = [
+    template.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, label })),
+    template.map((label) => ({ action_id: actionId, done: false, label })),
+    template.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, item_text: label })),
+    template.map((label) => ({ action_id: actionId, done: false, item_text: label })),
+    template.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, item: label })),
+    template.map((label) => ({ action_id: actionId, done: false, item: label })),
+  ];
 
-  const itemTextRows = template.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    item_text: label,
-  }));
-  insert = await supabase.from("action_checklist").insert(itemTextRows);
-  if (!insert.error) return;
-  if (insert.error.code !== "42703") throw new Error(insert.error.message);
+  let lastError = "";
+  for (const rows of variants) {
+    const insert = await supabase.from("action_checklist").insert(rows);
+    if (!insert.error) return;
+    lastError = insert.error.message;
+  }
 
-  const itemRows = template.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    item: label,
-  }));
-  const last = await supabase.from("action_checklist").insert(itemRows);
-  if (last.error) throw new Error(last.error.message);
+  throw new Error(lastError || "Unable to seed checklist template");
 }
 
 export async function GET(
@@ -107,7 +96,14 @@ export async function GET(
         .maybeSingle();
       if (actionErr) return NextResponse.json({ error: actionErr.message }, { status: 400 });
       if (actionRow?.action_type) {
-        await seedChecklistFromTemplate(supabase, id, String(actionRow.action_type));
+        try {
+          await seedChecklistFromTemplate(supabase, id, String(actionRow.action_type));
+        } catch (seedErr: unknown) {
+          return NextResponse.json(
+            { error: "CHECKLIST_TEMPLATE_SEED_FAILED", details: String((seedErr as Error)?.message ?? seedErr) },
+            { status: 400 },
+          );
+        }
         const retry = await fetchChecklist(supabase, id);
         data = retry.data;
         error = retry.error;
