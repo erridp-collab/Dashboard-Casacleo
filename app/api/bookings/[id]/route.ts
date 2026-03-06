@@ -35,6 +35,14 @@ function isValidIsoDate(date: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(date);
 }
 
+function isMissingTotalAmountError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    (error.code === "42703" || error.code === "PGRST204") &&
+    String(error.message ?? "").includes("total_amount")
+  );
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -113,7 +121,7 @@ export async function PATCH(
       .maybeSingle();
 
     // Backward-compatible fallback when total_amount is not present in older schemas.
-    if (error?.code === "42703" && error.message.includes("total_amount")) {
+    if (isMissingTotalAmountError(error)) {
       const retryUpdates = { ...updates };
       delete retryUpdates.total_amount;
       const retry = await supabase

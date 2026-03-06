@@ -40,6 +40,14 @@ function isValidIsoDate(date: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(date);
 }
 
+function isMissingTotalAmountError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    (error.code === "42703" || error.code === "PGRST204") &&
+    String(error.message ?? "").includes("total_amount")
+  );
+}
+
 async function hasDateConflict(checkIn: string, checkOut: string): Promise<boolean> {
   const supabase = supabaseAdmin();
   const { data, error } = await supabase
@@ -135,7 +143,7 @@ export async function GET() {
       .order("check_in", { ascending: false });
 
     // Backward-compatible fallback when total_amount is not present in older schemas.
-    if (error?.code === "42703" && error.message.includes("total_amount")) {
+    if (isMissingTotalAmountError(error)) {
       const retry = await supabase
         .from("bookings")
         .select("id, check_in, check_out, guests, channel, notes, created_at")
@@ -202,7 +210,7 @@ export async function POST(req: Request) {
       .single();
 
     // Backward-compatible fallback when total_amount is not present in older schemas.
-    if (error?.code === "42703" && error.message.includes("total_amount")) {
+    if (isMissingTotalAmountError(error)) {
       const legacyPayload: Record<string, unknown> = { ...payload };
       delete legacyPayload.total_amount;
       const retry = await supabase
