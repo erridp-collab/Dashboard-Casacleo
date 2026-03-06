@@ -141,7 +141,10 @@ export default function ActionsPage() {
                 <button
                   key={a.id}
                   className="w-full rounded-xl border border-zinc-200 p-3 text-left transition hover:border-blue-200 hover:bg-zinc-50"
-                  onClick={() => setSelectedAction(a)}
+                  onClick={() => {
+                    if (a.action_type.toUpperCase() === "SPESA") return;
+                    setSelectedAction(a);
+                  }}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -160,6 +163,9 @@ export default function ActionsPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <span className="text-xs text-zinc-500">Booking: {a.booking_id ?? "-"}</span>
+                    {a.action_type.toUpperCase() === "SPESA" ? (
+                      <span className="text-xs text-zinc-500">Lista spesa in dettaglio (non checklist)</span>
+                    ) : null}
                   </div>
                 </button>
               ))}

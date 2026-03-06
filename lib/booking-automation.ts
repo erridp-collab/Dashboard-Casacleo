@@ -59,7 +59,7 @@ async function ensureChecklist(actionId: string, actionType: string): Promise<vo
   throw new Error(lastError || "Unable to seed action checklist");
 }
 
-function buildDesiredActions(bookings: BookingRow[]): DesiredAction[] {
+export function computeDesiredActions(bookings: BookingRow[]): DesiredAction[] {
   const desired: DesiredAction[] = [];
   let prevCheckOut: string | null = null;
 
@@ -134,7 +134,7 @@ export async function syncBookingAutomations(): Promise<void> {
     check_out: String(b.check_out),
   }));
 
-  const desired = buildDesiredActions(bookings);
+  const desired = computeDesiredActions(bookings);
   const desiredMap = new Map(desired.map((a) => [actionKey(a), a]));
 
   const { data: existingData, error: existingErr } = await supabase

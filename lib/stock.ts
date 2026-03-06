@@ -4,6 +4,7 @@ import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/pr
 type StockProduct = {
   id: string;
   name: string;
+  category?: string | null;
   quantity: number;
   threshold: number;
   consumption_per_checkout?: number;
@@ -32,7 +33,7 @@ function bookingDays(checkIn: string, checkOut: string): number {
   return Math.ceil(diffMs / (24 * 60 * 60 * 1000));
 }
 
-function getBookingConsumption(checkIn: string, checkOut: string, guests: number): Map<string, number> {
+export function getBookingConsumptionMap(checkIn: string, checkOut: string, guests: number): Map<string, number> {
   const days = bookingDays(checkIn, checkOut);
   const parsedGuests = Number.isFinite(guests) ? guests : 0;
   const consumptions = new Map<string, number>();
@@ -52,6 +53,32 @@ function shoppingDetails(products: StockProduct[]): string {
     return `- ${p.name}: ${p.quantity}${unit} (soglia ${p.threshold})`;
   });
   return `Prodotti da reintegrare:\n${rows.join("\n")}`;
+}
+
+export function shouldIncludeInShoppingList(product: Pick<StockProduct, "name" | "unit"> & { category?: string | null }): boolean {
+  const category = String(product.category ?? "").toUpperCase();
+  const name = String(product.name ?? "").toUpperCase();
+
+  // Biancheria/tessili are managed by LAVATRICI flow, not SPESA.
+  if (
+    category === "ASCIUGAMANI E BAGNO" ||
+    category === "LENZUOLA E COPERTE" ||
+    category === "TESSILI E BIANCHERIA"
+  ) {
+    return false;
+  }
+  if (
+    name.includes("ASCIUGAMANI") ||
+    name.includes("LENZUO") ||
+    name.includes("FEDER") ||
+    name.includes("COPRIPIUM") ||
+    name.includes("TAPPETINI") ||
+    name.includes("PIUMINO")
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 async function upsertShoppingAction(
@@ -133,7 +160,7 @@ export async function syncShoppingAction(): Promise<void> {
 
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, threshold, unit`)
+    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, threshold, unit`)
     .order("name", { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -146,10 +173,11 @@ export async function syncShoppingAction(): Promise<void> {
       quantity: getProductQuantity(row, schema),
       threshold: toFixedNumber(row.threshold, 0),
       unit: row.unit === null || row.unit === undefined ? null : String(row.unit),
+      category: row.category === null || row.category === undefined ? null : String(row.category),
     };
   });
 
-  const lowStock = products.filter((p) => p.quantity <= p.threshold);
+  const lowStock = products.filter((p) => p.quantity <= p.threshold && shouldIncludeInShoppingList(p));
   let { data: existing, error: existingErr } = await supabase
     .from("actions")
     .select("id")
@@ -197,7 +225,7 @@ export async function applyBookingConsumptionDelta(
   guests: number,
   direction: 1 | -1,
 ): Promise<void> {
-  const consumptionByName = getBookingConsumption(checkIn, checkOut, guests);
+  const consumptionByName = getBookingConsumptionMap(checkIn, checkOut, guests);
 
   const supabase = supabaseAdmin();
   const schema = await resolveProductSchema(supabase);

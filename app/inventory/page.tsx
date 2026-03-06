@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ShoppingCart } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
+import { getRefillState, isMonitoredRefillProduct } from "@/lib/refill";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
 
 type ProductRow = {
@@ -20,41 +21,9 @@ type RestockDraft = {
   amount: string;
 };
 
-const MONITORED_CATEGORIES = new Set([
-  "PRODOTTI PER PULIZIA",
-  "CAFFE",
-  "ASCIUGAMANI E BAGNO",
-  "LENZUOLA E COPERTE",
-  "TESSILI E BIANCHERIA",
-  "CUCINA",
-]);
-
 function toNum(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function stateForProduct(product: ProductRow): "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE" {
-  const margin = product.initialQuantity * 0.2;
-  if (product.quantity <= product.threshold) return "DA_RIFORNIRE";
-  if (product.quantity <= product.threshold + margin) return "IN_ESAURIMENTO";
-  return "OK";
-}
-
-function isMonitoredProduct(product: ProductRow): boolean {
-  const categoryKey = String(product.category ?? "").toUpperCase();
-  if (MONITORED_CATEGORIES.has(categoryKey)) return true;
-
-  const nameKey = product.name.toUpperCase();
-  return (
-    nameKey.includes("CAFFE") ||
-    nameKey.includes("CARTA IGIENICA") ||
-    nameKey.includes("SPUGNETT") ||
-    nameKey.includes("ASCIUGAMANI") ||
-    nameKey.includes("LENZUO") ||
-    nameKey.includes("COPRIPIUMINI") ||
-    nameKey.includes("TAPPETINI")
-  );
 }
 
 export default function InventoryPage() {
@@ -142,9 +111,9 @@ export default function InventoryPage() {
   }, []);
 
   const visibleProducts = useMemo(() => {
-    const monitored = products.filter((product) => isMonitoredProduct(product));
+    const monitored = products.filter((product) => isMonitoredRefillProduct(product));
     const alerting = monitored.filter((product) => {
-      const state = stateForProduct(product);
+      const state = getRefillState(product);
       return state !== "OK";
     });
     // Default view: alerting first, fallback to monitored defaults.
@@ -183,7 +152,7 @@ export default function InventoryPage() {
             </TableHead>
             <TableBody>
               {visibleProducts.map((product) => {
-                const state = stateForProduct(product);
+                const state = getRefillState(product);
                 const margin = Number((product.initialQuantity * 0.2).toFixed(2));
                 const draft = drafts[product.id] ?? { addQty: "", amount: "" };
 
