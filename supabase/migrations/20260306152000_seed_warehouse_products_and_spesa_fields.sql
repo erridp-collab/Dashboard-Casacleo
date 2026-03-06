@@ -78,7 +78,7 @@ begin
            %I = s.quantity,
            threshold = s.threshold,
            max_qty = s.max_qty,
-           consumption_per_checkout = s.consumption_per_checkout
+           consumption_per_checkout = coalesce(s.consumption_per_checkout, 0)
       from tmp_seed_products s
      where lower(trim(p.name)) = lower(trim(s.name))',
     qty_col
@@ -86,7 +86,7 @@ begin
 
   execute format(
     'insert into public.products (name, category, unit, %I, threshold, max_qty, consumption_per_checkout)
-     select s.name, s.category, s.unit, s.quantity, s.threshold, s.max_qty, s.consumption_per_checkout
+     select s.name, s.category, s.unit, s.quantity, s.threshold, s.max_qty, coalesce(s.consumption_per_checkout, 0)
      from tmp_seed_products s
      where not exists (
        select 1
