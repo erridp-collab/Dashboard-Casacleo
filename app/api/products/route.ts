@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 
@@ -11,10 +12,19 @@ type ProductPatch = {
 export async function GET() {
   try {
     const supabase = supabaseAdmin();
+    const schema = await resolveProductSchema(supabase);
     const { data, error } = await supabase.from("products").select("*").order("name", { ascending: true });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ products: data ?? [] }, { status: 200 });
+    const products = (data ?? []).map((raw) => {
+      const row = raw as Record<string, unknown>;
+      return {
+        ...row,
+        id: getProductId(row, schema),
+        quantity: getProductQuantity(row, schema),
+      };
+    });
+    return NextResponse.json({ products }, { status: 200 });
   } catch (e: unknown) {
     return NextResponse.json(
       { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
@@ -33,13 +43,14 @@ export async function PATCH(req: Request) {
     }
 
     const supabase = supabaseAdmin();
+    const schema = await resolveProductSchema(supabase);
     for (const item of updates) {
       const payload: Record<string, unknown> = {};
-      if (item.quantity !== undefined) payload.quantity = item.quantity;
+      if (item.quantity !== undefined) payload[schema.quantityColumn] = item.quantity;
       if (item.threshold !== undefined) payload.threshold = item.threshold;
       if (Object.keys(payload).length === 0) continue;
 
-      const { error } = await supabase.from("products").update(payload).eq("id", item.id);
+      const { error } = await supabase.from("products").update(payload).eq(schema.idColumn, item.id);
       if (error) return NextResponse.json({ error: error.message, item }, { status: 400 });
     }
 

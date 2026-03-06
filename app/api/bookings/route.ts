@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { syncBookingAutomations } from "@/lib/booking-automation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { applyBookingConsumptions } from "@/lib/stock";
 
@@ -10,20 +11,6 @@ type CreateBookingPayload = {
   notes?: string | null;
   total_amount?: number | string | null;
 };
-
-const CLEANING_CHECKLIST = [
-  "Spolvera tutte le superfici",
-  "Pulisci bagno e sanitari",
-  "Cambia e sistema la biancheria",
-  "Controlla e svuota i cestini",
-];
-
-const MAINTENANCE_CHECKLIST = [
-  "Verifica luci e prese elettriche",
-  "Controlla rubinetti e scarichi",
-  "Verifica climatizzazione/riscaldamento",
-  "Segnala eventuali danni o anomalie",
-];
 
 function toAmount(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -60,79 +47,6 @@ async function hasDateConflict(checkIn: string, checkOut: string): Promise<boole
 
   if (error) throw new Error(error.message);
   return (data ?? []).length > 0;
-}
-
-async function ensureActionWithChecklist(
-  bookingId: string,
-  actionDate: string,
-  actionType: "PULIZIA" | "MANUTENZIONE",
-  checklist: string[],
-) {
-  const supabase = supabaseAdmin();
-  const { data: existing, error: existingErr } = await supabase
-    .from("actions")
-    .select("id")
-    .eq("booking_id", bookingId)
-    .eq("action_type", actionType)
-    .eq("action_date", actionDate)
-    .maybeSingle();
-
-  if (existingErr) throw new Error(existingErr.message);
-
-  let actionId = existing?.id ?? null;
-  if (!actionId) {
-    const { data: created, error: createErr } = await supabase
-      .from("actions")
-      .insert({
-        booking_id: bookingId,
-        action_date: actionDate,
-        action_type: actionType,
-        status: "DA_FARE",
-        details: null,
-      })
-      .select("id")
-      .single();
-    if (createErr) throw new Error(createErr.message);
-    actionId = created.id;
-  }
-
-  const { data: checklistRows, error: checklistErr } = await supabase
-    .from("action_checklist")
-    .select("id")
-    .eq("action_id", actionId);
-
-  if (checklistErr) throw new Error(checklistErr.message);
-  if ((checklistRows ?? []).length > 0) return;
-
-  const baseRows = checklist.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    label,
-  }));
-
-  let insert = await supabase.from("action_checklist").insert(baseRows);
-  if (!insert.error) return;
-  if (insert.error.code !== "42703") throw new Error(insert.error.message);
-
-  const itemTextRows = checklist.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    item_text: label,
-  }));
-  insert = await supabase.from("action_checklist").insert(itemTextRows);
-  if (!insert.error) return;
-  if (insert.error.code !== "42703") throw new Error(insert.error.message);
-
-  const itemRows = checklist.map((label, index) => ({
-    action_id: actionId,
-    done: false,
-    sort_order: index + 1,
-    item: label,
-  }));
-  const finalInsert = await supabase.from("action_checklist").insert(itemRows);
-  if (finalInsert.error) throw new Error(finalInsert.error.message);
 }
 
 export async function GET() {
@@ -236,12 +150,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Creazione prenotazione fallita" }, { status: 400 });
     }
 
-    await ensureActionWithChecklist(bookingId, check_out, "PULIZIA", CLEANING_CHECKLIST);
-    await ensureActionWithChecklist(bookingId, check_out, "MANUTENZIONE", MAINTENANCE_CHECKLIST);
     try {
+      await syncBookingAutomations();
       await applyBookingConsumptions(check_in, check_out, parsedGuests);
     } catch (stockErr: unknown) {
-      console.error("Stock consumption sync failed", stockErr);
+      console.error("Booking automation sync failed", stockErr);
     }
 
     return NextResponse.json({ booking_id: bookingId }, { status: 200 });

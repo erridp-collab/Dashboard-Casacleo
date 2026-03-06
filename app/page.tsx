@@ -1,37 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import CalendarClient from "@/app/calendar/calendar-client";
 import { Card, CardHeader } from "@/components/card";
 import { KpiCard } from "@/components/kpi-card";
-import { CalendarDays, ClipboardList, Euro, House } from "lucide-react";
-import type { Action, Booking, MonthlyFinancePoint } from "@/types/db";
+import { CalendarDays, ClipboardList, House } from "lucide-react";
+import type { Action, Booking } from "@/types/db";
 
 export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
-  const [monthly, setMonthly] = useState<MonthlyFinancePoint[]>([]);
   const [error, setError] = useState("");
 
   async function loadData() {
     setError("");
     const today = new Date().toISOString().slice(0, 10);
-    const [bookingsRes, actionsRes, financeRes] = await Promise.all([
+    const [bookingsRes, actionsRes] = await Promise.all([
       fetch("/api/bookings"),
       fetch(`/api/actions?from=${today}&to=${today}`),
-      fetch("/api/finance?months=1"),
     ]);
 
     const bookingsData = await bookingsRes.json();
     const actionsData = await actionsRes.json();
-    const financeData = await financeRes.json();
 
     if (!bookingsRes.ok) return setError(bookingsData.error ?? "Errore bookings");
     if (!actionsRes.ok) return setError(actionsData.error ?? "Errore actions");
-    if (!financeRes.ok) return setError(financeData.error ?? "Errore finance");
 
     setBookings(bookingsData.bookings ?? []);
     setActions(actionsData.actions ?? []);
-    setMonthly(financeData.monthly ?? []);
   }
 
   useEffect(() => {
@@ -43,7 +39,6 @@ export default function DashboardPage() {
 
   const openActions = useMemo(() => actions.filter((a) => a.status === "DA_FARE").length, [actions]);
   const todayActions = actions.length;
-  const month = monthly[monthly.length - 1];
 
   return (
     <section className="space-y-6">
@@ -57,8 +52,8 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard title="Prenotazioni Totali" value={String(bookings.length)} />
         <KpiCard title="Azioni Oggi" value={String(todayActions)} subtitle={`${openActions} da fare`} />
-        <KpiCard title="Revenue Mese" value={`EUR ${month?.revenue?.toFixed(0) ?? "0"}`} />
-        <KpiCard title="Profitto Netto Mese" value={`EUR ${month?.netProfit?.toFixed(0) ?? "0"}`} />
+        <KpiCard title="Azioni Aperte" value={String(openActions)} />
+        <KpiCard title="Giorno" value={new Date().toLocaleDateString("it-IT")} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -80,18 +75,9 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        <Card>
-          <CardHeader title="Finance" subtitle="Mese corrente" />
-          <div className="space-y-3 text-sm text-zinc-700">
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
-              <span className="inline-flex items-center gap-2"><Euro className="h-4 w-4 text-emerald-600" /> Revenue</span>
-              <span className="font-medium">EUR {month?.revenue?.toFixed(0) ?? "0"}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
-              <span className="inline-flex items-center gap-2"><Euro className="h-4 w-4 text-emerald-600" /> Profitto netto</span>
-              <span className="font-medium">EUR {month?.netProfit?.toFixed(0) ?? "0"}</span>
-            </div>
-          </div>
+        <Card className="p-4">
+          <CardHeader title="Calendar" subtitle="Prenotazioni e azioni" />
+          <CalendarClient />
         </Card>
       </div>
     </section>

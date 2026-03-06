@@ -108,7 +108,7 @@ export default function WarehousePage() {
       const consumption = toOptionalNumber(p.consumption_per_checkout);
 
       return {
-        id: String(p.id),
+        id: String(p.id ?? p.sku ?? ""),
         name: String(p.name ?? "Prodotto"),
         category: p.category === null || p.category === undefined ? null : String(p.category),
         unit: p.unit === null || p.unit === undefined ? null : String(p.unit),

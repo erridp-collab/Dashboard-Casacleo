@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { syncBookingAutomations } from "@/lib/booking-automation";
+import { applyBookingConsumptionDelta } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type UpdateBookingPayload = {
@@ -143,6 +145,15 @@ export async function PATCH(
 
     if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
     if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+
+    try {
+      await applyBookingConsumptionDelta(String(current.check_in), String(current.check_out), Number(current.guests), -1);
+      await applyBookingConsumptionDelta(nextCheckIn, nextCheckOut, nextGuests, 1);
+      await syncBookingAutomations();
+    } catch (automationErr: unknown) {
+      console.error("Booking update automation sync failed", automationErr);
+    }
+
     return NextResponse.json({ booking: data }, { status: 200 });
   } catch (e: unknown) {
     return NextResponse.json(
@@ -164,7 +175,11 @@ export async function DELETE(
     }
 
     const supabase = supabaseAdmin();
-    const { data: bookingRow, error: bookingFindErr } = await supabase.from("bookings").select("id").eq("id", id).maybeSingle();
+    const { data: bookingRow, error: bookingFindErr } = await supabase
+      .from("bookings")
+      .select("id, check_in, check_out, guests")
+      .eq("id", id)
+      .maybeSingle();
     if (bookingFindErr) return NextResponse.json({ error: formatDbError(bookingFindErr) }, { status: 400 });
     if (!bookingRow) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
@@ -192,6 +207,18 @@ export async function DELETE(
 
     const { error } = await supabase.from("bookings").delete().eq("id", id);
     if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
+
+    try {
+      await applyBookingConsumptionDelta(
+        String(bookingRow.check_in),
+        String(bookingRow.check_out),
+        Number(bookingRow.guests),
+        -1,
+      );
+      await syncBookingAutomations();
+    } catch (automationErr: unknown) {
+      console.error("Booking delete automation sync failed", automationErr);
+    }
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {

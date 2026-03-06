@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
 
 type StockProduct = {
   id: string;
@@ -30,6 +31,20 @@ function bookingDays(checkIn: string, checkOut: string): number {
   return Math.ceil(diffMs / (24 * 60 * 60 * 1000));
 }
 
+function getBookingConsumption(checkIn: string, checkOut: string, guests: number): Map<string, number> {
+  const days = bookingDays(checkIn, checkOut);
+  const parsedGuests = Number.isFinite(guests) ? guests : 0;
+  const consumptions = new Map<string, number>();
+
+  if (days <= 0 || parsedGuests <= 0) return consumptions;
+
+  consumptions.set("caffe cialde", parsedGuests * days);
+  consumptions.set("carta igienica", Math.ceil(parsedGuests / 2) * days);
+  consumptions.set("spugnette morbide", 1);
+  consumptions.set("spugnette lavapiatti", 1);
+  return consumptions;
+}
+
 function shoppingDetails(products: StockProduct[]): string {
   const rows = products.map((p) => {
     const unit = p.unit ? ` ${p.unit}` : "";
@@ -40,20 +55,25 @@ function shoppingDetails(products: StockProduct[]): string {
 
 export async function syncShoppingAction(): Promise<void> {
   const supabase = supabaseAdmin();
+  const schema = await resolveProductSchema(supabase);
+
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, quantity, threshold, unit")
+    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, threshold, unit`)
     .order("name", { ascending: true });
 
   if (error) throw new Error(error.message);
 
-  const products: StockProduct[] = (data ?? []).map((row) => ({
-    id: String(row.id),
-    name: String(row.name ?? ""),
-    quantity: toFixedNumber(row.quantity, 0),
-    threshold: toFixedNumber(row.threshold, 0),
-    unit: row.unit === null || row.unit === undefined ? null : String(row.unit),
-  }));
+  const products: StockProduct[] = (data ?? []).map((raw) => {
+    const row = raw as Record<string, unknown>;
+    return {
+      id: getProductId(row, schema),
+      name: String(row.name ?? ""),
+      quantity: getProductQuantity(row, schema),
+      threshold: toFixedNumber(row.threshold, 0),
+      unit: row.unit === null || row.unit === undefined ? null : String(row.unit),
+    };
+  });
 
   const lowStock = products.filter((p) => p.quantity <= p.threshold);
   const { data: existing, error: existingErr } = await supabase
@@ -110,36 +130,45 @@ export async function syncShoppingAction(): Promise<void> {
 }
 
 export async function applyBookingConsumptions(checkIn: string, checkOut: string, guests: number): Promise<void> {
-  const days = bookingDays(checkIn, checkOut);
-  if (days <= 0) return;
+  await applyBookingConsumptionDelta(checkIn, checkOut, guests, 1);
+}
 
-  const parsedGuests = Number.isFinite(guests) ? guests : 0;
-  if (parsedGuests <= 0) return;
-
-  const consumptionByName = new Map<string, number>([
-    ["caffe cialde", parsedGuests * days],
-    ["carta igienica", Math.ceil(parsedGuests / 2) * days],
-    ["spugnette morbide", 1],
-    ["spugnette lavapiatti", 1],
-  ]);
+export async function applyBookingConsumptionDelta(
+  checkIn: string,
+  checkOut: string,
+  guests: number,
+  direction: 1 | -1,
+): Promise<void> {
+  const consumptionByName = getBookingConsumption(checkIn, checkOut, guests);
+  if (consumptionByName.size === 0) {
+    await syncShoppingAction();
+    return;
+  }
 
   const supabase = supabaseAdmin();
-  const { data, error } = await supabase.from("products").select("id, name, quantity");
+  const schema = await resolveProductSchema(supabase);
+  const { data, error } = await supabase
+    .from("products")
+    .select(`${schema.idColumn}, name, ${schema.quantityColumn}`);
   if (error) throw new Error(error.message);
 
-  for (const row of data ?? []) {
+  for (const raw of data ?? []) {
+    const row = raw as Record<string, unknown>;
     const rawName = String(row.name ?? "");
     const normalized = normalizeProductName(rawName);
     const consume = consumptionByName.get(normalized);
     if (!consume || consume <= 0) continue;
 
-    const currentQty = toFixedNumber(row.quantity, 0);
-    const nextQty = Number((currentQty - consume).toFixed(2));
+    const productId = getProductId(row, schema);
+    if (!productId) continue;
+
+    const currentQty = getProductQuantity(row, schema);
+    const nextQty = Number((currentQty - consume * direction).toFixed(2));
 
     const { error: updateErr } = await supabase
       .from("products")
-      .update({ quantity: nextQty })
-      .eq("id", row.id);
+      .update({ [schema.quantityColumn]: nextQty })
+      .eq(schema.idColumn, productId);
     if (updateErr) throw new Error(updateErr.message);
   }
 

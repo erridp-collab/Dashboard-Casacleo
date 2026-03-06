@@ -1,0 +1,231 @@
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+
+type BookingRow = {
+  id: string;
+  check_in: string;
+  check_out: string;
+};
+
+type DesiredAction = {
+  booking_id: string;
+  action_date: string;
+  action_type: string;
+  status: "DA_FARE";
+  details: string | null;
+};
+
+const CHECKLIST_TEMPLATES: Record<string, string[]> = {
+  PULIZIA: [
+    "Spolvera tutte le superfici",
+    "Pulisci bagno e sanitari",
+    "Cambia e sistema la biancheria",
+    "Controlla e svuota i cestini",
+  ],
+  LAVATRICI: [
+    "Avvia ciclo lenzuola",
+    "Avvia ciclo asciugamani",
+    "Asciuga e piega i set",
+  ],
+  MANUT_3: [
+    "Controlla porte e finestre",
+    "Usa disgorgante doccia",
+    "Lava coperte extra",
+  ],
+  MANUT_4: [
+    "Lava piumino",
+    "Lava coprimaterasso",
+    "Lava copricuscino",
+  ],
+};
+
+const MANAGED_ACTION_TYPES = ["PULIZIA", "PREPARA_LETTO", "LAVATRICI", "MANUT_3", "MANUT_4", "MANUTENZIONE"];
+
+function daysBetween(fromDate: string, toDate: string): number {
+  const from = new Date(fromDate);
+  const to = new Date(toDate);
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return 0;
+  return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function actionKey(action: { booking_id: string | null; action_type: string; action_date: string }): string {
+  return `${action.booking_id ?? ""}|${action.action_type}|${action.action_date}`;
+}
+
+async function ensureChecklist(actionId: string, actionType: string): Promise<void> {
+  const checklist = CHECKLIST_TEMPLATES[actionType];
+  if (!checklist || checklist.length === 0) return;
+
+  const supabase = supabaseAdmin();
+  const { data: existingRows, error: existingErr } = await supabase
+    .from("action_checklist")
+    .select("id")
+    .eq("action_id", actionId);
+
+  if (existingErr) throw new Error(existingErr.message);
+  if ((existingRows ?? []).length > 0) return;
+
+  const baseRows = checklist.map((label, index) => ({
+    action_id: actionId,
+    done: false,
+    sort_order: index + 1,
+    label,
+  }));
+
+  let insert = await supabase.from("action_checklist").insert(baseRows);
+  if (!insert.error) return;
+  if (insert.error.code !== "42703") throw new Error(insert.error.message);
+
+  const itemTextRows = checklist.map((label, index) => ({
+    action_id: actionId,
+    done: false,
+    sort_order: index + 1,
+    item_text: label,
+  }));
+  insert = await supabase.from("action_checklist").insert(itemTextRows);
+  if (!insert.error) return;
+  if (insert.error.code !== "42703") throw new Error(insert.error.message);
+
+  const itemRows = checklist.map((label, index) => ({
+    action_id: actionId,
+    done: false,
+    sort_order: index + 1,
+    item: label,
+  }));
+  const finalInsert = await supabase.from("action_checklist").insert(itemRows);
+  if (finalInsert.error) throw new Error(finalInsert.error.message);
+}
+
+function buildDesiredActions(bookings: BookingRow[]): DesiredAction[] {
+  const desired: DesiredAction[] = [];
+  let prevCheckOut: string | null = null;
+
+  for (let i = 0; i < bookings.length; i += 1) {
+    const booking = bookings[i];
+    const stayIndex = i + 1;
+
+    desired.push({
+      booking_id: booking.id,
+      action_date: booking.check_out,
+      action_type: "PULIZIA",
+      status: "DA_FARE",
+      details: null,
+    });
+
+    if (prevCheckOut && daysBetween(prevCheckOut, booking.check_in) > 3) {
+      desired.push({
+        booking_id: booking.id,
+        action_date: booking.check_in,
+        action_type: "PREPARA_LETTO",
+        status: "DA_FARE",
+        details: "Preparare letto dopo periodo senza ospiti",
+      });
+    }
+
+    if (stayIndex % 3 === 0) {
+      desired.push({
+        booking_id: booking.id,
+        action_date: booking.check_out,
+        action_type: "LAVATRICI",
+        status: "DA_FARE",
+        details: null,
+      });
+      desired.push({
+        booking_id: booking.id,
+        action_date: booking.check_out,
+        action_type: "MANUT_3",
+        status: "DA_FARE",
+        details: null,
+      });
+    }
+
+    if (stayIndex % 4 === 0) {
+      desired.push({
+        booking_id: booking.id,
+        action_date: booking.check_out,
+        action_type: "MANUT_4",
+        status: "DA_FARE",
+        details: null,
+      });
+    }
+
+    prevCheckOut = booking.check_out;
+  }
+
+  return desired;
+}
+
+export async function syncBookingAutomations(): Promise<void> {
+  const supabase = supabaseAdmin();
+
+  const { data: bookingsData, error: bookingsErr } = await supabase
+    .from("bookings")
+    .select("id, check_in, check_out")
+    .order("check_out", { ascending: true });
+
+  if (bookingsErr) throw new Error(bookingsErr.message);
+
+  const bookings = (bookingsData ?? []).map((b) => ({
+    id: String(b.id),
+    check_in: String(b.check_in),
+    check_out: String(b.check_out),
+  }));
+
+  const desired = buildDesiredActions(bookings);
+  const desiredMap = new Map(desired.map((a) => [actionKey(a), a]));
+
+  const { data: existingData, error: existingErr } = await supabase
+    .from("actions")
+    .select("id, booking_id, action_type, action_date")
+    .not("booking_id", "is", null)
+    .in("action_type", MANAGED_ACTION_TYPES);
+
+  if (existingErr) throw new Error(existingErr.message);
+
+  const existing = (existingData ?? []).map((a) => ({
+    id: String(a.id),
+    booking_id: a.booking_id ? String(a.booking_id) : null,
+    action_type: String(a.action_type),
+    action_date: String(a.action_date),
+  }));
+  const existingMap = new Map(existing.map((a) => [actionKey(a), a]));
+
+  const toCreate = desired.filter((a) => !existingMap.has(actionKey(a)));
+  const toDelete = existing.filter((a) => !desiredMap.has(actionKey(a)));
+
+  for (const row of toDelete) {
+    const { error: checklistErr } = await supabase.from("action_checklist").delete().eq("action_id", row.id);
+    if (checklistErr) throw new Error(checklistErr.message);
+    const { error: actionErr } = await supabase.from("actions").delete().eq("id", row.id);
+    if (actionErr) throw new Error(actionErr.message);
+  }
+
+  for (const row of toCreate) {
+    const { data: created, error: createErr } = await supabase
+      .from("actions")
+      .insert(row)
+      .select("id")
+      .single();
+    if (createErr) throw new Error(createErr.message);
+    await ensureChecklist(String(created.id), row.action_type);
+  }
+
+  // Ensure checklist also for pre-existing managed actions.
+  const merged = [...existing.filter((a) => desiredMap.has(actionKey(a))), ...toCreate.map((a) => ({
+    id: "",
+    booking_id: a.booking_id,
+    action_type: a.action_type,
+    action_date: a.action_date,
+  }))];
+
+  if (merged.length > 0) {
+    const { data: refreshed, error: refreshErr } = await supabase
+      .from("actions")
+      .select("id, action_type, booking_id, action_date")
+      .not("booking_id", "is", null)
+      .in("action_type", ["PULIZIA", "LAVATRICI", "MANUT_3", "MANUT_4"]);
+    if (refreshErr) throw new Error(refreshErr.message);
+    for (const row of refreshed ?? []) {
+      await ensureChecklist(String(row.id), String(row.action_type));
+    }
+  }
+}

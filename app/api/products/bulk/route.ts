@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveProductSchema } from "@/lib/products-schema";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 
@@ -24,6 +25,7 @@ export async function PUT(req: Request) {
     }
 
     const supabase = supabaseAdmin();
+    const schema = await resolveProductSchema(supabase);
 
     for (const item of updates) {
       if (!item?.id) {
@@ -36,7 +38,7 @@ export async function PUT(req: Request) {
         if (!isFiniteNumber(item.quantity)) {
           return NextResponse.json({ error: "Invalid quantity", item }, { status: 400 });
         }
-        payload.quantity = item.quantity;
+        payload[schema.quantityColumn] = item.quantity;
       }
 
       if (item.threshold !== undefined) {
@@ -68,7 +70,7 @@ export async function PUT(req: Request) {
 
       if (Object.keys(payload).length === 0) continue;
 
-      const { error } = await supabase.from("products").update(payload).eq("id", item.id);
+      const { error } = await supabase.from("products").update(payload).eq(schema.idColumn, item.id);
       if (error) return NextResponse.json({ error: error.message, item }, { status: 400 });
     }
 

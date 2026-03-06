@@ -16,9 +16,9 @@ export default function InventoryPage() {
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "Errore caricamento");
     const normalized = (data.products ?? []).map((p: Record<string, unknown>) => ({
-      id: String(p.id),
+      id: String(p.id ?? p.sku ?? ""),
       name: String(p.name ?? "Prodotto"),
-      quantity: Number(p.quantity ?? 0),
+      quantity: Number(p.quantity ?? p.qty ?? 0),
       threshold: Number(p.threshold ?? 0),
       unit: p.unit ? String(p.unit) : null,
       updated_at: p.updated_at ? String(p.updated_at) : undefined,
@@ -47,7 +47,7 @@ export default function InventoryPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const lowStock = useMemo(() => products.filter((p) => p.quantity < p.threshold).length, [products]);
+  const lowStock = useMemo(() => products.filter((p) => p.quantity <= p.threshold).length, [products]);
 
   return (
     <section className="space-y-6">
@@ -89,7 +89,7 @@ export default function InventoryPage() {
             </TableHead>
             <TableBody>
               {products.map((p) => {
-                const below = p.quantity < p.threshold;
+                const below = p.quantity <= p.threshold;
                 return (
                   <TableRow key={p.id} className={below ? "bg-amber-50/50" : ""}>
                     <TableCell className="font-medium text-zinc-900">{p.name}</TableCell>
