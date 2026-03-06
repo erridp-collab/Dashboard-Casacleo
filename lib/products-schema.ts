@@ -12,16 +12,34 @@ export async function resolveProductSchema(supabase: SupabaseClient): Promise<Pr
     .eq("table_schema", "public")
     .eq("table_name", "products");
 
-  if (error) {
-    return { idColumn: "id", quantityColumn: "quantity" };
+  if (!error) {
+    const columnNames = new Set((data ?? []).map((row) => String(row.column_name)));
+
+    const idColumn: "id" | "sku" = columnNames.has("id") ? "id" : "sku";
+    const quantityColumn: "quantity" | "qty" = columnNames.has("quantity") ? "quantity" : "qty";
+
+    return { idColumn, quantityColumn };
   }
 
-  const columnNames = new Set((data ?? []).map((row) => String(row.column_name)));
+  // Fallback when information_schema is not exposed by PostgREST.
+  const probe = await supabase.from("products").select("*").limit(1);
+  const sample = (probe.data?.[0] ?? null) as Record<string, unknown> | null;
+  if (sample) {
+    const idColumn: "id" | "sku" = Object.prototype.hasOwnProperty.call(sample, "id") ? "id" : "sku";
+    const quantityColumn: "quantity" | "qty" = Object.prototype.hasOwnProperty.call(sample, "quantity")
+      ? "quantity"
+      : "qty";
+    return { idColumn, quantityColumn };
+  }
 
-  const idColumn: "id" | "sku" = columnNames.has("id") ? "id" : "sku";
-  const quantityColumn: "quantity" | "qty" = columnNames.has("quantity") ? "quantity" : "qty";
+  // Last fallback when table is empty: probe columns directly.
+  const qtyProbe = await supabase.from("products").select("qty").limit(1);
+  const idProbe = await supabase.from("products").select("sku").limit(1);
 
-  return { idColumn, quantityColumn };
+  return {
+    idColumn: idProbe.error ? "id" : "sku",
+    quantityColumn: qtyProbe.error ? "quantity" : "qty",
+  };
 }
 
 export function getProductId(row: Record<string, unknown>, schema: ProductSchema): string {
