@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applyActionStatusEffects } from "@/lib/action-effects";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type PatchChecklistPayload = {
@@ -43,6 +44,8 @@ export async function PATCH(req: Request) {
       .update({ status: nextStatus })
       .eq("id", itemRow.action_id);
     if (actionErr) return NextResponse.json({ error: actionErr.message }, { status: 400 });
+
+    await applyActionStatusEffects(String(itemRow.action_id), nextStatus);
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
