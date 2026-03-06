@@ -10,11 +10,21 @@ export async function GET(
     if (!id) return NextResponse.json({ error: "Missing action id" }, { status: 400 });
 
     const supabase = supabaseAdmin();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("action_checklist")
       .select("*")
       .eq("action_id", id)
       .order("sort_order", { ascending: true });
+
+    // Backward-compatible fallback for schemas without sort_order.
+    if (error?.code === "42703" && error.message.includes("sort_order")) {
+      const retry = await supabase
+        .from("action_checklist")
+        .select("*")
+        .eq("action_id", id);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     const checklist = (data ?? []).map((row) => ({

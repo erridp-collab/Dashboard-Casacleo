@@ -10,7 +10,7 @@ type UpdateBookingPayload = {
   total_amount?: number | string | null;
 };
 
-const UUID_V4ISH = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function formatDbError(error: { message?: string; code?: string; details?: string; hint?: string }) {
   const details = [error.message, error.code && `code=${error.code}`, error.details, error.hint]
@@ -42,7 +42,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     if (!id) return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
-    if (!UUID_V4ISH.test(id)) {
+    if (!UUID_LIKE.test(id)) {
       return NextResponse.json({ error: "Invalid booking id format" }, { status: 400 });
     }
 
@@ -145,7 +145,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     if (!id) return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
-    if (!UUID_V4ISH.test(id)) {
+    if (!UUID_LIKE.test(id)) {
       return NextResponse.json({ error: "Invalid booking id format" }, { status: 400 });
     }
 
