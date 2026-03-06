@@ -34,8 +34,11 @@ export interface ActionChecklistItem {
 export interface Product {
   id: string;
   name: string;
+  category?: string | null;
   quantity: number;
   threshold: number;
+  max_qty?: number | null;
+  consumption_per_checkout?: number | null;
   unit: string | null;
   updated_at?: string;
 }

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, CalendarDays, ClipboardList, Euro, Home, Plus, Warehouse } from "lucide-react";
+import { BookOpen, Boxes, CalendarDays, ClipboardList, Euro, Home, Plus, Warehouse } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/bookings", label: "Bookings", icon: Home },
   { href: "/actions", label: "Actions", icon: ClipboardList },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/warehouse", label: "Warehouse", icon: Boxes },
   { href: "/inventory", label: "Inventory", icon: Warehouse },
   { href: "/finance", label: "Finance", icon: Euro },
 ];
@@ -54,4 +55,3 @@ export function TopBar() {
     </header>
   );
 }
-
