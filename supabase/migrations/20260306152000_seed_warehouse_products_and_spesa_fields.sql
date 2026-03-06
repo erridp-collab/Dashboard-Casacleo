@@ -7,7 +7,42 @@ add column if not exists max_qty numeric;
 alter table public.products
 add column if not exists consumption_per_checkout numeric;
 
-with seed(name, category, unit, quantity, threshold, max_qty, consumption_per_checkout) as (
+do $$
+declare
+  qty_col text;
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'products'
+      and column_name = 'quantity'
+  ) then
+    qty_col := 'quantity';
+  elsif exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'products'
+      and column_name = 'qty'
+  ) then
+    qty_col := 'qty';
+  else
+    alter table public.products add column quantity numeric default 0;
+    qty_col := 'quantity';
+  end if;
+
+  create temporary table tmp_seed_products (
+    name text,
+    category text,
+    unit text,
+    quantity numeric,
+    threshold numeric,
+    max_qty numeric,
+    consumption_per_checkout numeric
+  ) on commit drop;
+
+  insert into tmp_seed_products (name, category, unit, quantity, threshold, max_qty, consumption_per_checkout)
   values
     ('Asciugamani bidet', 'Asciugamani e bagno', 'pezzi', 6, 2, 6, null),
     ('Asciugamani doccia', 'Asciugamani e bagno', 'pezzi', 8, 3, 8, null),
@@ -34,26 +69,30 @@ with seed(name, category, unit, quantity, threshold, max_qty, consumption_per_ch
     ('Anticalcare', 'Prodotti per pulizia', 'lt', 1, 0.3, 1, null),
     ('Sgrassatore', 'Prodotti per pulizia', 'lt', 1, 0.3, 1, null),
     ('Disgorgante', 'Prodotti per pulizia', 'lt', 1, 0.3, 1, null),
-    ('Viakal vetro doccia', 'Prodotti per pulizia', 'lt', 1, 0.3, 1, null)
-),
-updated as (
-  update public.products p
-  set
-    category = s.category,
-    unit = s.unit,
-    quantity = s.quantity,
-    threshold = s.threshold,
-    max_qty = s.max_qty,
-    consumption_per_checkout = s.consumption_per_checkout
-  from seed s
-  where lower(trim(p.name)) = lower(trim(s.name))
-  returning 1
-)
-insert into public.products (name, category, unit, quantity, threshold, max_qty, consumption_per_checkout)
-select s.name, s.category, s.unit, s.quantity, s.threshold, s.max_qty, s.consumption_per_checkout
-from seed s
-where not exists (
-  select 1
-  from public.products p
-  where lower(trim(p.name)) = lower(trim(s.name))
-);
+    ('Viakal vetro doccia', 'Prodotti per pulizia', 'lt', 1, 0.3, 1, null);
+
+  execute format(
+    'update public.products p
+       set category = s.category,
+           unit = s.unit,
+           %I = s.quantity,
+           threshold = s.threshold,
+           max_qty = s.max_qty,
+           consumption_per_checkout = s.consumption_per_checkout
+      from tmp_seed_products s
+     where lower(trim(p.name)) = lower(trim(s.name))',
+    qty_col
+  );
+
+  execute format(
+    'insert into public.products (name, category, unit, %I, threshold, max_qty, consumption_per_checkout)
+     select s.name, s.category, s.unit, s.quantity, s.threshold, s.max_qty, s.consumption_per_checkout
+     from tmp_seed_products s
+     where not exists (
+       select 1
+       from public.products p
+       where lower(trim(p.name)) = lower(trim(s.name))
+     )',
+    qty_col
+  );
+end $$;
