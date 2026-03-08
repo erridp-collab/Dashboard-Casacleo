@@ -45,7 +45,7 @@ export function TopBar() {
 
         <Link
           href="/bookings"
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+          className="hidden items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 sm:inline-flex"
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Nuova prenotazione</span>
