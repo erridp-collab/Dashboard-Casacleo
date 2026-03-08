@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Boxes, CalendarDays, ClipboardList, Euro, Home, Plus, Warehouse } from "lucide-react";
+import { BookOpen, ClipboardList, Euro, Home, Plus, Settings, Warehouse } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/bookings", label: "Bookings", icon: Home },
-  { href: "/actions", label: "Actions", icon: ClipboardList },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/warehouse", label: "Warehouse", icon: Boxes },
+  { href: "/actions", label: "Azioni", icon: ClipboardList },
+  { href: "/bookings", label: "Prenotazioni", icon: Home },
   { href: "/inventory", label: "Rifornimento", icon: Warehouse },
-  { href: "/finance", label: "Finance", icon: Euro },
+  { href: "/finance", label: "Spese", icon: Euro },
+  { href: "/settings", label: "Impostazioni", icon: Settings },
 ];
 
 export function TopBar() {
@@ -49,7 +48,7 @@ export function TopBar() {
           className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
         >
           <Plus className="h-4 w-4" />
-          New booking
+          <span className="hidden sm:inline">Nuova prenotazione</span>
         </Link>
       </div>
     </header>
