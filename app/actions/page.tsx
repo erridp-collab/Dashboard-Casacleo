@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
-import { CalendarRange, CheckCheck, ChevronDown, RefreshCw } from "lucide-react";
+import { CalendarRange, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { Action } from "@/types/db";
 
 function groupByDate(actions: Action[]) {
@@ -15,22 +15,38 @@ function groupByDate(actions: Action[]) {
   }, {});
 }
 
+function monthStartKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function monthRange(startDate: string) {
+  const d = new Date(startDate);
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { from, to, label: d.toLocaleDateString("it-IT", { month: "long", year: "numeric" }) };
+}
+
 export default function ActionsPage() {
-  const today = new Date().toISOString().slice(0, 10);
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(today);
+  const [monthCursor, setMonthCursor] = useState(monthStartKey(new Date()));
+  const { from, to, label: monthLabel } = useMemo(() => monthRange(monthCursor), [monthCursor]);
   const [actions, setActions] = useState<Action[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [showAdvancedRange, setShowAdvancedRange] = useState(false);
+  const [fromDraft, setFromDraft] = useState(from);
+  const [toDraft, setToDraft] = useState(to);
   const [error, setError] = useState("");
 
-  async function loadActions() {
+  const loadActions = useCallback(async () => {
     setError("");
     const res = await fetch(`/api/actions?from=${from}&to=${to}`);
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "Errore");
     setActions(data.actions ?? []);
-  }
+  }, [from, to]);
 
   async function toggleStatus(action: Action) {
     const next = action.status === "DA_FARE" ? "FATTO" : "DA_FARE";
@@ -94,8 +110,7 @@ export default function ActionsPage() {
       void loadActions();
     }, 0);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadActions]);
 
   const visibleActions = useMemo(
     () => (showDone ? actions : actions.filter((a) => a.status !== "FATTO")),
@@ -111,30 +126,33 @@ export default function ActionsPage() {
       </header>
 
       <Card>
-        <CardHeader title="Filtri" subtitle="Seleziona il range da visualizzare" />
+        <CardHeader title="Mese operativo" subtitle="Vista predefinita sul mese corrente" />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="text-sm text-zinc-600">
-            Da
-            <input
-              id="actions-from-date"
-              name="from"
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="mt-1 block rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-            />
-          </label>
-          <label className="text-sm text-zinc-600">
-            A
-            <input
-              id="actions-to-date"
-              name="to"
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="mt-1 block rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-            />
-          </label>
+          <div className="col-span-full flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+            <button
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2 text-xs hover:bg-zinc-100"
+              onClick={() => {
+                const d = new Date(monthCursor);
+                d.setMonth(d.getMonth() - 1);
+                setMonthCursor(monthStartKey(d));
+              }}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Mese prec.
+            </button>
+            <span className="text-sm font-medium capitalize text-zinc-800">{monthLabel}</span>
+            <button
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2 text-xs hover:bg-zinc-100"
+              onClick={() => {
+                const d = new Date(monthCursor);
+                d.setMonth(d.getMonth() + 1);
+                setMonthCursor(monthStartKey(d));
+              }}
+            >
+              Mese succ.
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700" onClick={() => void loadActions()}>
             <RefreshCw className="h-4 w-4" />
             Aggiorna
@@ -143,6 +161,64 @@ export default function ActionsPage() {
             <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
             Mostra FATTO
           </label>
+          <button
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+            onClick={() => {
+              const next = !showAdvancedRange;
+              setShowAdvancedRange(next);
+              if (next) {
+                setFromDraft(from);
+                setToDraft(to);
+              }
+            }}
+          >
+            Range avanzato
+          </button>
+          {showAdvancedRange ? (
+            <div className="col-span-full grid gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 sm:grid-cols-3">
+              <label className="text-sm text-zinc-600">
+                Da
+                <input
+                  id="actions-from-date"
+                  name="from"
+                  type="date"
+                  value={fromDraft}
+                  onChange={(e) => setFromDraft(e.target.value)}
+                  className="mt-1 block w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                A
+                <input
+                  id="actions-to-date"
+                  name="to"
+                  type="date"
+                  value={toDraft}
+                  onChange={(e) => setToDraft(e.target.value)}
+                  className="mt-1 block w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                />
+              </label>
+              <button
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-100"
+                onClick={() => {
+                  if (!fromDraft || !toDraft || fromDraft > toDraft) {
+                    setError("Range date non valido");
+                    return;
+                  }
+                  setMonthCursor(fromDraft.slice(0, 8) + "01");
+                  void (async () => {
+                    setError("");
+                    const res = await fetch(`/api/actions?from=${fromDraft}&to=${toDraft}`);
+                    const data = await res.json();
+                    if (!res.ok) return setError(data.error ?? "Errore");
+                    setActions(data.actions ?? []);
+                  })();
+                }}
+              >
+                Applica range
+              </button>
+            </div>
+          ) : null}
         </div>
       </Card>
 

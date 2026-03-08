@@ -2,10 +2,20 @@ import { NextResponse } from "next/server";
 import { monthKey, toNumber } from "@/lib/format";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-function getMonthWindow(months: number) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+type FinanceEntry = {
+  id: string;
+  date: string;
+  type: "ENTRATA" | "USCITA";
+  category: string;
+  description: string;
+  amount: number;
+  origin: string;
+};
+
+function getMonthWindow(months: number, endingMonthDate = new Date()) {
+  const endAnchor = new Date(endingMonthDate.getFullYear(), endingMonthDate.getMonth(), 1);
+  const start = new Date(endAnchor.getFullYear(), endAnchor.getMonth() - (months - 1), 1);
+  const end = new Date(endAnchor.getFullYear(), endAnchor.getMonth() + 1, 0);
   return { start, end };
 }
 
@@ -25,11 +35,26 @@ function getBookingAmount(row: Record<string, unknown>): number {
   );
 }
 
+function parseMonthInput(monthInput: string | null): Date {
+  const fallback = new Date();
+  if (!monthInput || !/^\d{4}-\d{2}$/.test(monthInput)) return new Date(fallback.getFullYear(), fallback.getMonth(), 1);
+  const [year, month] = monthInput.split("-").map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    return new Date(fallback.getFullYear(), fallback.getMonth(), 1);
+  }
+  return new Date(year, month - 1, 1);
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const months = Math.max(1, Math.min(24, Number(searchParams.get("months") ?? 6)));
-    const { start, end } = getMonthWindow(months);
+    const selectedMonthDate = parseMonthInput(searchParams.get("month"));
+    const selectedMonth = monthKey(selectedMonthDate);
+
+    const { start, end } = getMonthWindow(months, selectedMonthDate);
+    const monthStart = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth(), 1);
+    const monthEnd = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0);
 
     const supabase = supabaseAdmin();
     const [{ data: bookings, error: bookingsErr }, { data: expenses, error: expensesErr }] =
@@ -58,20 +83,38 @@ export async function GET(req: Request) {
       monthPoints[key] = { revenue: 0, expenses: 0, occupiedDays: 0, daysInMonth };
     }
 
+    const entries: FinanceEntry[] = [];
+
     for (const raw of bookings ?? []) {
       const row = raw as Record<string, unknown>;
-      const checkIn = new Date(String(row.check_in ?? ""));
-      const checkOut = new Date(String(row.check_out ?? ""));
+      const checkInStr = String(row.check_in ?? "");
+      const checkOutStr = String(row.check_out ?? "");
+      const checkIn = new Date(checkInStr);
+      const checkOut = new Date(checkOutStr);
       if (!Number.isFinite(checkIn.getTime()) || !Number.isFinite(checkOut.getTime())) continue;
 
+      const amount = getBookingAmount(row);
       const key = monthKey(checkIn);
-      if (monthPoints[key]) monthPoints[key].revenue += getBookingAmount(row);
+      if (monthPoints[key]) monthPoints[key].revenue += amount;
 
       for (const month of Object.keys(monthPoints)) {
         const [year, m] = month.split("-").map(Number);
-        const monthStart = new Date(year, (m ?? 1) - 1, 1);
-        const monthEnd = new Date(year, (m ?? 1), 0);
-        monthPoints[month].occupiedDays += overlapDays(checkIn, checkOut, monthStart, monthEnd);
+        const bucketStart = new Date(year, (m ?? 1) - 1, 1);
+        const bucketEnd = new Date(year, (m ?? 1), 0);
+        monthPoints[month].occupiedDays += overlapDays(checkIn, checkOut, bucketStart, bucketEnd);
+      }
+
+      const overlapsSelected = checkOut >= monthStart && checkIn <= new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate() + 1);
+      if (overlapsSelected && amount > 0) {
+        entries.push({
+          id: String(row.id ?? `booking-${checkInStr}-${checkOutStr}`),
+          date: checkInStr,
+          type: "ENTRATA",
+          category: "Prenotazione",
+          description: `Booking ${checkInStr} -> ${checkOutStr}${row.channel ? ` (${String(row.channel)})` : ""}`,
+          amount: Number(amount.toFixed(2)),
+          origin: "manuale",
+        });
       }
     }
 
@@ -80,7 +123,20 @@ export async function GET(req: Request) {
       const date = String(row.expense_date ?? row.date ?? "");
       const key = date.slice(0, 7);
       if (!monthPoints[key]) continue;
-      monthPoints[key].expenses += toNumber(row.amount, 0);
+      const amount = toNumber(row.amount, 0);
+      monthPoints[key].expenses += amount;
+
+      if (key === selectedMonth && amount > 0) {
+        entries.push({
+          id: String(row.id ?? `expense-${date}-${amount}`),
+          date,
+          type: "USCITA",
+          category: String(row.category ?? "Spesa"),
+          description: String(row.description ?? row.notes ?? row.category ?? "Spesa"),
+          amount: Number(amount.toFixed(2)),
+          origin: String(row.origin ?? "manuale"),
+        });
+      }
     }
 
     const monthly = Object.entries(monthPoints).map(([month, values]) => {
@@ -106,9 +162,16 @@ export async function GET(req: Request) {
       { revenue: 0, expenses: 0, netProfit: 0 },
     );
 
+    entries.sort((a, b) => {
+      if (a.date === b.date) return a.type === "USCITA" ? -1 : 1;
+      return a.date > b.date ? -1 : 1;
+    });
+
     return NextResponse.json(
       {
+        selectedMonth,
         monthly,
+        entries,
         totals: {
           revenue: Number(totals.revenue.toFixed(2)),
           expenses: Number(totals.expenses.toFixed(2)),
@@ -124,4 +187,3 @@ export async function GET(req: Request) {
     );
   }
 }
-

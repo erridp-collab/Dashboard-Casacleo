@@ -8,14 +8,7 @@ export type RefillProduct = {
   initialQuantity: number;
 };
 
-const MONITORED_CATEGORIES = new Set([
-  "PRODOTTI PER PULIZIA",
-  "CAFFE",
-  "ASCIUGAMANI E BAGNO",
-  "LENZUOLA E COPERTE",
-  "TESSILI E BIANCHERIA",
-  "CUCINA",
-]);
+const MONITORED_CATEGORIES = new Set(["CAFFE", "ASCIUGAMANI E BAGNO", "LENZUOLA E COPERTE", "TESSILI E BIANCHERIA"]);
 
 export function getRefillState(product: RefillProduct): RefillState {
   const margin = product.initialQuantity * 0.2;
@@ -31,7 +24,6 @@ export function isMonitoredRefillProduct(product: Pick<RefillProduct, "name" | "
   const nameKey = String(product.name ?? "").toUpperCase();
   return (
     nameKey.includes("CAFFE") ||
-    nameKey.includes("CARTA IGIENICA") ||
     nameKey.includes("SPUGNETT") ||
     nameKey.includes("ASCIUGAMANI") ||
     nameKey.includes("LENZUO") ||

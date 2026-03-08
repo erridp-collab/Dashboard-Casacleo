@@ -44,6 +44,15 @@ export function getBookingConsumptionMap(checkIn: string, checkOut: string, gues
   consumptions.set("carta igienica", Math.ceil(parsedGuests / 2) * days);
   consumptions.set("spugnette morbide", 1);
   consumptions.set("spugnette lavapiatti", 1);
+
+  // Linen rule per checkout: every 2 guests consume 1 set.
+  // 1 set = 2 towels per type + 1 full bed set.
+  const setCount = Math.ceil(parsedGuests / 2);
+  consumptions.set("asciugamani bidet", setCount * 2);
+  consumptions.set("asciugamani doccia", setCount * 2);
+  consumptions.set("asciugamani corpo", setCount * 2);
+  consumptions.set("completi letto completi", setCount);
+
   return consumptions;
 }
 
