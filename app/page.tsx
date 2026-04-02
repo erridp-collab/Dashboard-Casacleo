@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import CalendarClient from "@/app/calendar/calendar-client";
 import { Card, CardHeader } from "@/components/card";
 import { KpiCard } from "@/components/kpi-card";
-import { CalendarDays, ClipboardList, House } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
 
 export default function DashboardPage() {
@@ -50,36 +49,33 @@ export default function DashboardPage() {
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard title="Prenotazioni Totali" value={String(bookings.length)} />
-        <KpiCard title="Azioni Oggi" value={String(todayActions)} subtitle={`${openActions} da fare`} />
-        <KpiCard title="Azioni Aperte" value={String(openActions)} />
-        <KpiCard title="Giorno" value={new Date().toLocaleDateString("it-IT")} />
+        <KpiCard
+          title="Prenotazioni Totali"
+          value={String(bookings.length)}
+          status={bookings.length > 0 ? "ok" : "neutral"}
+        />
+        <KpiCard
+          title="Azioni Oggi"
+          value={String(todayActions)}
+          subtitle={`${openActions} da fare`}
+          status={todayActions === 0 ? "neutral" : openActions > 0 ? "warn" : "ok"}
+        />
+        <KpiCard
+          title="Azioni Aperte"
+          value={String(openActions)}
+          status={openActions === 0 ? "ok" : openActions >= 3 ? "critical" : "warn"}
+        />
+        <KpiCard
+          title="Giorno"
+          value={new Date().toLocaleDateString("it-IT")}
+          status="neutral"
+        />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader title="Snapshot" subtitle="Stato rapido del giorno" />
-          <div className="space-y-3 text-sm text-zinc-700">
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
-              <span className="inline-flex items-center gap-2"><House className="h-4 w-4 text-blue-600" /> Bookings</span>
-              <span className="font-medium">{bookings.length}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
-              <span className="inline-flex items-center gap-2"><ClipboardList className="h-4 w-4 text-blue-600" /> Azioni oggi</span>
-              <span className="font-medium">{todayActions}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
-              <span className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4 text-blue-600" /> Azioni aperte</span>
-              <span className="font-medium">{openActions}</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <CardHeader title="Calendar" subtitle="Prenotazioni e azioni" />
-          <CalendarClient />
-        </Card>
-      </div>
+      <Card className="p-4">
+        <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
+        <CalendarClient />
+      </Card>
     </section>
   );
 }

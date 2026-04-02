@@ -130,30 +130,30 @@ export default function ActionsPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="col-span-full flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
             <button
-              className="inline-flex h-9 items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2 text-xs hover:bg-zinc-100"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 text-xs transition hover:bg-zinc-100 active:scale-95"
               onClick={() => {
                 const d = new Date(monthCursor);
                 d.setMonth(d.getMonth() - 1);
                 setMonthCursor(monthStartKey(d));
               }}
             >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              Mese prec.
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Mese prec.</span>
             </button>
             <span className="text-sm font-medium capitalize text-zinc-800">{monthLabel}</span>
             <button
-              className="inline-flex h-9 items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2 text-xs hover:bg-zinc-100"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 text-xs transition hover:bg-zinc-100 active:scale-95"
               onClick={() => {
                 const d = new Date(monthCursor);
                 d.setMonth(d.getMonth() + 1);
                 setMonthCursor(monthStartKey(d));
               }}
             >
-              Mese succ.
-              <ChevronRight className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Mese succ.</span>
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700" onClick={() => void loadActions()}>
+          <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95" onClick={() => void loadActions()}>
             <RefreshCw className="h-4 w-4" />
             Aggiorna
           </button>
