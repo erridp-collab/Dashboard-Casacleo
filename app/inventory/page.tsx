@@ -4,7 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ShoppingCart } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
 import { getRefillState, isMonitoredRefillProduct } from "@/lib/refill";
+import { RowSkeleton } from "@/components/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
+
+function StockBar({ quantity, initialQuantity, state }: { quantity: number; initialQuantity: number; state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE" }) {
+  const pct = initialQuantity > 0 ? Math.min(100, Math.max(0, (quantity / initialQuantity) * 100)) : 0;
+  const color = state === "DA_RIFORNIRE" ? "bg-rose-500" : state === "IN_ESAURIMENTO" ? "bg-amber-400" : "bg-emerald-500";
+  return (
+    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
+      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
 
 type ProductRow = {
   id: string;
@@ -32,9 +43,11 @@ export default function InventoryPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
   async function loadProducts() {
     setError("");
+    setLoadingProducts(true);
     const res = await fetch("/api/products");
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "Errore caricamento");
@@ -56,6 +69,7 @@ export default function InventoryPage() {
     });
 
     setProducts(rows);
+    setLoadingProducts(false);
     setDrafts((prev) => {
       const next: Record<string, RestockDraft> = {};
       for (const row of rows) {
@@ -155,7 +169,25 @@ export default function InventoryPage() {
       <Card>
         <CardHeader title="Rifornimenti operativi" subtitle={`${visibleProducts.length} prodotti da monitorare`} />
 
-        {visibleProducts.length === 0 ? (
+        {loadingProducts ? (
+          <>
+            <div className="space-y-3 md:hidden">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse rounded-xl border border-zinc-100 p-4">
+                  <div className="h-4 w-32 rounded bg-zinc-200" />
+                  <div className="mt-2 h-3 w-20 rounded bg-zinc-200" />
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-zinc-200" />
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block">
+              <Table>
+                <TableHead><tr><TableHeaderCell>Prodotto</TableHeaderCell><TableHeaderCell>Stato</TableHeaderCell><TableHeaderCell>Rifornisci</TableHeaderCell></tr></TableHead>
+                <TableBody>{[1, 2, 3].map((i) => <RowSkeleton key={i} cols={7} />)}</TableBody>
+              </Table>
+            </div>
+          </>
+        ) : visibleProducts.length === 0 ? (
           <p className="py-6 text-center text-sm text-zinc-500">Nessun prodotto in esaurimento.</p>
         ) : (
           <>
@@ -189,6 +221,7 @@ export default function InventoryPage() {
                     <p>Soglia: <span className="font-medium text-zinc-800">{product.threshold}</span></p>
                     <p>Margine: <span className="font-medium text-zinc-800">{margin}</span></p>
                   </div>
+                  <StockBar quantity={product.quantity} initialQuantity={product.initialQuantity} state={state} />
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <input
                       className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-blue-600 focus:outline-none"
@@ -251,7 +284,10 @@ export default function InventoryPage() {
                             : ""
                       }
                     >
-                    <TableCell className="font-medium text-zinc-900">{product.name}</TableCell>
+                    <TableCell className="font-medium text-zinc-900">
+                      {product.name}
+                      <StockBar quantity={product.quantity} initialQuantity={product.initialQuantity} state={state} />
+                    </TableCell>
                     <TableCell>{product.category ?? "-"}</TableCell>
                     <TableCell>{product.initialQuantity} {product.unit ?? ""}</TableCell>
                     <TableCell>{product.quantity} {product.unit ?? ""}</TableCell>

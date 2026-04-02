@@ -4,15 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import CalendarClient from "@/app/calendar/calendar-client";
 import { Card, CardHeader } from "@/components/card";
 import { KpiCard } from "@/components/kpi-card";
+import { KpiCardSkeleton } from "@/components/skeleton";
 import type { Action, Booking } from "@/types/db";
 
 export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   async function loadData() {
     setError("");
+    setLoading(true);
     const today = new Date().toISOString().slice(0, 10);
     const [bookingsRes, actionsRes] = await Promise.all([
       fetch("/api/bookings"),
@@ -22,6 +25,7 @@ export default function DashboardPage() {
     const bookingsData = await bookingsRes.json();
     const actionsData = await actionsRes.json();
 
+    setLoading(false);
     if (!bookingsRes.ok) return setError(bookingsData.error ?? "Errore bookings");
     if (!actionsRes.ok) return setError(actionsData.error ?? "Errore actions");
 
@@ -49,27 +53,38 @@ export default function DashboardPage() {
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          title="Prenotazioni Totali"
-          value={String(bookings.length)}
-          status={bookings.length > 0 ? "ok" : "neutral"}
-        />
-        <KpiCard
-          title="Azioni Oggi"
-          value={String(todayActions)}
-          subtitle={`${openActions} da fare`}
-          status={todayActions === 0 ? "neutral" : openActions > 0 ? "warn" : "ok"}
-        />
-        <KpiCard
-          title="Azioni Aperte"
-          value={String(openActions)}
-          status={openActions === 0 ? "ok" : openActions >= 3 ? "critical" : "warn"}
-        />
-        <KpiCard
-          title="Giorno"
-          value={new Date().toLocaleDateString("it-IT")}
-          status="neutral"
-        />
+        {loading ? (
+          <>
+            <KpiCardSkeleton />
+            <KpiCardSkeleton />
+            <KpiCardSkeleton />
+            <KpiCardSkeleton />
+          </>
+        ) : (
+          <>
+            <KpiCard
+              title="Prenotazioni Totali"
+              value={String(bookings.length)}
+              status={bookings.length > 0 ? "ok" : "neutral"}
+            />
+            <KpiCard
+              title="Azioni Oggi"
+              value={String(todayActions)}
+              subtitle={`${openActions} da fare`}
+              status={todayActions === 0 ? "neutral" : openActions > 0 ? "warn" : "ok"}
+            />
+            <KpiCard
+              title="Azioni Aperte"
+              value={String(openActions)}
+              status={openActions === 0 ? "ok" : openActions >= 3 ? "critical" : "warn"}
+            />
+            <KpiCard
+              title="Giorno"
+              value={new Date().toLocaleDateString("it-IT")}
+              status="neutral"
+            />
+          </>
+        )}
       </div>
 
       <Card className="p-4">
