@@ -11,6 +11,7 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [error, setError] = useState("");
+  const [isClient, setIsClient] = useState(false);
 
   async function loadData() {
     setError("");
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    setIsClient(true);
     const t = setTimeout(() => {
       void loadData();
     }, 0);
@@ -53,7 +55,7 @@ export default function DashboardPage() {
         <KpiCard title="Prenotazioni Totali" value={String(bookings.length)} />
         <KpiCard title="Azioni Oggi" value={String(todayActions)} subtitle={`${openActions} da fare`} />
         <KpiCard title="Azioni Aperte" value={String(openActions)} />
-        <KpiCard title="Giorno" value={new Date().toLocaleDateString("it-IT")} />
+        <KpiCard title="Giorno" value={isClient ? new Date().toLocaleDateString("it-IT") : ""} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
