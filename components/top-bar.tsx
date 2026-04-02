@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ClipboardList, Euro, Home, Plus, Settings, Warehouse } from "lucide-react";
+import { BookOpen, ClipboardList, Euro, Home, Plus, Settings, Warehouse, LogOut } from "lucide-react";
+import { logoutAction } from "@/app/actions/auth";
 
 const NAV_ITEMS = [
   { href: "/actions", label: "Azioni", icon: ClipboardList },
@@ -54,6 +55,15 @@ export function TopBar() {
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Nuova prenotazione</span>
         </Link>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-200 active:scale-95"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Esci</span>
+          </button>
+        </form>
       </div>
     </header>
   );
