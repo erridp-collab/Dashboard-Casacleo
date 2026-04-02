@@ -5,6 +5,7 @@ import { AlertTriangle, ShoppingCart } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
 import { getRefillState, isMonitoredRefillProduct } from "@/lib/refill";
 import { RowSkeleton } from "@/components/skeleton";
+import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
 
 function StockBar({ quantity, initialQuantity, state }: { quantity: number; initialQuantity: number; state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE" }) {
@@ -108,11 +109,14 @@ export default function InventoryPage() {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) {
-      setError(data.error ?? "Errore rifornimento");
+      const msg = data.error ?? "Errore rifornimento";
+      setError(msg);
+      toast(msg, "error");
       return;
     }
 
     setSuccess("Rifornimento registrato con successo");
+    toast("Rifornimento registrato con successo", "success");
     setDrafts((prev) => ({ ...prev, [id]: { addQty: "", amount: "" } }));
     await loadProducts();
   }
@@ -188,7 +192,11 @@ export default function InventoryPage() {
             </div>
           </>
         ) : visibleProducts.length === 0 ? (
-          <p className="py-6 text-center text-sm text-zinc-500">Nessun prodotto in esaurimento.</p>
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <span className="text-3xl">✅</span>
+            <p className="text-sm font-medium text-zinc-700">Scorte a posto</p>
+            <p className="text-xs text-zinc-400">Nessun prodotto in esaurimento o da rifornire</p>
+          </div>
         ) : (
           <>
           <div className="space-y-3 md:hidden">

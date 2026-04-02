@@ -283,7 +283,11 @@ export default function ActionsPage() {
         ))}
         {visibleActions.length === 0 && (
           <Card>
-            <p className="py-4 text-center text-sm text-zinc-500">Nessuna azione nel range selezionato.</p>
+            <div className="flex flex-col items-center gap-2 py-10 text-center">
+              <span className="text-3xl">📅</span>
+              <p className="text-sm font-medium text-zinc-700">Nessuna azione</p>
+              <p className="text-xs text-zinc-400">Nessuna azione pianificata nel range selezionato</p>
+            </div>
           </Card>
         )}
       </div>

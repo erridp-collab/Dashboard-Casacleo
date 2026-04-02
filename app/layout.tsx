@@ -4,6 +4,7 @@ import "./globals.css";
 import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageContainer } from "@/components/page-container";
+import { ToastContainer } from "@/components/toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +33,7 @@ export default function RootLayout({
           <TopBar />
           <PageContainer>{children}</PageContainer>
           <BottomNav />
+          <ToastContainer />
         </div>
       </body>
     </html>
