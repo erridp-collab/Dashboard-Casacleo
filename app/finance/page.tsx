@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardHeader } from "@/components/card";
 import { KpiCard } from "@/components/kpi-card";
+import { KpiCardSkeleton } from "@/components/skeleton";
 import { monthLabel } from "@/lib/format";
 import { ChartColumn, LineChartIcon } from "lucide-react";
 import type { MonthlyFinancePoint } from "@/types/db";
@@ -34,12 +35,15 @@ export default function FinancePage() {
   const [months, setMonths] = useState(6);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey());
   const [data, setData] = useState<FinanceResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   async function loadFinance() {
     setError("");
+    setLoading(true);
     const res = await fetch(`/api/finance?months=${months}&month=${selectedMonth}`);
     const json = await res.json();
+    setLoading(false);
     if (!res.ok) return setError(json.error ?? "Errore finance");
     setData(json);
   }
@@ -71,6 +75,8 @@ export default function FinancePage() {
       ),
     [monthEntries],
   );
+
+  const netto = monthTotals.income - monthTotals.outcome;
 
   return (
     <section className="space-y-6">
@@ -109,15 +115,50 @@ export default function FinancePage() {
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-        <KpiCard title={`Entrate (${monthLabel(selectedMonth)})`} value={`EUR ${monthTotals.income.toFixed(0)}`} />
-        <KpiCard title={`Uscite (${monthLabel(selectedMonth)})`} value={`EUR ${monthTotals.outcome.toFixed(0)}`} />
-        <KpiCard title={`Netto (${monthLabel(selectedMonth)})`} value={`EUR ${(monthTotals.income - monthTotals.outcome).toFixed(0)}`} />
+        {loading ? (
+          <>
+            <KpiCardSkeleton />
+            <KpiCardSkeleton />
+            <KpiCardSkeleton />
+          </>
+        ) : (
+          <>
+            <KpiCard
+              title={`Entrate (${monthLabel(selectedMonth)})`}
+              value={`EUR ${monthTotals.income.toFixed(0)}`}
+              status={monthTotals.income > 0 ? "ok" : "neutral"}
+            />
+            <KpiCard
+              title={`Uscite (${monthLabel(selectedMonth)})`}
+              value={`EUR ${monthTotals.outcome.toFixed(0)}`}
+              status={monthTotals.outcome > 0 ? "warn" : "neutral"}
+            />
+            <KpiCard
+              title={`Netto (${monthLabel(selectedMonth)})`}
+              value={`EUR ${netto.toFixed(0)}`}
+              status={netto > 0 ? "ok" : netto < 0 ? "critical" : "neutral"}
+            />
+          </>
+        )}
       </div>
 
       <Card>
         <CardHeader title="Entrate e uscite" subtitle={`Movimenti del mese ${monthLabel(selectedMonth)}`} />
-        {monthEntries.length === 0 ? (
-          <p className="text-sm text-zinc-500">Nessun movimento nel mese selezionato.</p>
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse rounded-xl border border-zinc-100 p-3">
+                <div className="h-4 w-48 rounded bg-zinc-200" />
+                <div className="mt-1.5 h-3 w-32 rounded bg-zinc-200" />
+              </div>
+            ))}
+          </div>
+        ) : monthEntries.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <span className="text-3xl">💶</span>
+            <p className="text-sm font-medium text-zinc-700">Nessun movimento</p>
+            <p className="text-xs text-zinc-400">Nessun movimento registrato per {monthLabel(selectedMonth)}</p>
+          </div>
         ) : (
           <div className="space-y-2">
             {monthEntries.map((row) => (
@@ -129,7 +170,7 @@ export default function FinancePage() {
                       {row.date} | {row.category} | {row.origin}
                     </p>
                   </div>
-                  <span className={`text-sm font-semibold ${row.type === "ENTRATA" ? "text-emerald-700" : "text-rose-700"}`}>
+                  <span className={`shrink-0 text-sm font-semibold ${row.type === "ENTRATA" ? "text-emerald-700" : "text-rose-700"}`}>
                     {row.type === "ENTRATA" ? "+" : "-"} EUR {row.amount.toFixed(2)}
                   </span>
                 </div>
@@ -142,12 +183,19 @@ export default function FinancePage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader title="Revenue vs Spese" subtitle="Trend" action={<ChartColumn className="h-4 w-4 text-blue-600" />} />
-          <div className="h-44 md:h-56">
+          <div className="h-52 md:h-60">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows}>
+              <BarChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
+                <XAxis
+                  dataKey="monthLabel"
+                  tick={{ fontSize: 11 }}
+                  interval="preserveStartEnd"
+                  angle={months >= 6 ? -35 : 0}
+                  textAnchor={months >= 6 ? "end" : "middle"}
+                  height={months >= 6 ? 48 : 24}
+                />
+                <YAxis tick={{ fontSize: 11 }} width={45} />
                 <Tooltip />
                 <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} />
                 <Bar dataKey="expenses" fill="#059669" radius={[6, 6, 0, 0]} />
@@ -158,12 +206,19 @@ export default function FinancePage() {
 
         <Card>
           <CardHeader title="Occupancy Rate" subtitle="Trend" action={<LineChartIcon className="h-4 w-4 text-emerald-600" />} />
-          <div className="h-44 md:h-56">
+          <div className="h-52 md:h-60">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={rows}>
+              <LineChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
+                <XAxis
+                  dataKey="monthLabel"
+                  tick={{ fontSize: 11 }}
+                  interval="preserveStartEnd"
+                  angle={months >= 6 ? -35 : 0}
+                  textAnchor={months >= 6 ? "end" : "middle"}
+                  height={months >= 6 ? 48 : 24}
+                />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} width={35} />
                 <Tooltip />
                 <Line type="monotone" dataKey="occupancyRate" stroke="#059669" strokeWidth={2.5} dot={{ r: 3 }} />
               </LineChart>
