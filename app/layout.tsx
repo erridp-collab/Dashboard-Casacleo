@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TopBar } from "@/components/top-bar";
+import { BottomNav } from "@/components/bottom-nav";
 import { PageContainer } from "@/components/page-container";
 
 const geistSans = Geist({
@@ -30,6 +31,7 @@ export default function RootLayout({
         <div className="min-h-screen">
           <TopBar />
           <PageContainer>{children}</PageContainer>
+          <BottomNav />
         </div>
       </body>
     </html>

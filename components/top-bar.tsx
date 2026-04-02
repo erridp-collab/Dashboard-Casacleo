@@ -23,7 +23,8 @@ export function TopBar() {
           <span className="text-sm font-semibold">Airbnb Manager</span>
         </Link>
 
-        <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
+        {/* Desktop nav — hidden on mobile */}
+        <nav className="hidden flex-1 items-center gap-1 md:flex">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;
@@ -43,9 +44,12 @@ export function TopBar() {
           })}
         </nav>
 
+        {/* Spacer on mobile so CTA stays on the right */}
+        <div className="flex-1 md:hidden" />
+
         <Link
           href="/bookings"
-          className="hidden items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 sm:inline-flex"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Nuova prenotazione</span>
