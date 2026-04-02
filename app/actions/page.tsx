@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
+import { toast } from "@/components/toast";
 import { CalendarRange, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { Action } from "@/types/db";
 
@@ -92,6 +93,7 @@ export default function ActionsPage() {
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "Errore update");
     setActions((prev) => prev.map((x) => (x.id === action.id ? { ...x, status: next } : x)));
+    toast(next === "FATTO" ? "Azione completata!" : "Azione segnata da fare", "success");
   }
 
   async function markDayDone(actionDate: string) {
@@ -103,6 +105,7 @@ export default function ActionsPage() {
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "Errore mark all");
     setActions((prev) => prev.map((x) => (x.action_date === actionDate ? { ...x, status: "FATTO" } : x)));
+    toast("Tutte le azioni del giorno segnate come fatte!");
   }
 
   useEffect(() => {

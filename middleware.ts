@@ -5,8 +5,13 @@ export function middleware(request: NextRequest) {
   const authToken = request.cookies.get("auth-token");
   const isLoginPage = request.nextUrl.pathname.startsWith("/login");
 
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+
   // Se l'utente non è loggato e non è sulla pagina di login, bloccalo.
   if (!authToken?.value && !isLoginPage) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
