@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [actions, setActions] = useState<Action[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isClient, setIsClient] = useState(false);
 
   async function loadData() {
     setError("");
@@ -34,6 +35,7 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    setIsClient(true);
     const t = setTimeout(() => {
       void loadData();
     }, 0);
@@ -80,7 +82,7 @@ export default function DashboardPage() {
             />
             <KpiCard
               title="Giorno"
-              value={new Date().toLocaleDateString("it-IT")}
+              value={isClient ? new Date().toLocaleDateString("it-IT") : ""}
               status="neutral"
             />
           </>

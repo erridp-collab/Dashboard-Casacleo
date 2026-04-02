@@ -24,14 +24,27 @@ export async function GET(req: Request) {
     const supabase = supabaseAdmin();
     let q = supabase
       .from("actions")
-      .select("id, booking_id, action_date, action_type, status, details, amount, created_at")
+      .select("id, booking_id, action_date, action_type, status, details, amount")
       .order("action_date", { ascending: true });
 
     if (from) q = q.gte("action_date", from);
     if (to) q = q.lte("action_date", to);
     if (bookingId) q = q.eq("booking_id", bookingId);
 
-    const { data, error } = await q;
+    let { data, error } = await q;
+
+    if (error && String(error.code) === "42703") {
+      let retryQ = supabase
+        .from("actions")
+        .select("id, booking_id, action_date, action_type, status, details")
+        .order("action_date", { ascending: true });
+      if (from) retryQ = retryQ.gte("action_date", from);
+      if (to) retryQ = retryQ.lte("action_date", to);
+      if (bookingId) retryQ = retryQ.eq("booking_id", bookingId);
+      const retry = await retryQ;
+      data = (retry.data ?? []).map((row) => ({ ...row, amount: null }));
+      error = retry.error;
+    }
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ actions: data ?? [] }, { status: 200 });
   } catch (e: unknown) {

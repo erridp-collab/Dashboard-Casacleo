@@ -56,14 +56,14 @@ export async function GET() {
     const supabase = supabaseAdmin();
     let { data, error } = await supabase
       .from("bookings")
-      .select("id, check_in, check_out, guests, channel, notes, total_amount, created_at")
+      .select("id, check_in, check_out, guests, channel, notes, total_amount")
       .order("check_in", { ascending: false });
 
     // Backward-compatible fallback when total_amount is not present in older schemas.
     if (isMissingTotalAmountError(error)) {
       const retry = await supabase
         .from("bookings")
-        .select("id, check_in, check_out, guests, channel, notes, created_at")
+        .select("id, check_in, check_out, guests, channel, notes")
         .order("check_in", { ascending: false });
       data = (retry.data ?? []).map((row) => ({ ...row, total_amount: null }));
       error = retry.error;
