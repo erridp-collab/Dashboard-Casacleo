@@ -3,6 +3,8 @@
 import { Fragment, useEffect, useState } from "react";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
+import { RowSkeleton } from "@/components/skeleton";
+import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
 import { CalendarDays, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
@@ -40,11 +42,14 @@ export default function BookingsPage() {
   const [amountDraftById, setAmountDraftById] = useState<Record<string, string>>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingBookings, setLoadingBookings] = useState(true);
   const [error, setError] = useState("");
 
   async function loadBookings() {
+    setLoadingBookings(true);
     const res = await fetch("/api/bookings");
     const data = await res.json();
+    setLoadingBookings(false);
     if (!res.ok) {
       setError(data.error ?? "Errore caricamento prenotazioni");
       return;
@@ -76,7 +81,13 @@ export default function BookingsPage() {
     });
     const data = await res.json();
     setLoading(false);
-    if (!res.ok) return setError(data.error ?? "Errore creazione");
+    if (!res.ok) {
+      const msg = data.error ?? "Errore creazione";
+      setError(msg);
+      toast(msg, "error");
+      return;
+    }
+    toast("Prenotazione creata con successo", "success");
     setForm(INITIAL_FORM);
     await loadBookings();
   }
@@ -102,7 +113,13 @@ export default function BookingsPage() {
       }),
     });
     const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "Errore update");
+    if (!res.ok) {
+      const msg = data.error ?? "Errore update";
+      setError(msg);
+      toast(msg, "error");
+      return;
+    }
+    toast("Prenotazione aggiornata", "success");
     setEditId(null);
     await loadBookings();
   }
@@ -111,7 +128,13 @@ export default function BookingsPage() {
     if (!confirm("Eliminare prenotazione e azioni collegate?")) return;
     const res = await fetch(`/api/bookings/${id}`, { method: "DELETE" });
     const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "Errore delete");
+    if (!res.ok) {
+      const msg = data.error ?? "Errore delete";
+      setError(msg);
+      toast(msg, "error");
+      return;
+    }
+    toast("Prenotazione eliminata", "success");
     setExpandedBookingId(null);
     await loadBookings();
   }
@@ -151,7 +174,7 @@ export default function BookingsPage() {
           <input id="booking-total-amount" name="total_amount" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="Importo" />
           <input id="booking-notes" name="notes" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none md:col-span-3" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note" />
         </div>
-        <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
+        <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
           <Plus className="h-4 w-4" />
           {loading ? "Creazione..." : "Crea prenotazione"}
         </button>
@@ -162,8 +185,29 @@ export default function BookingsPage() {
       <Card>
         <CardHeader title="Lista prenotazioni" subtitle="Modifica rapida inline" />
 
-        {bookings.length === 0 ? (
-          <p className="py-6 text-center text-sm text-zinc-500">Nessuna prenotazione disponibile.</p>
+        {loadingBookings ? (
+          <>
+            <div className="hidden md:block">
+              <Table>
+                <TableHead><tr><TableHeaderCell>Check-in</TableHeaderCell><TableHeaderCell>Check-out</TableHeaderCell><TableHeaderCell>Ospiti</TableHeaderCell><TableHeaderCell>Canale</TableHeaderCell><TableHeaderCell>Importo</TableHeaderCell><TableHeaderCell>Note</TableHeaderCell><TableHeaderCell>Azioni</TableHeaderCell></tr></TableHead>
+                <TableBody>{[1,2,3].map((i) => <RowSkeleton key={i} cols={7} />)}</TableBody>
+              </Table>
+            </div>
+            <div className="space-y-3 md:hidden">
+              {[1,2,3].map((i) => (
+                <div key={i} className="animate-pulse rounded-xl border border-zinc-100 p-4">
+                  <div className="h-4 w-40 rounded bg-zinc-200" />
+                  <div className="mt-2 h-3 w-28 rounded bg-zinc-200" />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : bookings.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <span className="text-3xl">🏠</span>
+            <p className="text-sm font-medium text-zinc-700">Nessuna prenotazione</p>
+            <p className="text-xs text-zinc-400">Aggiungi la prima prenotazione qui sopra</p>
+          </div>
         ) : (
           <>
           <div className="space-y-3 md:hidden">
