@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/card";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
-import { CalendarDays, PenLine, Plus, Save, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronDown, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
 
 type BookingForm = {
@@ -43,6 +43,7 @@ export default function BookingsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
 
   async function loadBookings() {
@@ -89,6 +90,7 @@ export default function BookingsPage() {
     }
     toast("Prenotazione creata con successo", "success");
     setForm(INITIAL_FORM);
+    setShowForm(false);
     await loadBookings();
   }
 
@@ -165,19 +167,34 @@ export default function BookingsPage() {
       </header>
 
       <Card>
-        <CardHeader title="Nuova prenotazione" subtitle="Inserisci i dati principali" />
-        <div className="grid gap-3 md:grid-cols-3">
-          <input id="booking-check-in" name="check_in" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
-          <input id="booking-check-out" name="check_out" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
-          <input id="booking-guests" name="guests" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="number" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
-          <input id="booking-channel" name="channel" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="Canale" />
-          <input id="booking-total-amount" name="total_amount" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="Importo" />
-          <input id="booking-notes" name="notes" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none md:col-span-3" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note" />
-        </div>
-        <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
-          <Plus className="h-4 w-4" />
-          {loading ? "Creazione..." : "Crea prenotazione"}
+        {/* Header con toggle su mobile, statico su desktop */}
+        <button
+          className="flex w-full items-center justify-between md:cursor-default"
+          onClick={() => setShowForm((v) => !v)}
+        >
+          <div className="text-left">
+            <p className="text-base font-semibold text-zinc-900">Nuova prenotazione</p>
+            <p className="mt-0.5 text-sm text-zinc-500">Inserisci i dati principali</p>
+          </div>
+          <ChevronDown
+            className={`h-5 w-5 text-zinc-400 transition-transform md:hidden ${showForm ? "rotate-180" : ""}`}
+          />
         </button>
+
+        <div className={`${showForm ? "block" : "hidden"} md:block`}>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <input id="booking-check-in" name="check_in" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
+            <input id="booking-check-out" name="check_out" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
+            <input id="booking-guests" name="guests" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="number" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
+            <input id="booking-channel" name="channel" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="Canale" />
+            <input id="booking-total-amount" name="total_amount" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="Importo" />
+            <input id="booking-notes" name="notes" className="rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none md:col-span-3" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note" />
+          </div>
+          <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
+            <Plus className="h-4 w-4" />
+            {loading ? "Creazione..." : "Crea prenotazione"}
+          </button>
+        </div>
       </Card>
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
