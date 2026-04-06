@@ -156,22 +156,29 @@ export async function syncBookingAutomations(): Promise<void> {
   const toCreate = desired.filter((a) => !existingMap.has(actionKey(a)));
   const toDelete = existing.filter((a) => !desiredMap.has(actionKey(a)));
 
-  for (const row of toDelete) {
-    const { error: checklistErr } = await supabase.from("action_checklist").delete().eq("action_id", row.id);
-    if (checklistErr) throw new Error(checklistErr.message);
-    const { error: actionErr } = await supabase.from("actions").delete().eq("id", row.id);
-    if (actionErr) throw new Error(actionErr.message);
-  }
+  // Delete obsolete actions: checklist first (FK), then action — all in parallel.
+  await Promise.all(
+    toDelete.map(async (row) => {
+      const { error: checklistErr } = await supabase.from("action_checklist").delete().eq("action_id", row.id);
+      if (checklistErr) throw new Error(checklistErr.message);
+      const { error: actionErr } = await supabase.from("actions").delete().eq("id", row.id);
+      if (actionErr) throw new Error(actionErr.message);
+    }),
+  );
 
-  for (const row of toCreate) {
-    const { data: created, error: createErr } = await supabase
-      .from("actions")
-      .insert(row)
-      .select("id")
-      .single();
-    if (createErr) throw new Error(createErr.message);
-    await ensureChecklist(String(created.id), row.action_type);
-  }
+  // Create new actions in parallel, then seed their checklists in parallel.
+  const createdIds = await Promise.all(
+    toCreate.map(async (row) => {
+      const { data: created, error: createErr } = await supabase
+        .from("actions")
+        .insert(row)
+        .select("id")
+        .single();
+      if (createErr) throw new Error(createErr.message);
+      return { id: String(created.id), action_type: row.action_type };
+    }),
+  );
+  await Promise.all(createdIds.map(({ id, action_type }) => ensureChecklist(id, action_type)));
 
   // Ensure checklist also for pre-existing managed actions.
   const merged = [...existing.filter((a) => desiredMap.has(actionKey(a))), ...toCreate.map((a) => ({
@@ -188,8 +195,6 @@ export async function syncBookingAutomations(): Promise<void> {
       .not("booking_id", "is", null)
       .in("action_type", ["PULIZIA", "LAVATRICI", "MANUT_3", "MANUT_4"]);
     if (refreshErr) throw new Error(refreshErr.message);
-    for (const row of refreshed ?? []) {
-      await ensureChecklist(String(row.id), String(row.action_type));
-    }
+    await Promise.all((refreshed ?? []).map((row) => ensureChecklist(String(row.id), String(row.action_type))));
   }
 }

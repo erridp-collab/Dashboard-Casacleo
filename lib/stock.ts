@@ -243,6 +243,8 @@ export async function applyBookingConsumptionDelta(
     .select(`${schema.idColumn}, name, ${schema.quantityColumn}, consumption_per_checkout`);
   if (error) throw new Error(error.message);
 
+  // Build all updates first, then fire them in parallel.
+  const updates: Array<{ id: string; nextQty: number }> = [];
   for (const raw of data ?? []) {
     const row = raw as Record<string, unknown>;
     const rawName = String(row.name ?? "");
@@ -257,13 +259,20 @@ export async function applyBookingConsumptionDelta(
 
     const currentQty = getProductQuantity(row, schema);
     const nextQty = Number((currentQty - consume * direction).toFixed(2));
-
-    const { error: updateErr } = await supabase
-      .from("products")
-      .update({ [schema.quantityColumn]: nextQty })
-      .eq(schema.idColumn, productId);
-    if (updateErr) throw new Error(updateErr.message);
+    updates.push({ id: productId, nextQty });
   }
+
+  await Promise.all(
+    updates.map(({ id, nextQty }) =>
+      supabase
+        .from("products")
+        .update({ [schema.quantityColumn]: nextQty })
+        .eq(schema.idColumn, id)
+        .then(({ error: updateErr }) => {
+          if (updateErr) throw new Error(updateErr.message);
+        }),
+    ),
+  );
 
   await syncShoppingAction();
 }

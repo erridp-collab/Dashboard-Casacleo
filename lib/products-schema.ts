@@ -5,7 +5,19 @@ export type ProductSchema = {
   quantityColumn: "quantity" | "qty";
 };
 
+// Request-scoped cache: avoids duplicate schema probes within the same API call.
+let _cachedSchema: ProductSchema | null = null;
+let _cacheTimer: ReturnType<typeof setTimeout> | null = null;
+
+function setCachedSchema(schema: ProductSchema): void {
+  _cachedSchema = schema;
+  if (_cacheTimer) clearTimeout(_cacheTimer);
+  // Invalidate after 30s — covers any single API request lifetime.
+  _cacheTimer = setTimeout(() => { _cachedSchema = null; }, 30_000);
+}
+
 export async function resolveProductSchema(supabase: SupabaseClient): Promise<ProductSchema> {
+  if (_cachedSchema) return _cachedSchema;
   const { data, error } = await supabase
     .from("information_schema.columns")
     .select("column_name")
@@ -18,7 +30,9 @@ export async function resolveProductSchema(supabase: SupabaseClient): Promise<Pr
     const idColumn: "id" | "sku" = columnNames.has("id") ? "id" : "sku";
     const quantityColumn: "quantity" | "qty" = columnNames.has("quantity") ? "quantity" : "qty";
 
-    return { idColumn, quantityColumn };
+    const schema = { idColumn, quantityColumn };
+    setCachedSchema(schema);
+    return schema;
   }
 
   // Fallback when information_schema is not exposed by PostgREST.
@@ -29,17 +43,21 @@ export async function resolveProductSchema(supabase: SupabaseClient): Promise<Pr
     const quantityColumn: "quantity" | "qty" = Object.prototype.hasOwnProperty.call(sample, "quantity")
       ? "quantity"
       : "qty";
-    return { idColumn, quantityColumn };
+    const schema = { idColumn, quantityColumn };
+    setCachedSchema(schema);
+    return schema;
   }
 
   // Last fallback when table is empty: probe columns directly.
   const qtyProbe = await supabase.from("products").select("qty").limit(1);
   const idProbe = await supabase.from("products").select("sku").limit(1);
 
-  return {
-    idColumn: idProbe.error ? "id" : "sku",
-    quantityColumn: qtyProbe.error ? "quantity" : "qty",
+  const schema = {
+    idColumn: idProbe.error ? "id" : "sku" as "id" | "sku",
+    quantityColumn: qtyProbe.error ? "quantity" : "qty" as "quantity" | "qty",
   };
+  setCachedSchema(schema);
+  return schema;
 }
 
 export function getProductId(row: Record<string, unknown>, schema: ProductSchema): string {
