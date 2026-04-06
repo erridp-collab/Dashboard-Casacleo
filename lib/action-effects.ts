@@ -51,7 +51,6 @@ async function upsertCleaningExpense(
     amount,
     category: "Pulizie",
     description,
-    notes: description,
     origin: "automatica_da_pulizia",
     source_action_id: actionId,
   };
@@ -81,7 +80,7 @@ async function upsertCleaningExpense(
     expense_date: actionDate,
     amount,
     category: "Pulizie",
-    notes: description,
+    description,
   });
   if (insert.error) {
     console.error("upsertCleaningExpense fallback failed:", insert.error.message);
@@ -150,7 +149,6 @@ async function upsertShoppingExpense(actionId: string, actionDate: string, amoun
     amount,
     category: "Rifornimento",
     description,
-    notes: description,
     origin: "automatica_da_rifornimento",
     source_action_id: actionId,
   };
