@@ -26,6 +26,8 @@ type ProductRow = {
   quantity: number;
   threshold: number;
   initialQuantity: number;
+  maxQty: number | null;
+  consumptionPerCheckout: number | null;
 };
 
 type RestockDraft = {
@@ -33,9 +35,71 @@ type RestockDraft = {
   amount: string;
 };
 
+type CsvPreviewRow = {
+  id: string;
+  name: string;
+  quantityNow: number;
+  quantityNext: number;
+  thresholdNow: number;
+  thresholdNext: number;
+  maxQtyNow: number | null;
+  maxQtyNext: number | null;
+  consumptionNow: number | null;
+  consumptionNext: number | null;
+};
+
 function toNum(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeText(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function parseNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const cleaned = String(value).trim().replace(",", ".");
+  if (cleaned === "") return null;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseCsvLine(line: string, delimiter: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === "\"") {
+      const next = line[i + 1];
+      if (inQuotes && next === "\"") {
+        current += "\"";
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function parseCsv(text: string): { headers: string[]; rows: string[][] } {
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter((line) => line.trim() !== "");
+  if (lines.length === 0) return { headers: [], rows: [] };
+  const headerLine = lines[0];
+  const commaCount = headerLine.split(",").length;
+  const semiCount = headerLine.split(";").length;
+  const delimiter = semiCount > commaCount ? ";" : ",";
+  const headers = parseCsvLine(headerLine, delimiter).map((h) => normalizeText(h));
+  const rows = lines.slice(1).map((line) => parseCsvLine(line, delimiter));
+  return { headers, rows };
 }
 
 export default function InventoryPage() {
@@ -45,6 +109,11 @@ export default function InventoryPage() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [csvFileName, setCsvFileName] = useState("");
+  const [csvPreview, setCsvPreview] = useState<CsvPreviewRow[]>([]);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvColumns, setCsvColumns] = useState({ threshold: false, maxQty: false, consumption: false });
 
   async function loadProducts() {
     setError("");
@@ -57,6 +126,10 @@ export default function InventoryPage() {
       const quantity = toNum(p.quantity ?? p.qty, 0);
       const initialQuantityRaw = p.max_qty === null || p.max_qty === undefined ? quantity : toNum(p.max_qty, quantity);
       const initialQuantity = initialQuantityRaw > 0 ? initialQuantityRaw : quantity;
+      const maxQtyRaw = p.max_qty === undefined ? p.maxQty : p.max_qty;
+      const maxQty = maxQtyRaw === null || maxQtyRaw === undefined ? null : toNum(maxQtyRaw, quantity);
+      const consumptionRaw = p.consumption_per_checkout ?? p.consumptionPerCheckout;
+      const consumptionPerCheckout = consumptionRaw === null || consumptionRaw === undefined ? null : toNum(consumptionRaw, 0);
 
       return {
         id: String(p.id ?? p.sku ?? ""),
@@ -66,6 +139,8 @@ export default function InventoryPage() {
         quantity,
         threshold: toNum(p.threshold, 0),
         initialQuantity,
+        maxQty,
+        consumptionPerCheckout,
       };
     });
 
@@ -158,6 +233,149 @@ export default function InventoryPage() {
     return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">OK</span>;
   }
 
+  function buildTemplateCsv() {
+    const headers = ["id", "prodotto", "qty", "threshold", "max_qty", "consumption_per_checkout"];
+    const rows = products.map((p) => [
+      p.id,
+      `"${String(p.name).replace(/"/g, "\"\"")}"`,
+      String(p.quantity),
+      String(p.threshold),
+      p.maxQty ?? "",
+      p.consumptionPerCheckout ?? "",
+    ]);
+    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  }
+
+  function downloadTemplate() {
+    const csv = buildTemplateCsv();
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "magazzino_template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleCsvFile(file: File) {
+    setCsvFileName(file.name);
+    setCsvErrors([]);
+    setCsvPreview([]);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result ?? "");
+      const { headers, rows } = parseCsv(text);
+      const headerIndex = new Map(headers.map((h, idx) => [h, idx]));
+      const alias = (keys: string[]) => keys.find((key) => headerIndex.has(key)) ?? null;
+
+      const idKey = alias(["id", "sku", "codice"]);
+      const nameKey = alias(["prodotto", "name", "nome", "articolo"]);
+      const qtyKey = alias(["qty", "quantity", "quantita", "qta", "disponibile"]);
+      const thresholdKey = alias(["threshold", "soglia"]);
+      const maxQtyKey = alias(["max_qty", "massimo", "max"]);
+      const consKey = alias(["consumption_per_checkout", "consumo_per_checkout", "cons_checkout"]);
+
+      if (!qtyKey || (!idKey && !nameKey)) {
+        setCsvErrors([
+          "Colonne minime richieste: qty/disponibile e id oppure prodotto.",
+        ]);
+        return;
+      }
+      setCsvColumns({
+        threshold: Boolean(thresholdKey),
+        maxQty: Boolean(maxQtyKey),
+        consumption: Boolean(consKey),
+      });
+
+      const byId = new Map(products.map((p) => [normalizeText(p.id), p]));
+      const byName = new Map(products.map((p) => [normalizeText(p.name), p]));
+      const nextErrors: string[] = [];
+      const nextPreview: CsvPreviewRow[] = [];
+      const seen = new Set<string>();
+
+      rows.forEach((row, idx) => {
+        const rowNum = idx + 2;
+        const rawId = idKey ? normalizeText(row[headerIndex.get(idKey) ?? -1]) : "";
+        const rawName = nameKey ? normalizeText(row[headerIndex.get(nameKey) ?? -1]) : "";
+        const product = rawId ? byId.get(rawId) : rawName ? byName.get(rawName) : undefined;
+
+        if (!product) {
+          nextErrors.push(`Riga ${rowNum}: prodotto non riconosciuto`);
+          return;
+        }
+        if (seen.has(product.id)) {
+          nextErrors.push(`Riga ${rowNum}: prodotto duplicato (${product.name})`);
+          return;
+        }
+
+        const qtyVal = parseNumber(row[headerIndex.get(qtyKey) ?? -1]);
+        if (qtyVal === null) {
+          nextErrors.push(`Riga ${rowNum}: quantita non valida`);
+          return;
+        }
+
+        const thresholdVal = thresholdKey ? parseNumber(row[headerIndex.get(thresholdKey) ?? -1]) : null;
+        const maxQtyVal = maxQtyKey ? parseNumber(row[headerIndex.get(maxQtyKey) ?? -1]) : null;
+        const consVal = consKey ? parseNumber(row[headerIndex.get(consKey) ?? -1]) : null;
+
+        nextPreview.push({
+          id: product.id,
+          name: product.name,
+          quantityNow: product.quantity,
+          quantityNext: qtyVal,
+          thresholdNow: product.threshold,
+          thresholdNext: thresholdVal ?? product.threshold,
+          maxQtyNow: product.maxQty,
+          maxQtyNext: maxQtyVal ?? product.maxQty,
+          consumptionNow: product.consumptionPerCheckout,
+          consumptionNext: consVal ?? product.consumptionPerCheckout,
+        });
+        seen.add(product.id);
+      });
+
+      setCsvErrors(nextErrors);
+      setCsvPreview(nextPreview);
+    };
+    reader.readAsText(file);
+  }
+
+  async function applyCsvImport() {
+    if (csvPreview.length === 0) return;
+    setCsvLoading(true);
+    setError("");
+    setSuccess("");
+    const updates = csvPreview.map((row) => {
+      const payload: Record<string, unknown> = {
+        id: row.id,
+        quantity: row.quantityNext,
+      };
+      if (csvColumns.threshold) payload.threshold = row.thresholdNext;
+      if (csvColumns.maxQty) payload.max_qty = row.maxQtyNext;
+      if (csvColumns.consumption) payload.consumption_per_checkout = row.consumptionNext ?? null;
+      return payload;
+    });
+
+    const res = await fetch("/api/products/bulk", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates }),
+    });
+    const data = await res.json();
+    setCsvLoading(false);
+    if (!res.ok) {
+      const msg = data.error ?? "Errore import CSV";
+      setError(msg);
+      toast(msg, "error");
+      return;
+    }
+    setSuccess("Import CSV completato");
+    toast("Import CSV completato", "success");
+    setCsvPreview([]);
+    setCsvErrors([]);
+    setCsvFileName("");
+    await loadProducts();
+  }
+
   return (
     <section className="space-y-6">
       <header className="space-y-1">
@@ -169,6 +387,98 @@ export default function InventoryPage() {
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       {success && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{success}</p>}
+
+      <Card>
+        <CardHeader title="Import CSV" subtitle="Aggiorna i valori del magazzino in blocco" />
+        <div className="space-y-4 px-6 pb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Scarica template
+            </button>
+            <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100">
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleCsvFile(file);
+                }}
+              />
+              Carica CSV
+            </label>
+            {csvFileName && <span className="text-xs text-zinc-500">File: {csvFileName}</span>}
+          </div>
+          <p className="text-xs text-zinc-500">
+            Il CSV sostituisce i valori attuali di quantita, soglia, massimo e consumo per checkout.
+          </p>
+
+          {csvErrors.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+              {csvErrors.map((err) => (
+                <p key={err}>{err}</p>
+              ))}
+            </div>
+          )}
+
+          {csvPreview.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-zinc-700">Anteprima aggiornamenti</p>
+              <div className="overflow-hidden rounded-xl border border-zinc-200">
+                <Table>
+                  <TableHead>
+                    <tr>
+                      <TableHeaderCell>Prodotto</TableHeaderCell>
+                      <TableHeaderCell>Q.ta attuale</TableHeaderCell>
+                      <TableHeaderCell>Q.ta nuova</TableHeaderCell>
+                      <TableHeaderCell>Soglia</TableHeaderCell>
+                      <TableHeaderCell>Massimo</TableHeaderCell>
+                      <TableHeaderCell>Consumo</TableHeaderCell>
+                    </tr>
+                  </TableHead>
+                  <TableBody>
+                    {csvPreview.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium text-zinc-900">{row.name}</TableCell>
+                        <TableCell>{row.quantityNow}</TableCell>
+                        <TableCell className="text-zinc-900">{row.quantityNext}</TableCell>
+                        <TableCell>{row.thresholdNext}</TableCell>
+                        <TableCell>{row.maxQtyNext ?? "-"}</TableCell>
+                        <TableCell>{row.consumptionNext ?? "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void applyCsvImport()}
+                  disabled={csvLoading}
+                  className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Applica import
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCsvPreview([]);
+                    setCsvErrors([]);
+                    setCsvFileName("");
+                  }}
+                  className="text-xs text-zinc-500 hover:text-zinc-700"
+                >
+                  Pulisci selezione
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
 
       <Card>
         <CardHeader title="Rifornimenti operativi" subtitle={`${visibleProducts.length} prodotti da monitorare`} />

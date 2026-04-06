@@ -17,3 +17,122 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
 }
+
+.calendar-shell {
+  background: linear-gradient(180deg, #fffdf8 0%, #f4efe6 100%);
+  border: 1px solid #e7dfd2;
+  border-radius: 20px;
+  box-shadow: 0 18px 40px rgba(58, 42, 22, 0.08);
+}
+
+.calendar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid #e1d7c8;
+  padding: 0.25rem 0.7rem;
+  background: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  color: #3f3426;
+}
+
+.calendar-chip::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.calendar-chip-cleaning::before {
+  background: #10b981;
+}
+
+.calendar-chip-laundry::before {
+  background: #f59e0b;
+}
+
+.calendar-chip-maintenance::before {
+  background: #8b5cf6;
+}
+
+.calendar-modern .fc {
+  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+  color: #2f261c;
+}
+
+.calendar-modern .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 0.8rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.calendar-modern .fc-toolbar-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.calendar-modern .fc-button {
+  background: #fff7ec;
+  border: 1px solid #e5d4bf;
+  color: #2f261c;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.calendar-modern .fc-button:hover,
+.calendar-modern .fc-button:focus,
+.calendar-modern .fc-button-primary:not(:disabled).fc-button-active {
+  background: #f2e4d1;
+  border-color: #d9c4a7;
+  color: #2f261c;
+}
+
+.calendar-modern .fc-theme-standard .fc-scrollgrid,
+.calendar-modern .fc-theme-standard td,
+.calendar-modern .fc-theme-standard th {
+  border-color: rgba(120, 100, 80, 0.18);
+}
+
+.calendar-modern .fc-col-header-cell-cushion {
+  color: #7a6a58;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  padding: 0.5rem 0;
+}
+
+.calendar-modern .fc-daygrid-day-number {
+  color: #2f261c;
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 0.4rem;
+}
+
+.calendar-modern .fc-daygrid-day.fc-day-today {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.calendar-modern .fc-event {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(54, 40, 24, 0.12);
+}
+
+.calendar-modern .fc-daygrid-event-dot {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .calendar-modern .fc-toolbar-title {
+    font-size: 1rem;
+  }
+}

@@ -90,12 +90,26 @@ export default function CalendarClient() {
   }, [actions, bookings]);
 
   return (
-    <div className="space-y-4">
+    <div className="calendar-modern space-y-4">
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       <FullCalendar
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
         events={events}
+        headerToolbar={{
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,dayGridWeek",
+        }}
+        buttonText={{ today: "Oggi", month: "Mese", week: "Settimana" }}
+        dayMaxEventRows={3}
+        fixedWeekCount={false}
+        showNonCurrentDates={false}
+        eventDisplay="block"
+        displayEventTime={false}
+        firstDay={1}
+        height={520}
+        eventClassNames={() => ["calendar-event"]}
         datesSet={(info) => {
           const nextFrom = info.startStr.slice(0, 10);
           const nextTo = new Date(info.end.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -104,7 +118,6 @@ export default function CalendarClient() {
             void loadData(nextFrom, nextTo);
           }
         }}
-        height="auto"
       />
     </div>
   );
