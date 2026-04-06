@@ -61,7 +61,7 @@ export default function CalendarClient() {
   const events = useMemo<CalendarEvent[]>(() => {
     const bookingEvents: CalendarEvent[] = bookings.map((b) => ({
       id: `booking-${b.id}`,
-      title: `Booking (${b.guests} ospiti)`,
+      title: `Prenotazione · ${b.guests} ospiti`,
       start: b.check_in,
       end: b.check_out,
       color: ACTION_COLORS.booking,
@@ -69,6 +69,8 @@ export default function CalendarClient() {
 
     const actionEvents: CalendarEvent[] = actions.map((a) => {
       const category = getActionCategory(a.action_type);
+      const actionLabel = String(a.action_type ?? "").replace(/_/g, " ");
+      const statusLabel = a.status === "FATTO" ? "fatto" : "da fare";
       const color =
         category === "cleaning"
           ? ACTION_COLORS.cleaning
@@ -80,7 +82,7 @@ export default function CalendarClient() {
 
       return {
         id: `action-${a.id}`,
-        title: `${a.action_type} (${a.status})`,
+        title: `${actionLabel} · ${statusLabel}`,
         start: a.action_date,
         color,
       };
@@ -95,6 +97,7 @@ export default function CalendarClient() {
       <FullCalendar
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
+        initialDate={new Date().toISOString().slice(0, 10)}
         events={events}
         headerToolbar={{
           left: "prev,next today",

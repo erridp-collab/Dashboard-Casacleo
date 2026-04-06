@@ -18,14 +18,19 @@ type BookingForm = {
   total_amount: string;
 };
 
-const INITIAL_FORM: BookingForm = {
-  check_in: "2026-03-10",
-  check_out: "2026-03-12",
-  guests: 2,
-  channel: "airbnb",
-  notes: "",
-  total_amount: "",
-};
+function buildInitialForm(): BookingForm {
+  const today = new Date();
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+  const toIso = (d: Date) => d.toISOString().slice(0, 10);
+  return {
+    check_in: toIso(today),
+    check_out: toIso(tomorrow),
+    guests: 2,
+    channel: "airbnb",
+    notes: "",
+    total_amount: "",
+  };
+}
 
 function parseAmountInput(value: string): number | null {
   const normalized = value.trim().replace(",", ".");
@@ -35,7 +40,7 @@ function parseAmountInput(value: string): number | null {
 }
 
 export default function BookingsPage() {
-  const [form, setForm] = useState<BookingForm>(INITIAL_FORM);
+  const [form, setForm] = useState<BookingForm>(() => buildInitialForm());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
   const [bookingActions, setBookingActions] = useState<Record<string, Action[]>>({});
@@ -89,7 +94,7 @@ export default function BookingsPage() {
       return;
     }
     toast("Prenotazione creata con successo", "success");
-    setForm(INITIAL_FORM);
+    setForm(buildInitialForm());
     setShowForm(false);
     await loadBookings();
   }
@@ -244,14 +249,20 @@ export default function BookingsPage() {
                     </span>
                   </div>
 
-                  <div className="mt-3 grid gap-2">
-                    <input name={`check_in_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_in} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
-                    <input name={`check_out_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_out} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
-                    <input name={`guests_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" type="number" value={b.guests} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
-                    <input name={`channel_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" value={b.channel ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
-                    <input name={`total_amount_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} disabled={!isEditing} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
-                    <input name={`notes_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm disabled:border-transparent disabled:bg-zinc-50" value={b.notes ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
-                  </div>
+                  {isEditing ? (
+                    <div className="mt-3 grid gap-2">
+                      <input name={`check_in_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
+                      <input name={`check_out_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
+                      <input name={`guests_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" type="number" value={b.guests} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
+                      <input name={`channel_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" value={b.channel ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
+                      <input name={`total_amount_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
+                      <input name={`notes_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" value={b.notes ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-xs text-zinc-500">
+                      <p>Note: {b.notes ? b.notes : "-"}</p>
+                    </div>
+                  )}
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-zinc-300 px-2 text-xs hover:bg-zinc-100" onClick={() => void toggleActionsForBooking(b.id)}>
@@ -415,4 +426,3 @@ export default function BookingsPage() {
     </section>
   );
 }
-

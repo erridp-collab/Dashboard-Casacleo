@@ -41,9 +41,10 @@ async function upsertCleaningExpense(
   note?: string | null,
 ) {
   const supabase = supabaseAdmin();
+  const hoursLabel = `Pulizia esterna - ore ${amount}`;
   const description = note?.trim()
-    ? `Pulizia esterna - ${note.trim()}`
-    : "Pulizia esterna";
+    ? `${hoursLabel} (${note.trim()})`
+    : hoursLabel;
 
   const payload = {
     expense_date: actionDate,

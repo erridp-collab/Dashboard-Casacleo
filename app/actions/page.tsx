@@ -5,7 +5,7 @@ import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
 import { toast } from "@/components/toast";
-import { CalendarRange, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { CalendarRange, CheckCheck, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { Action } from "@/types/db";
 
 function groupByDate(actions: Action[]) {
@@ -56,14 +56,14 @@ export default function ActionsPage() {
     if (next === "FATTO" && action.action_type.toUpperCase().includes("PULIZIA")) {
       const external = confirm("Pulizia esterna? OK = esterna, Annulla = fatta da te");
       if (external) {
-        const amountRaw = prompt("Importo pulizia esterna (EUR)", "");
-        if (amountRaw === null) return;
-        const amount = Number(amountRaw.replace(",", ".").trim());
-        if (!Number.isFinite(amount) || amount <= 0) {
-          setError("Importo pulizia esterna non valido");
+        const hoursRaw = prompt("Ore pulizia esterna", "");
+        if (hoursRaw === null) return;
+        const hours = Number(hoursRaw.replace(",", ".").trim());
+        if (!Number.isFinite(hours) || hours <= 0) {
+          setError("Ore pulizia esterna non valide");
           return;
         }
-        payload.completion = { mode: "EXTERNAL", external_amount: amount };
+        payload.completion = { mode: "EXTERNAL", external_amount: hours };
       } else {
         payload.completion = { mode: "SELF" };
       }
@@ -244,7 +244,7 @@ export default function ActionsPage() {
               {rows.map((a) => (
                 <button
                   key={a.id}
-                  className={`w-full rounded-xl border border-zinc-200 p-3 text-left transition hover:border-blue-200 hover:bg-zinc-50 ${
+                  className={`w-full rounded-xl border border-zinc-200 px-3 py-2 text-left transition hover:border-blue-200 hover:bg-zinc-50 ${
                     a.status === "FATTO" ? "opacity-70 line-through" : ""
                   }`}
                   onClick={() => {
@@ -252,13 +252,12 @@ export default function ActionsPage() {
                     setSelectedAction(a);
                   }}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <ActionTypeBadge actionType={a.action_type} />
-                        <span className="text-xs text-zinc-500">Booking: {a.booking_id ?? "-"}</span>
-                      </div>
-                      {a.details ? <p className="truncate text-xs text-zinc-500">{a.details}</p> : null}
+                      <span className="truncate text-xs text-zinc-500">
+                        {a.details ? a.details : a.action_type}
+                      </span>
                     </div>
                     <button
                       className="rounded-full"
@@ -270,15 +269,6 @@ export default function ActionsPage() {
                       <StatusBadge status={a.status} />
                     </button>
                   </div>
-                  {a.details ? (
-                    <details className="mt-3 rounded-lg border border-zinc-100 bg-zinc-50 p-2">
-                      <summary className="flex cursor-pointer list-none items-center gap-1 text-xs text-zinc-600">
-                        <ChevronDown className="h-3.5 w-3.5" />
-                        Dettagli
-                      </summary>
-                      <p className="mt-2 whitespace-pre-line text-xs text-zinc-600">{a.details}</p>
-                    </details>
-                  ) : null}
                 </button>
               ))}
             </div>
