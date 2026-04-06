@@ -5,17 +5,15 @@ create table if not exists public.expenses (
   amount numeric not null default 0,
   category text,
   description text,
-  notes text,
   origin text default 'manuale',
   source_action_id uuid,
   created_at timestamptz default now()
 );
 
--- If the table already existed with "date" instead of "expense_date", add the alias column.
+-- If the table already existed, ensure optional columns exist.
 alter table public.expenses add column if not exists expense_date date;
 alter table public.expenses add column if not exists category text;
 alter table public.expenses add column if not exists description text;
-alter table public.expenses add column if not exists notes text;
 alter table public.expenses add column if not exists origin text default 'manuale';
 alter table public.expenses add column if not exists source_action_id uuid;
 
