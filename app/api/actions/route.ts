@@ -73,7 +73,11 @@ export async function PATCH(req: Request) {
 
       const { error } = await supabase.from("actions").update(patch).eq("id", body.id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-      await applyActionStatusEffects(body.id, body.status, body.completion);
+
+      // Fire-and-forget side effects (expenses, stock) — never crash the response.
+      void applyActionStatusEffects(body.id, body.status, body.completion).catch(
+        (err: unknown) => console.error("applyActionStatusEffects failed", err),
+      );
 
       return NextResponse.json({ ok: true }, { status: 200 });
     }

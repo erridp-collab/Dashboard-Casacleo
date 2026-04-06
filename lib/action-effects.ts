@@ -56,6 +56,7 @@ async function upsertCleaningExpense(
     source_action_id: actionId,
   };
 
+  // Try to find existing record (column may not exist — ignore errors).
   const existing = await supabase
     .from("expenses")
     .select("id")
@@ -71,16 +72,20 @@ async function upsertCleaningExpense(
     if (!update.error) return;
   }
 
+  // Full payload (with optional columns).
   let insert = await supabase.from("expenses").insert(payload);
   if (!insert.error) return;
 
+  // Fallback: insert with base columns only — never throws.
   insert = await supabase.from("expenses").insert({
     expense_date: actionDate,
     amount,
     category: "Pulizie",
     notes: description,
   });
-  if (insert.error) throw new Error(insert.error.message);
+  if (insert.error) {
+    console.error("upsertCleaningExpense fallback failed:", insert.error.message);
+  }
 }
 
 async function deleteCleaningExpense(actionId: string) {
