@@ -187,3 +187,56 @@ export async function GET(req: Request) {
     );
   }
 }
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json() as Record<string, unknown>;
+    const expense_date = String(body.expense_date ?? "");
+    const amount = Number(body.amount);
+    const category = String(body.category ?? "Spesa");
+    const description = String(body.description ?? body.notes ?? category);
+
+    if (!expense_date || !/^\d{4}-\d{2}-\d{2}$/.test(expense_date)) {
+      return NextResponse.json({ error: "Data non valida (YYYY-MM-DD)" }, { status: 400 });
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json({ error: "Importo non valido" }, { status: 400 });
+    }
+
+    const supabase = supabaseAdmin();
+    const payload = { expense_date, amount, category, description, notes: description, origin: "manuale" };
+    let { error } = await supabase.from("expenses").insert(payload);
+
+    // Fallback: table may use "date" column instead of "expense_date".
+    if (error && String(error.code) === "42703" && String(error.message).includes("expense_date")) {
+      const fallback = await supabase.from("expenses").insert({ date: expense_date, amount, category, notes: description });
+      error = fallback.error;
+    }
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+    const supabase = supabaseAdmin();
+    const { error } = await supabase.from("expenses").delete().eq("id", id).eq("origin", "manuale");
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
+      { status: 500 },
+    );
+  }
+}

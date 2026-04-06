@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/card";
 import { KpiCard } from "@/components/kpi-card";
 import { KpiCardSkeleton } from "@/components/skeleton";
 import { monthLabel } from "@/lib/format";
-import { ChartColumn, LineChartIcon } from "lucide-react";
+import { ChartColumn, LineChartIcon, Plus, Trash2 } from "lucide-react";
 import type { MonthlyFinancePoint } from "@/types/db";
 
 type FinanceEntry = {
@@ -26,6 +26,16 @@ type FinanceResponse = {
   totals: { revenue: number; expenses: number; netProfit: number };
 };
 
+const EXPENSE_CATEGORIES = [
+  "Pulizie",
+  "Rifornimento",
+  "Manutenzione",
+  "Utenze",
+  "Affitto",
+  "Commissioni",
+  "Altro",
+];
+
 function currentMonthKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -37,6 +47,15 @@ export default function FinancePage() {
   const [data, setData] = useState<FinanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // New expense form state
+  const [showForm, setShowForm] = useState(false);
+  const [formDate, setFormDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [formAmount, setFormAmount] = useState("");
+  const [formCategory, setFormCategory] = useState(EXPENSE_CATEGORIES[0]);
+  const [formDescription, setFormDescription] = useState("");
+  const [formSaving, setFormSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   async function loadFinance() {
     setError("");
@@ -56,6 +75,43 @@ export default function FinancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [months, selectedMonth]);
 
+  async function submitExpense(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError("");
+    const amount = Number(formAmount.replace(",", ".").trim());
+    if (!formDate || !Number.isFinite(amount) || amount <= 0) {
+      setFormError("Data e importo obbligatori");
+      return;
+    }
+    setFormSaving(true);
+    const res = await fetch("/api/finance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expense_date: formDate,
+        amount,
+        category: formCategory,
+        description: formDescription.trim() || formCategory,
+      }),
+    });
+    const json = await res.json();
+    setFormSaving(false);
+    if (!res.ok) {
+      setFormError(json.error ?? "Errore salvataggio");
+      return;
+    }
+    setFormAmount("");
+    setFormDescription("");
+    setShowForm(false);
+    void loadFinance();
+  }
+
+  async function deleteExpense(id: string) {
+    if (!confirm("Eliminare questa spesa?")) return;
+    const res = await fetch(`/api/finance?id=${id}`, { method: "DELETE" });
+    if (res.ok) void loadFinance();
+  }
+
   const rows =
     data?.monthly.map((m) => ({
       ...m,
@@ -63,6 +119,10 @@ export default function FinancePage() {
     })) ?? [];
 
   const monthEntries = useMemo(() => data?.entries ?? [], [data]);
+
+  const incomeEntries = useMemo(() => monthEntries.filter((r) => r.type === "ENTRATA"), [monthEntries]);
+  const expenseEntries = useMemo(() => monthEntries.filter((r) => r.type === "USCITA"), [monthEntries]);
+
   const monthTotals = useMemo(
     () =>
       monthEntries.reduce(
@@ -142,8 +202,124 @@ export default function FinancePage() {
         )}
       </div>
 
+      {/* Entrate */}
       <Card>
-        <CardHeader title="Entrate e uscite" subtitle={`Movimenti del mese ${monthLabel(selectedMonth)}`} />
+        <CardHeader title={`Entrate (${monthLabel(selectedMonth)})`} subtitle="Prenotazioni del mese" />
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="animate-pulse rounded-xl border border-zinc-100 p-3">
+                <div className="h-4 w-48 rounded bg-zinc-200" />
+                <div className="mt-1.5 h-3 w-32 rounded bg-zinc-200" />
+              </div>
+            ))}
+          </div>
+        ) : incomeEntries.length === 0 ? (
+          <p className="py-6 text-center text-sm text-zinc-400">Nessuna entrata per {monthLabel(selectedMonth)}</p>
+        ) : (
+          <div className="space-y-2">
+            {incomeEntries.map((row) => (
+              <div key={`income-${row.id}`} className="rounded-xl border border-zinc-200 px-3 py-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900">{row.description}</p>
+                    <p className="text-xs text-zinc-500">{row.date} | {row.category}</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold text-emerald-700">
+                    + EUR {row.amount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Spese */}
+      <Card>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-base font-semibold text-zinc-900">Spese ({monthLabel(selectedMonth)})</p>
+            <p className="text-xs text-zinc-500">Pulizie, manutenzioni, rifornimenti e spese manuali</p>
+          </div>
+          <button
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-rose-600 px-3 text-sm font-medium text-white transition hover:bg-rose-700 active:scale-95"
+            onClick={() => setShowForm((v) => !v)}
+          >
+            <Plus className="h-4 w-4" />
+            Aggiungi
+          </button>
+        </div>
+
+        {showForm && (
+          <form onSubmit={(e) => void submitExpense(e)} className="mb-4 space-y-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+            <p className="text-sm font-medium text-zinc-700">Nuova spesa</p>
+            {formError && <p className="text-sm text-rose-600">{formError}</p>}
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+              <label className="text-xs text-zinc-600">
+                Data
+                <input
+                  type="date"
+                  required
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                />
+              </label>
+              <label className="text-xs text-zinc-600">
+                Importo (EUR)
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="es. 45,00"
+                  required
+                  value={formAmount}
+                  onChange={(e) => setFormAmount(e.target.value)}
+                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                />
+              </label>
+              <label className="text-xs text-zinc-600">
+                Categoria
+                <select
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                >
+                  {EXPENSE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-zinc-600">
+                Descrizione
+                <input
+                  type="text"
+                  placeholder="Opzionale"
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                />
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={formSaving}
+                className="inline-flex h-10 items-center rounded-xl bg-rose-600 px-4 text-sm font-medium text-white disabled:opacity-60 hover:bg-rose-700"
+              >
+                {formSaving ? "Salvataggio..." : "Salva spesa"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setFormError(""); }}
+                className="inline-flex h-10 items-center rounded-xl border border-zinc-300 px-4 text-sm text-zinc-700 hover:bg-zinc-100"
+              >
+                Annulla
+              </button>
+            </div>
+          </form>
+        )}
+
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
@@ -153,26 +329,36 @@ export default function FinancePage() {
               </div>
             ))}
           </div>
-        ) : monthEntries.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <span className="text-3xl">💶</span>
-            <p className="text-sm font-medium text-zinc-700">Nessun movimento</p>
-            <p className="text-xs text-zinc-400">Nessun movimento registrato per {monthLabel(selectedMonth)}</p>
-          </div>
+        ) : expenseEntries.length === 0 ? (
+          <p className="py-6 text-center text-sm text-zinc-400">Nessuna spesa per {monthLabel(selectedMonth)}</p>
         ) : (
           <div className="space-y-2">
-            {monthEntries.map((row) => (
-              <div key={`${row.type}-${row.id}`} className="rounded-xl border border-zinc-200 px-3 py-2">
+            {expenseEntries.map((row) => (
+              <div key={`expense-${row.id}`} className="rounded-xl border border-zinc-200 px-3 py-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium text-zinc-900">{row.description}</p>
                     <p className="text-xs text-zinc-500">
-                      {row.date} | {row.category} | {row.origin}
+                      {row.date} | {row.category}
+                      {row.origin !== "manuale" && (
+                        <span className="ml-1.5 rounded bg-zinc-100 px-1 py-0.5 text-[10px] text-zinc-500">{row.origin}</span>
+                      )}
                     </p>
                   </div>
-                  <span className={`shrink-0 text-sm font-semibold ${row.type === "ENTRATA" ? "text-emerald-700" : "text-rose-700"}`}>
-                    {row.type === "ENTRATA" ? "+" : "-"} EUR {row.amount.toFixed(2)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="shrink-0 text-sm font-semibold text-rose-700">
+                      - EUR {row.amount.toFixed(2)}
+                    </span>
+                    {row.origin === "manuale" && (
+                      <button
+                        onClick={() => void deleteExpense(row.id)}
+                        className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-rose-600"
+                        title="Elimina"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
