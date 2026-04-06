@@ -132,7 +132,7 @@ export async function GET(req: Request) {
           date,
           type: "USCITA",
           category: String(row.category ?? "Spesa"),
-          description: String(row.description ?? row.notes ?? row.category ?? "Spesa"),
+          description: String(row.description ?? row.category ?? "Spesa"),
           amount: Number(amount.toFixed(2)),
           origin: String(row.origin ?? "manuale"),
         });
@@ -194,7 +194,7 @@ export async function POST(req: Request) {
     const expense_date = String(body.expense_date ?? "");
     const amount = Number(body.amount);
     const category = String(body.category ?? "Spesa");
-    const description = String(body.description ?? body.notes ?? category);
+    const description = String(body.description ?? category);
 
     if (!expense_date || !/^\d{4}-\d{2}-\d{2}$/.test(expense_date)) {
       return NextResponse.json({ error: "Data non valida (YYYY-MM-DD)" }, { status: 400 });
@@ -204,12 +204,12 @@ export async function POST(req: Request) {
     }
 
     const supabase = supabaseAdmin();
-    const payload = { expense_date, amount, category, description, notes: description, origin: "manuale" };
+    const payload = { expense_date, amount, category, description, origin: "manuale" };
     let { error } = await supabase.from("expenses").insert(payload);
 
     // Fallback: table may use "date" column instead of "expense_date".
     if (error && String(error.code) === "42703" && String(error.message).includes("expense_date")) {
-      const fallback = await supabase.from("expenses").insert({ date: expense_date, amount, category, notes: description });
+      const fallback = await supabase.from("expenses").insert({ date: expense_date, amount, category, description });
       error = fallback.error;
     }
 

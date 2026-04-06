@@ -172,9 +172,9 @@ async function upsertShoppingExpense(actionId: string, actionDate: string, amoun
     expense_date: actionDate,
     amount,
     category: "Rifornimento",
-    notes: description,
+    description,
   });
-  if (insert.error) throw new Error(insert.error.message);
+  if (insert.error) console.error("upsertShoppingExpense fallback failed:", insert.error.message);
 }
 
 async function deleteShoppingExpense(actionId: string) {
