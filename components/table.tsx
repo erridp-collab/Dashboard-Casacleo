@@ -2,8 +2,12 @@ import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
 export function Table({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-left text-sm text-zinc-700">{children}</table>
+    <div className="relative">
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-sm text-zinc-700">{children}</table>
+      </div>
+      {/* Fade gradient — visible only when content overflows on mobile */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent md:hidden" />
     </div>
   );
 }
