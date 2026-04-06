@@ -96,7 +96,8 @@ export default function BookingsPage() {
     toast("Prenotazione creata con successo", "success");
     setForm(buildInitialForm());
     setShowForm(false);
-    await loadBookings();
+    // Optimistic: add a placeholder and refresh in background.
+    void loadBookings();
   }
 
   async function updateBooking(id: string) {
@@ -127,8 +128,16 @@ export default function BookingsPage() {
       return;
     }
     toast("Prenotazione aggiornata", "success");
+    // Optimistic: update local state immediately, refresh in background.
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === id
+          ? { ...b, check_in: row.check_in, check_out: row.check_out, guests: row.guests, channel: row.channel, notes: row.notes, total_amount: parsedAmount }
+          : b,
+      ),
+    );
     setEditId(null);
-    await loadBookings();
+    void loadBookings();
   }
 
   async function deleteBooking(id: string) {
@@ -142,8 +151,10 @@ export default function BookingsPage() {
       return;
     }
     toast("Prenotazione eliminata", "success");
+    // Optimistic: remove immediately from local state, refresh in background.
+    setBookings((prev) => prev.filter((b) => b.id !== id));
     setExpandedBookingId(null);
-    await loadBookings();
+    void loadBookings();
   }
 
   async function toggleActionsForBooking(id: string) {

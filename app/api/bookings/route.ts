@@ -152,12 +152,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Creazione prenotazione fallita" }, { status: 400 });
     }
 
-    try {
-      await syncBookingAutomations();
-      await applyBookingConsumptions(check_in, check_out, parsedGuests);
-    } catch (stockErr: unknown) {
-      console.error("Booking automation sync failed", stockErr);
-    }
+    // Fire-and-forget: run in background, don't block the response.
+    void Promise.all([
+      syncBookingAutomations(),
+      applyBookingConsumptions(check_in, check_out, parsedGuests),
+    ]).catch((err: unknown) => console.error("Booking post-create sync failed", err));
 
     return NextResponse.json({ booking_id: bookingId }, { status: 200 });
   } catch (e: unknown) {

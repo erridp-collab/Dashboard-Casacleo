@@ -59,6 +59,26 @@ export async function PATCH(
     const body = (await req.json()) as UpdateBookingPayload;
     const updates: Record<string, unknown> = {};
     const supabase = supabaseAdmin();
+
+    // Fetch current booking and validate body fields (no DB needed) before any query.
+    if (body.total_amount !== undefined) {
+      const amount = toAmount(body.total_amount);
+      if (body.total_amount !== null && body.total_amount !== "" && amount === null) {
+        return NextResponse.json({ error: "Importo non valido" }, { status: 400 });
+      }
+      updates.total_amount = amount;
+    }
+    if (body.check_in !== undefined) updates.check_in = body.check_in;
+    if (body.check_out !== undefined) updates.check_out = body.check_out;
+    if (body.guests !== undefined) updates.guests = body.guests;
+    if (body.channel !== undefined) updates.channel = body.channel;
+    if (body.notes !== undefined) updates.notes = body.notes;
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+    }
+
+    // Fetch current booking first — need it to resolve final check_in/out/guests.
     const { data: current, error: currentErr } = await supabase
       .from("bookings")
       .select("id, check_in, check_out, guests")
@@ -67,23 +87,6 @@ export async function PATCH(
 
     if (currentErr) return NextResponse.json({ error: formatDbError(currentErr) }, { status: 400 });
     if (!current) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-
-    if (body.check_in !== undefined) updates.check_in = body.check_in;
-    if (body.check_out !== undefined) updates.check_out = body.check_out;
-    if (body.guests !== undefined) updates.guests = body.guests;
-    if (body.channel !== undefined) updates.channel = body.channel;
-    if (body.notes !== undefined) updates.notes = body.notes;
-    if (body.total_amount !== undefined) {
-      const amount = toAmount(body.total_amount);
-      if (body.total_amount !== null && body.total_amount !== "" && amount === null) {
-        return NextResponse.json({ error: "Importo non valido" }, { status: 400 });
-      }
-      updates.total_amount = amount;
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: "No updates provided" }, { status: 400 });
-    }
 
     const nextCheckIn = String(body.check_in ?? current.check_in);
     const nextCheckOut = String(body.check_out ?? current.check_out);
@@ -146,13 +149,12 @@ export async function PATCH(
     if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
     if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
-    try {
-      await applyBookingConsumptionDelta(String(current.check_in), String(current.check_out), Number(current.guests), -1);
-      await applyBookingConsumptionDelta(nextCheckIn, nextCheckOut, nextGuests, 1);
-      await syncBookingAutomations();
-    } catch (automationErr: unknown) {
-      console.error("Booking update automation sync failed", automationErr);
-    }
+    // Fire-and-forget: run in background, don't block the response.
+    void Promise.all([
+      applyBookingConsumptionDelta(String(current.check_in), String(current.check_out), Number(current.guests), -1)
+        .then(() => applyBookingConsumptionDelta(nextCheckIn, nextCheckOut, nextGuests, 1)),
+      syncBookingAutomations(),
+    ]).catch((err: unknown) => console.error("Booking update automation sync failed", err));
 
     return NextResponse.json({ booking: data }, { status: 200 });
   } catch (e: unknown) {
@@ -208,17 +210,11 @@ export async function DELETE(
     const { error } = await supabase.from("bookings").delete().eq("id", id);
     if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
 
-    try {
-      await applyBookingConsumptionDelta(
-        String(bookingRow.check_in),
-        String(bookingRow.check_out),
-        Number(bookingRow.guests),
-        -1,
-      );
-      await syncBookingAutomations();
-    } catch (automationErr: unknown) {
-      console.error("Booking delete automation sync failed", automationErr);
-    }
+    // Fire-and-forget: run in background, don't block the response.
+    void Promise.all([
+      applyBookingConsumptionDelta(String(bookingRow.check_in), String(bookingRow.check_out), Number(bookingRow.guests), -1),
+      syncBookingAutomations(),
+    ]).catch((err: unknown) => console.error("Booking delete automation sync failed", err));
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {

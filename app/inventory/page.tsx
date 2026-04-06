@@ -7,6 +7,7 @@ import { getRefillState, isMonitoredRefillProduct } from "@/lib/refill";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
+import * as XLSX from "xlsx";
 
 function StockBar({ quantity, initialQuantity, state }: { quantity: number; initialQuantity: number; state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE" }) {
   const pct = initialQuantity > 0 ? Math.min(100, Math.max(0, (quantity / initialQuantity) * 100)) : 0;
@@ -257,14 +258,42 @@ export default function InventoryPage() {
     URL.revokeObjectURL(url);
   }
 
+  function downloadTemplateXlsx() {
+    const headers = ["id", "prodotto", "qty", "threshold", "max_qty", "consumption_per_checkout"];
+    const rows = products.map((p) => [
+      p.id,
+      p.name,
+      p.quantity,
+      p.threshold,
+      p.maxQty ?? "",
+      p.consumptionPerCheckout ?? "",
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Magazzino");
+    XLSX.writeFile(wb, "magazzino_template.xlsx");
+  }
+
+  function parseXlsxBuffer(buffer: ArrayBuffer): { headers: string[]; rows: string[][] } {
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+    if (raw.length === 0) return { headers: [], rows: [] };
+    const headers = (raw[0] as unknown[]).map((h) => normalizeText(h));
+    const rows = raw.slice(1).map((r) => (r as unknown[]).map((cell) => String(cell ?? "")));
+    return { headers, rows };
+  }
+
   function handleCsvFile(file: File) {
     setCsvFileName(file.name);
     setCsvErrors([]);
     setCsvPreview([]);
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
     const reader = new FileReader();
     reader.onload = () => {
-      const text = String(reader.result ?? "");
-      const { headers, rows } = parseCsv(text);
+      const { headers, rows } = isExcel
+        ? parseXlsxBuffer(reader.result as ArrayBuffer)
+        : parseCsv(String(reader.result ?? ""));
       const headerIndex = new Map(headers.map((h, idx) => [h, idx]));
       const alias = (keys: string[]) => keys.find((key) => headerIndex.has(key)) ?? null;
 
@@ -336,7 +365,11 @@ export default function InventoryPage() {
       setCsvErrors(nextErrors);
       setCsvPreview(nextPreview);
     };
-    reader.readAsText(file);
+    if (isExcel) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   }
 
   async function applyCsvImport() {
@@ -389,7 +422,7 @@ export default function InventoryPage() {
       {success && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{success}</p>}
 
       <Card>
-        <CardHeader title="Import CSV" subtitle="Aggiorna i valori del magazzino in blocco" />
+        <CardHeader title="Import CSV / Excel" subtitle="Aggiorna i valori del magazzino in blocco" />
         <div className="space-y-4 px-6 pb-6">
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -397,24 +430,31 @@ export default function InventoryPage() {
               onClick={downloadTemplate}
               className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             >
-              Scarica template
+              Scarica template CSV
+            </button>
+            <button
+              type="button"
+              onClick={downloadTemplateXlsx}
+              className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
+            >
+              Scarica template Excel
             </button>
             <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100">
               <input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleCsvFile(file);
                 }}
               />
-              Carica CSV
+              Carica CSV o Excel
             </label>
             {csvFileName && <span className="text-xs text-zinc-500">File: {csvFileName}</span>}
           </div>
           <p className="text-xs text-zinc-500">
-            Il CSV sostituisce i valori attuali di quantita, soglia, massimo e consumo per checkout.
+            Carica un file CSV o Excel (.xlsx) per aggiornare i valori del magazzino in blocco.
           </p>
 
           {csvErrors.length > 0 && (
