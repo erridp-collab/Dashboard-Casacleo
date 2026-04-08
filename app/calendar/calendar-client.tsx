@@ -71,7 +71,6 @@ export default function CalendarClient() {
       const category = getActionCategory(a.action_type);
       const rawLabel = String(a.action_type ?? "").replace(/_/g, " ");
       const actionLabel = rawLabel.trim() !== "" ? rawLabel.trim()[0]?.toUpperCase() ?? "A" : "A";
-      const statusLabel = a.status === "FATTO" ? "fatto" : "da fare";
       const color =
         category === "cleaning"
           ? ACTION_COLORS.cleaning
@@ -83,7 +82,7 @@ export default function CalendarClient() {
 
       return {
         id: `action-${a.id}`,
-        title: `${actionLabel} · ${statusLabel}`,
+        title: actionLabel,
         start: a.action_date,
         color,
       };

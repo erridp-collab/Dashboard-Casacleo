@@ -121,10 +121,18 @@ body {
 .calendar-modern .fc-event {
   border: 0;
   border-radius: 10px;
-  padding: 0.15rem 0.4rem;
-  font-size: 0.78rem;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.75rem;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(54, 40, 24, 0.12);
+}
+
+.calendar-modern .fc-daygrid-day-events {
+  margin-top: 0.1rem;
+}
+
+.calendar-modern .fc-daygrid-event-harness {
+  margin-top: 2px;
 }
 
 .calendar-legend-label {
@@ -152,7 +160,16 @@ body {
   }
 
   .calendar-modern .fc-event {
+    font-size: 0.68rem;
+    padding: 0.08rem 0.28rem;
+  }
+
+  .calendar-shell {
+    padding: 0.9rem;
+  }
+
+  .calendar-legend-pill {
     font-size: 0.7rem;
-    padding: 0.1rem 0.3rem;
+    padding: 0.15rem 0.5rem;
   }
 }
