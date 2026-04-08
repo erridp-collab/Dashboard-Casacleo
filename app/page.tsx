@@ -54,6 +54,24 @@ export default function DashboardPage() {
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
+      <Card className="p-4">
+        <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
+        <CalendarClient />
+        <div className="calendar-legend mt-4">
+          <span className="calendar-legend-label">Legenda</span>
+          <span className="calendar-legend-token calendar-legend-token--booking">PR</span>
+          <span className="calendar-legend-text">Prenotazioni</span>
+          <span className="calendar-legend-token calendar-legend-token--cleaning">P</span>
+          <span className="calendar-legend-text">Pulizia</span>
+          <span className="calendar-legend-token calendar-legend-token--linen">B</span>
+          <span className="calendar-legend-text">Biancheria</span>
+          <span className="calendar-legend-token calendar-legend-token--laundry">L</span>
+          <span className="calendar-legend-text">Lavatrici</span>
+          <span className="calendar-legend-token calendar-legend-token--maintenance">M</span>
+          <span className="calendar-legend-text">Manutenzione</span>
+        </div>
+      </Card>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading ? (
           <>
@@ -88,26 +106,6 @@ export default function DashboardPage() {
           </>
         )}
       </div>
-
-      <Card className="p-4">
-        <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
-        <CalendarClient />
-        <div className="calendar-legend mt-4">
-          <span className="calendar-legend-label">Legenda</span>
-          <span className="calendar-legend-token calendar-legend-token--booking">PR</span>
-          <span className="calendar-legend-text">Prenotazioni</span>
-          <span className="calendar-legend-token calendar-legend-token--linen">B</span>
-          <span className="calendar-legend-text">Biancheria</span>
-          <span className="calendar-legend-token calendar-legend-token--cleaning">P</span>
-          <span className="calendar-legend-text">Pulizia</span>
-          <span className="calendar-legend-token calendar-legend-token--laundry">L</span>
-          <span className="calendar-legend-text">Lavatrici</span>
-          <span className="calendar-legend-token calendar-legend-token--maintenance">M</span>
-          <span className="calendar-legend-text">Manutenzione</span>
-          <span className="calendar-legend-token calendar-legend-token--generic">A</span>
-          <span className="calendar-legend-text">Altro</span>
-        </div>
-      </Card>
     </section>
   );
 }

@@ -77,7 +77,7 @@ export function computeDesiredActions(bookings: BookingRow[]): DesiredAction[] {
 
     desired.push({
       booking_id: booking.id,
-      action_date: booking.check_in,
+      action_date: booking.check_out,
       action_type: "BIANCHERIA",
       status: "DA_FARE",
       details: "Cambio biancheria consigliato",
