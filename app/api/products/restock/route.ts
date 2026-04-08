@@ -53,8 +53,9 @@ export async function POST(req: Request) {
         ? `Rifornimento ${(row as Record<string, unknown>).name ?? ""} - ${body.note.trim()}`
         : `Rifornimento ${(row as Record<string, unknown>).name ?? ""}`;
 
+      const today = new Date().toISOString().slice(0, 10);
       let expenseInsert = await supabase.from("expenses").insert({
-        expense_date: new Date().toISOString().slice(0, 10),
+        expense_date: today,
         amount,
         category: "Rifornimento",
         description,
@@ -65,12 +66,22 @@ export async function POST(req: Request) {
 
       if (expenseInsert.error) {
         expenseInsert = await supabase.from("expenses").insert({
-          expense_date: new Date().toISOString().slice(0, 10),
+          expense_date: today,
           amount,
           category: "Rifornimento",
-          notes: description,
+          description,
         });
       }
+
+      if (expenseInsert.error && String(expenseInsert.error.code) === "42703" && String(expenseInsert.error.message).includes("expense_date")) {
+        expenseInsert = await supabase.from("expenses").insert({
+          date: today,
+          amount,
+          category: "Rifornimento",
+          description,
+        });
+      }
+
       if (expenseInsert.error) {
         return NextResponse.json({ error: expenseInsert.error.message }, { status: 400 });
       }

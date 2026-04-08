@@ -57,7 +57,7 @@ export async function GET(req: Request) {
     const monthEnd = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0);
 
     const supabase = supabaseAdmin();
-    const [{ data: bookings, error: bookingsErr }, { data: expenses, error: expensesErr }] =
+    const [{ data: bookings, error: bookingsErr }, expensesRes] =
       await Promise.all([
         supabase
           .from("bookings")
@@ -70,6 +70,19 @@ export async function GET(req: Request) {
           .gte("expense_date", start.toISOString().slice(0, 10))
           .lte("expense_date", end.toISOString().slice(0, 10)),
       ]);
+
+    let expenses = expensesRes.data;
+    let expensesErr = expensesRes.error;
+
+    if (expensesErr && String(expensesErr.code) === "42703" && String(expensesErr.message).includes("expense_date")) {
+      const retry = await supabase
+        .from("expenses")
+        .select("*")
+        .gte("date", start.toISOString().slice(0, 10))
+        .lte("date", end.toISOString().slice(0, 10));
+      expenses = retry.data;
+      expensesErr = retry.error;
+    }
 
     if (bookingsErr) return NextResponse.json({ error: bookingsErr.message }, { status: 400 });
     if (expensesErr) return NextResponse.json({ error: expensesErr.message }, { status: 400 });
@@ -230,7 +243,11 @@ export async function DELETE(req: Request) {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
     const supabase = supabaseAdmin();
-    const { error } = await supabase.from("expenses").delete().eq("id", id).eq("origin", "manuale");
+    let { error } = await supabase.from("expenses").delete().eq("id", id).eq("origin", "manuale");
+    if (error && String(error.code) === "42703" && String(error.message).includes("origin")) {
+      const fallback = await supabase.from("expenses").delete().eq("id", id);
+      error = fallback.error;
+    }
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {

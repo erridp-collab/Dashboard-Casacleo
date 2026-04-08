@@ -9,6 +9,41 @@ export type CleaningCompletion = {
   note?: string | null;
 };
 
+type DbError = { code?: string; message?: string } | null;
+
+function isMissingColumn(error: DbError, column?: string): boolean {
+  if (!error) return false;
+  if (String(error.code) !== "42703") return false;
+  const msg = String(error.message ?? "");
+  return column ? msg.includes(column) : true;
+}
+
+async function tryInsertExpense(payloads: Record<string, unknown>[]): Promise<void> {
+  const supabase = supabaseAdmin();
+  let lastError: DbError = null;
+  for (const payload of payloads) {
+    const result = await supabase.from("expenses").insert(payload);
+    if (!result.error) return;
+    lastError = result.error;
+    if (!isMissingColumn(result.error)) {
+      throw new Error(result.error.message);
+    }
+  }
+  if (lastError) throw new Error(String(lastError.message ?? "Unable to insert expense"));
+}
+
+async function tryUpdateExpense(expenseId: string, payloads: Record<string, unknown>[]): Promise<boolean> {
+  const supabase = supabaseAdmin();
+  for (const payload of payloads) {
+    const update = await supabase.from("expenses").update(payload).eq("id", expenseId);
+    if (!update.error) return true;
+    if (!isMissingColumn(update.error)) {
+      throw new Error(update.error.message);
+    }
+  }
+  return false;
+}
+
 function isCleaningAction(actionType: string): boolean {
   return String(actionType ?? "").toUpperCase().includes("PULIZIA");
 }
@@ -46,14 +81,28 @@ async function upsertCleaningExpense(
     ? `${hoursLabel} (${note.trim()})`
     : hoursLabel;
 
-  const payload = {
-    expense_date: actionDate,
-    amount,
-    category: "Pulizie",
-    description,
-    origin: "automatica_da_pulizia",
-    source_action_id: actionId,
-  };
+  const payloads = [
+    {
+      expense_date: actionDate,
+      amount,
+      category: "Pulizie",
+      description,
+      origin: "automatica_da_pulizia",
+      source_action_id: actionId,
+    },
+    {
+      expense_date: actionDate,
+      amount,
+      category: "Pulizie",
+      description,
+    },
+    {
+      date: actionDate,
+      amount,
+      category: "Pulizie",
+      description,
+    },
+  ];
 
   // Try to find existing record (column may not exist — ignore errors).
   const existing = await supabase
@@ -64,27 +113,11 @@ async function upsertCleaningExpense(
     .maybeSingle();
 
   if (!existing.error && existing.data?.id) {
-    const update = await supabase
-      .from("expenses")
-      .update(payload)
-      .eq("id", existing.data.id);
-    if (!update.error) return;
+    const updated = await tryUpdateExpense(existing.data.id, payloads);
+    if (updated) return;
   }
 
-  // Full payload (with optional columns).
-  let insert = await supabase.from("expenses").insert(payload);
-  if (!insert.error) return;
-
-  // Fallback: insert with base columns only — never throws.
-  insert = await supabase.from("expenses").insert({
-    expense_date: actionDate,
-    amount,
-    category: "Pulizie",
-    description,
-  });
-  if (insert.error) {
-    console.error("upsertCleaningExpense fallback failed:", insert.error.message);
-  }
+  await tryInsertExpense(payloads);
 }
 
 async function deleteCleaningExpense(actionId: string) {
@@ -94,7 +127,7 @@ async function deleteCleaningExpense(actionId: string) {
     .delete()
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_pulizia");
-  if (!directDelete.error) return;
+  if (!directDelete.error || isMissingColumn(directDelete.error)) return;
 }
 
 async function regenerateLaundryStock() {
@@ -144,14 +177,28 @@ function parseShoppingDetails(details: string | null): string[] {
 async function upsertShoppingExpense(actionId: string, actionDate: string, amount: number, note?: string | null) {
   const supabase = supabaseAdmin();
   const description = note?.trim() ? `Rifornimento - ${note.trim()}` : "Rifornimento";
-  const payload = {
-    expense_date: actionDate,
-    amount,
-    category: "Rifornimento",
-    description,
-    origin: "automatica_da_rifornimento",
-    source_action_id: actionId,
-  };
+  const payloads = [
+    {
+      expense_date: actionDate,
+      amount,
+      category: "Rifornimento",
+      description,
+      origin: "automatica_da_rifornimento",
+      source_action_id: actionId,
+    },
+    {
+      expense_date: actionDate,
+      amount,
+      category: "Rifornimento",
+      description,
+    },
+    {
+      date: actionDate,
+      amount,
+      category: "Rifornimento",
+      description,
+    },
+  ];
 
   const existing = await supabase
     .from("expenses")
@@ -161,29 +208,23 @@ async function upsertShoppingExpense(actionId: string, actionDate: string, amoun
     .maybeSingle();
 
   if (!existing.error && existing.data?.id) {
-    const update = await supabase.from("expenses").update(payload).eq("id", existing.data.id);
-    if (!update.error) return;
+    const updated = await tryUpdateExpense(existing.data.id, payloads);
+    if (updated) return;
   }
 
-  let insert = await supabase.from("expenses").insert(payload);
-  if (!insert.error) return;
-
-  insert = await supabase.from("expenses").insert({
-    expense_date: actionDate,
-    amount,
-    category: "Rifornimento",
-    description,
-  });
-  if (insert.error) console.error("upsertShoppingExpense fallback failed:", insert.error.message);
+  await tryInsertExpense(payloads);
 }
 
 async function deleteShoppingExpense(actionId: string) {
   const supabase = supabaseAdmin();
-  await supabase
+  const result = await supabase
     .from("expenses")
     .delete()
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_rifornimento");
+  if (result.error && !isMissingColumn(result.error)) {
+    throw new Error(result.error.message);
+  }
 }
 
 async function applyShoppingRestock(actionId: string, details: string | null) {
@@ -264,3 +305,8 @@ export async function applyActionStatusEffects(
 
   await syncShoppingAction();
 }
+
+
+
+
+
