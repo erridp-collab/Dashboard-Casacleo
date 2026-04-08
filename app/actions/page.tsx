@@ -423,10 +423,11 @@ export default function ActionsPage() {
       />
 
       {linenAction && (
-        <div className="fixed inset-0 z-40 bg-zinc-900/30 p-4 backdrop-blur-sm">
-          <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-zinc-900">Cambio biancheria</h3>
+        <div className="fixed inset-0 z-40 flex flex-col bg-zinc-900/30 backdrop-blur-sm">
+          <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden rounded-none bg-white shadow-xl sm:my-6 sm:max-h-[90vh] sm:rounded-2xl">
+            {/* Header fisso */}
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-zinc-900">Cambio biancheria</h3>
               <button
                 className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
                 onClick={() => setLinenAction(null)}
@@ -435,85 +436,89 @@ export default function ActionsPage() {
               </button>
             </div>
 
-            {linenLoading && <p className="text-sm text-zinc-500">Caricamento suggerimenti...</p>}
-            {linenError && <p className="mb-3 text-sm text-rose-600">{linenError}</p>}
+            {/* Corpo scrollabile */}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              {linenLoading && <p className="text-sm text-zinc-500">Caricamento suggerimenti...</p>}
+              {linenError && <p className="mb-3 text-sm text-rose-600">{linenError}</p>}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm text-zinc-600">
-                Set estivo
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.sets_estivo}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, sets_estivo: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                Set invernale
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.sets_invernale}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, sets_invernale: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                Asciugamani bidet
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.towels_bidet}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_bidet: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                Asciugamani viso
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.towels_viso}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_viso: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                Asciugamani doccia
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.towels_doccia}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_doccia: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                Tappetino doccia
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.tappetino}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, tappetino: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                Mappine cucina
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.mappine}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, mappine: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                Spugne piatti
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.spugne_piatti}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, spugne_piatti: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                Spugne asciugatutto
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.spugne_asciuga}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, spugne_asciuga: e.target.value }))}
-                />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm text-zinc-600">
+                  Set estivo
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.sets_estivo}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, sets_estivo: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Set invernale
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.sets_invernale}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, sets_invernale: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Asciugamani bidet
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.towels_bidet}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_bidet: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Asciugamani viso
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.towels_viso}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_viso: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Asciugamani doccia
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.towels_doccia}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_doccia: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Tappetino doccia
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.tappetino}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, tappetino: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Mappine cucina
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.mappine}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, mappine: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Spugne piatti
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.spugne_piatti}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, spugne_piatti: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Spugne asciugatutto
+                  <input
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    value={linenDraft.spugne_asciuga}
+                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, spugne_asciuga: e.target.value }))}
+                  />
+                </label>
+              </div>
             </div>
 
-            <div className="mt-5 flex flex-col gap-2">
+            {/* Footer fisso con tasti sempre visibili */}
+            <div className="shrink-0 border-t border-zinc-100 px-5 py-4 flex flex-col gap-2">
               <button
                 className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50"
                 onClick={() => void confirmLinenUsage()}
