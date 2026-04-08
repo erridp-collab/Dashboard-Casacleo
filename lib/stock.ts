@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
+import { isQuantityManagedRefillProduct, type StockStatus } from "@/lib/refill";
 
 type StockProduct = {
   id: string;
@@ -9,6 +10,7 @@ type StockProduct = {
   threshold: number;
   consumption_per_checkout?: number;
   unit: string | null;
+  stock_status?: StockStatus | null;
 };
 
 function normalizeProductName(name: string): string {
@@ -40,11 +42,6 @@ export function getBookingConsumptionMap(checkIn: string, checkOut: string, gues
 
   if (days <= 0 || parsedGuests <= 0) return consumptions;
 
-  consumptions.set("caffe cialde", parsedGuests * days);
-  consumptions.set("carta igienica", Math.ceil(parsedGuests / 2) * days);
-  consumptions.set("spugnette morbide", 1);
-  consumptions.set("spugnette lavapiatti", 1);
-
   // Linen rule per checkout: every 2 guests consume 1 set.
   // 1 set = 2 towels per type + 1 full bed set.
   const setCount = Math.ceil(parsedGuests / 2);
@@ -58,8 +55,10 @@ export function getBookingConsumptionMap(checkIn: string, checkOut: string, gues
 
 function shoppingDetails(products: StockProduct[]): string {
   const rows = products.map((p) => {
+    if (p.stock_status === "TERMINATO") return `- ${p.name}: FINITO`;
+    if (p.stock_status === "A_META") return `- ${p.name}: A_META`;
     const unit = p.unit ? ` ${p.unit}` : "";
-    return `- ${p.name}: ${p.quantity}${unit} (soglia ${p.threshold})`;
+    return `- ${p.name}: ${p.quantity}${unit}`;
   });
   return `Prodotti da reintegrare:\n${rows.join("\n")}`;
 }
@@ -173,7 +172,7 @@ export async function syncShoppingAction(): Promise<void> {
 
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, threshold, unit`)
+    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, threshold, unit, stock_status`)
     .order("name", { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -187,10 +186,15 @@ export async function syncShoppingAction(): Promise<void> {
       threshold: toFixedNumber(row.threshold, 0),
       unit: row.unit === null || row.unit === undefined ? null : String(row.unit),
       category: row.category === null || row.category === undefined ? null : String(row.category),
+      stock_status: row.stock_status === null || row.stock_status === undefined ? null : row.stock_status as StockStatus,
     };
   });
 
-  const lowStock = products.filter((p) => p.quantity <= p.threshold && shouldIncludeInShoppingList(p));
+  const lowStock = products.filter((p) => {
+    if (!shouldIncludeInShoppingList(p)) return false;
+    if (p.stock_status === "A_META" || p.stock_status === "TERMINATO") return true;
+    return p.stock_status === null && p.quantity <= p.threshold;
+  });
   let { data: existing, error: existingErr } = await supabase
     .from("actions")
     .select("id")
@@ -244,7 +248,7 @@ export async function applyBookingConsumptionDelta(
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, consumption_per_checkout`);
+    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, consumption_per_checkout`);
   if (error) throw new Error(error.message);
 
   // Build all updates first, then fire them in parallel.
@@ -254,7 +258,10 @@ export async function applyBookingConsumptionDelta(
     const rawName = String(row.name ?? "");
     const normalized = normalizeProductName(rawName);
     const fixedConsume = consumptionByName.get(normalized) ?? 0;
-    const perCheckoutConsume = toFixedNumber(row.consumption_per_checkout, 0);
+    const category = row.category === null || row.category === undefined ? null : String(row.category);
+    const perCheckoutConsume = isQuantityManagedRefillProduct({ name: rawName, category })
+      ? toFixedNumber(row.consumption_per_checkout, 0)
+      : 0;
     const consume = fixedConsume + Math.max(0, perCheckoutConsume);
     if (consume <= 0) continue;
 

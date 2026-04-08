@@ -251,7 +251,7 @@ async function applyShoppingRestock(actionId: string, details: string | null) {
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, threshold, max_qty`);
+    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, threshold, max_qty, stock_status`);
   if (error) throw new Error(error.message);
 
   const byName = new Map<string, Record<string, unknown>>();
@@ -270,7 +270,7 @@ async function applyShoppingRestock(actionId: string, details: string | null) {
     const nextQty = Number.isFinite(maxQty) && maxQty > 0 ? maxQty : Number.isFinite(threshold) ? Math.max(1, threshold + 1) : 1;
     const { error: updateErr } = await supabase
       .from("products")
-      .update({ [schema.quantityColumn]: nextQty })
+      .update({ [schema.quantityColumn]: nextQty, stock_status: "PIENO" })
       .eq(schema.idColumn, id);
     if (updateErr) throw new Error(updateErr.message);
   }
@@ -528,5 +528,4 @@ export async function applyActionStatusEffects(
 
   await syncShoppingAction();
 }
-
 

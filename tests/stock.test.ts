@@ -2,12 +2,8 @@ import { describe, expect, it } from "vitest";
 import { getBookingConsumptionMap, shouldIncludeInShoppingList } from "../lib/stock";
 
 describe("stock business rules", () => {
-  it("computes booking consumptions for coffee/toilet paper/sponges and linen sets", () => {
+  it("computes booking consumptions only for quantity-managed linen", () => {
     const map = getBookingConsumptionMap("2026-03-01", "2026-03-04", 3);
-    expect(map.get("caffe cialde")).toBe(9);
-    expect(map.get("carta igienica")).toBe(6);
-    expect(map.get("spugnette morbide")).toBe(1);
-    expect(map.get("spugnette lavapiatti")).toBe(1);
     expect(map.get("asciugamani bidet")).toBe(4);
     expect(map.get("asciugamani doccia")).toBe(4);
     expect(map.get("asciugamani corpo")).toBe(4);

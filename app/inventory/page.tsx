@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ShoppingCart } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
-import { getRefillState, isMonitoredRefillProduct } from "@/lib/refill";
+import { getRefillState, isMonitoredRefillProduct, isStatusManagedRefillProduct, type StockStatus } from "@/lib/refill";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
@@ -29,6 +29,7 @@ type ProductRow = {
   initialQuantity: number;
   maxQty: number | null;
   consumptionPerCheckout: number | null;
+  stockStatus: StockStatus | null;
 };
 
 type RestockDraft = {
@@ -48,6 +49,12 @@ type CsvPreviewRow = {
   consumptionNow: number | null;
   consumptionNext: number | null;
 };
+
+const STATUS_OPTIONS: Array<{ value: StockStatus; label: string; tone: string }> = [
+  { value: "PIENO", label: "Pieno", tone: "bg-emerald-100 text-emerald-700" },
+  { value: "A_META", label: "A meta", tone: "bg-amber-100 text-amber-700" },
+  { value: "TERMINATO", label: "Finito", tone: "bg-rose-100 text-rose-700" },
+];
 
 function toNum(value: unknown, fallback = 0): number {
   const parsed = Number(value);
@@ -109,6 +116,7 @@ export default function InventoryPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [savingStatusId, setSavingStatusId] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [csvFileName, setCsvFileName] = useState("");
   const [csvPreview, setCsvPreview] = useState<CsvPreviewRow[]>([]);
@@ -142,6 +150,7 @@ export default function InventoryPage() {
         initialQuantity,
         maxQty,
         consumptionPerCheckout,
+        stockStatus: p.stock_status === null || p.stock_status === undefined ? null : p.stock_status as StockStatus,
       };
     });
 
@@ -197,6 +206,28 @@ export default function InventoryPage() {
     await loadProducts();
   }
 
+  async function updateProductStatus(id: string, stockStatus: StockStatus) {
+    setSavingStatusId(id);
+    setError("");
+    setSuccess("");
+    const res = await fetch("/api/products/stock-status", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates: [{ id, stock_status: stockStatus }] }),
+    });
+    const data = await res.json();
+    setSavingStatusId("");
+    if (!res.ok) {
+      const msg = data.error ?? "Errore aggiornamento stato";
+      setError(msg);
+      toast(msg, "error");
+      return;
+    }
+
+    setProducts((prev) => prev.map((product) => (product.id === id ? { ...product, stockStatus } : product)));
+    toast("Stato consumabile aggiornato", "success");
+  }
+
   useEffect(() => {
     const t = setTimeout(() => {
       void loadProducts();
@@ -204,14 +235,24 @@ export default function InventoryPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const visibleProducts = useMemo(() => {
+  const visibleStatusProducts = useMemo(() => {
     const monitored = products.filter((product) => isMonitoredRefillProduct(product));
-    const alerting = monitored.filter((product) => {
+    const statusManaged = monitored.filter((product) => isStatusManagedRefillProduct(product));
+    const alerting = statusManaged.filter((product) => {
       const state = getRefillState(product);
       return state !== "OK";
     });
-    // Default view: alerting first, fallback to monitored defaults.
-    return alerting.length > 0 ? alerting : monitored;
+    return alerting.length > 0 ? alerting : statusManaged;
+  }, [products]);
+
+  const visibleQuantityProducts = useMemo(() => {
+    const monitored = products.filter((product) => isMonitoredRefillProduct(product));
+    const quantityManaged = monitored.filter((product) => !isStatusManagedRefillProduct(product));
+    const alerting = quantityManaged.filter((product) => {
+      const state = getRefillState(product);
+      return state !== "OK";
+    });
+    return alerting.length > 0 ? alerting : quantityManaged;
   }, [products]);
 
   function stateBadge(state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE") {
@@ -232,6 +273,31 @@ export default function InventoryPage() {
       );
     }
     return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">OK</span>;
+  }
+
+  function statusSelector(product: ProductRow) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {STATUS_OPTIONS.map((option) => {
+          const active = product.stockStatus === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              disabled={savingStatusId === product.id}
+              onClick={() => void updateProductStatus(product.id, option.value)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                active
+                  ? option.tone
+                  : "border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50"
+              } disabled:opacity-50`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    );
   }
 
   function buildTemplateCsv() {
@@ -414,7 +480,7 @@ export default function InventoryPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold text-zinc-900">Rifornimento</h1>
         <p className="text-sm text-zinc-500">
-          Prodotti monitorati vicini alla soglia o da rifornire
+          Consumabili a 3 stati, biancheria a quantita
         </p>
       </header>
 
@@ -521,7 +587,97 @@ export default function InventoryPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Rifornimenti operativi" subtitle={`${visibleProducts.length} prodotti da monitorare`} />
+        <CardHeader title="Consumabili a Stati" subtitle={`${visibleStatusProducts.length} prodotti monitorati a 3 stati`} />
+
+        {loadingProducts ? (
+          <div className="hidden md:block">
+            <Table>
+              <TableHead>
+                <tr>
+                  <TableHeaderCell>Prodotto</TableHeaderCell>
+                  <TableHeaderCell>Categoria</TableHeaderCell>
+                  <TableHeaderCell>Stato</TableHeaderCell>
+                  <TableHeaderCell>Aggiorna</TableHeaderCell>
+                </tr>
+              </TableHead>
+              <TableBody>{[1, 2, 3].map((i) => <RowSkeleton key={i} cols={4} />)}</TableBody>
+            </Table>
+          </div>
+        ) : visibleStatusProducts.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <span className="text-3xl">OK</span>
+            <p className="text-sm font-medium text-zinc-700">Nessun consumabile da monitorare</p>
+            <p className="text-xs text-zinc-400">I consumabili usano PIENO, A_META e TERMINATO.</p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3 md:hidden">
+              {visibleStatusProducts.map((product) => {
+                const state = getRefillState(product);
+                return (
+                  <article
+                    key={product.id}
+                    className={`rounded-xl border p-3 ${
+                      state === "DA_RIFORNIRE"
+                        ? "border-rose-200 bg-rose-50/60"
+                        : state === "IN_ESAURIMENTO"
+                          ? "border-amber-200 bg-amber-50/50"
+                          : "border-zinc-200"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-zinc-900">{product.name}</h3>
+                        <p className="text-xs text-zinc-500">{product.category ?? "-"}</p>
+                      </div>
+                      {stateBadge(state)}
+                    </div>
+                    <p className="mt-3 text-xs text-zinc-500">Gestione a 3 stati per i consumabili.</p>
+                    <div className="mt-3">{statusSelector(product)}</div>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="hidden md:block">
+              <Table>
+                <TableHead>
+                  <tr>
+                    <TableHeaderCell>Prodotto</TableHeaderCell>
+                    <TableHeaderCell>Categoria</TableHeaderCell>
+                    <TableHeaderCell>Stato</TableHeaderCell>
+                    <TableHeaderCell>Aggiorna</TableHeaderCell>
+                  </tr>
+                </TableHead>
+                <TableBody>
+                  {visibleStatusProducts.map((product) => {
+                    const state = getRefillState(product);
+                    return (
+                      <TableRow
+                        key={product.id}
+                        className={
+                          state === "DA_RIFORNIRE"
+                            ? "bg-rose-50/50"
+                            : state === "IN_ESAURIMENTO"
+                              ? "bg-amber-50/40"
+                              : ""
+                        }
+                      >
+                        <TableCell className="font-medium text-zinc-900">{product.name}</TableCell>
+                        <TableCell>{product.category ?? "-"}</TableCell>
+                        <TableCell>{stateBadge(state)}</TableCell>
+                        <TableCell>{statusSelector(product)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Biancheria a Quantita" subtitle={`${visibleQuantityProducts.length} prodotti gestiti a pezzi/set`} />
 
         {loadingProducts ? (
           <>
@@ -541,16 +697,16 @@ export default function InventoryPage() {
               </Table>
             </div>
           </>
-        ) : visibleProducts.length === 0 ? (
+        ) : visibleQuantityProducts.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <span className="text-3xl">✅</span>
-            <p className="text-sm font-medium text-zinc-700">Scorte a posto</p>
-            <p className="text-xs text-zinc-400">Nessun prodotto in esaurimento o da rifornire</p>
+            <p className="text-sm font-medium text-zinc-700">Nessuna biancheria da monitorare</p>
+            <p className="text-xs text-zinc-400">Set letto, asciugamani e tessili restano gestiti a quantita.</p>
           </div>
         ) : (
           <>
           <div className="space-y-3 md:hidden">
-            {visibleProducts.map((product) => {
+            {visibleQuantityProducts.map((product) => {
               const state = getRefillState(product);
               const margin = Number((product.initialQuantity * 0.2).toFixed(2));
               const draft = drafts[product.id] ?? { addQty: "", amount: "" };
@@ -626,7 +782,7 @@ export default function InventoryPage() {
               </tr>
             </TableHead>
             <TableBody>
-              {visibleProducts.map((product) => {
+              {visibleQuantityProducts.map((product) => {
                 const state = getRefillState(product);
                 const margin = Number((product.initialQuantity * 0.2).toFixed(2));
                 const draft = drafts[product.id] ?? { addQty: "", amount: "" };

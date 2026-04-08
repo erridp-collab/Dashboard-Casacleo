@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveProductSchema } from "@/lib/products-schema";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { syncShoppingAction } from "@/lib/stock";
 
 type StockStatusPayload = {
   updates: { id: string; stock_status: "PIENO" | "A_META" | "TERMINATO" }[];
@@ -27,6 +28,8 @@ export async function PATCH(req: Request) {
         .eq(schema.idColumn, item.id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    await syncShoppingAction();
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
