@@ -68,6 +68,10 @@ export function shouldIncludeInShoppingList(product: Pick<StockProduct, "name" |
   const category = String(product.category ?? "").toUpperCase();
   const name = String(product.name ?? "").toUpperCase();
 
+  if (name === "LENZUOLO SOTTO EXTRA") {
+    return false;
+  }
+
   // Biancheria/tessili are managed by LAVATRICI flow, not SPESA.
   if (
     category === "ASCIUGAMANI E BAGNO" ||

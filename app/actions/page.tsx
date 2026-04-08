@@ -41,7 +41,6 @@ type LinenDraft = {
   tappetino: string;
   mappine: string;
   spugne_piatti: string;
-  spugne_asciuga: string;
 };
 
 type LaundryDraft = {
@@ -73,7 +72,6 @@ const LINEN_FIELDS: QuantityField<keyof LinenDraft>[] = [
   { key: "tappetino", label: "Tappetino doccia" },
   { key: "mappine", label: "Mappine cucina" },
   { key: "spugne_piatti", label: "Spugne piatti" },
-  { key: "spugne_asciuga", label: "Spugne asciugatutto" },
 ];
 
 const LAUNDRY_FIELDS: QuantityField<keyof LaundryDraft>[] = [
@@ -98,7 +96,6 @@ function buildLinenSuggestion(guests: number): LinenDraft {
     tappetino: "1",
     mappine: "1",
     spugne_piatti: "1",
-    spugne_asciuga: "1",
   };
 }
 
@@ -147,7 +144,6 @@ function fillLinenDraft(base: LinenDraft, values?: Partial<Record<keyof LinenDra
     tappetino: toDraftValue(values.tappetino, base.tappetino),
     mappine: toDraftValue(values.mappine, base.mappine),
     spugne_piatti: toDraftValue(values.spugne_piatti, base.spugne_piatti),
-    spugne_asciuga: toDraftValue(values.spugne_asciuga, base.spugne_asciuga),
   };
 }
 
@@ -363,7 +359,6 @@ export default function ActionsPage() {
       tappetino: toNumber(linenDraft.tappetino),
       mappine: toNumber(linenDraft.mappine),
       spugne_piatti: toNumber(linenDraft.spugne_piatti),
-      spugne_asciuga: toNumber(linenDraft.spugne_asciuga),
     };
 
     if (Object.values(values).some((v) => v === null)) {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveProductSchema } from "@/lib/products-schema";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type StockStatusPayload = {
@@ -15,6 +16,7 @@ export async function PATCH(req: Request) {
     }
 
     const supabase = supabaseAdmin();
+    const schema = await resolveProductSchema(supabase);
     for (const item of updates) {
       if (!item.id || !["PIENO", "A_META", "TERMINATO"].includes(item.stock_status)) {
         return NextResponse.json({ error: `Valore non valido per ${item.id}` }, { status: 400 });
@@ -22,7 +24,7 @@ export async function PATCH(req: Request) {
       const { error } = await supabase
         .from("products")
         .update({ stock_status: item.stock_status })
-        .eq("id", item.id);
+        .eq(schema.idColumn, item.id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     }
 

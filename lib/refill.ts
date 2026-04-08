@@ -9,6 +9,7 @@ export type RefillProduct = {
 };
 
 const MONITORED_CATEGORIES = new Set(["CAFFE", "ASCIUGAMANI E BAGNO", "LENZUOLA E COPERTE", "TESSILI E BIANCHERIA"]);
+const EXCLUDED_OPERATIONAL_PRODUCTS = new Set(["LENZUOLO SOTTO EXTRA"]);
 
 export function getRefillState(product: RefillProduct): RefillState {
   const margin = product.initialQuantity * 0.2;
@@ -18,10 +19,11 @@ export function getRefillState(product: RefillProduct): RefillState {
 }
 
 export function isMonitoredRefillProduct(product: Pick<RefillProduct, "name" | "category">): boolean {
+  const nameKey = String(product.name ?? "").toUpperCase().trim();
+  if (EXCLUDED_OPERATIONAL_PRODUCTS.has(nameKey)) return false;
+
   const categoryKey = String(product.category ?? "").toUpperCase();
   if (MONITORED_CATEGORIES.has(categoryKey)) return true;
-
-  const nameKey = String(product.name ?? "").toUpperCase();
   return (
     nameKey.includes("CAFFE") ||
     nameKey.includes("SPUGNETT") ||

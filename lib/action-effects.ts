@@ -21,7 +21,6 @@ export type LinenCompletion = {
   mappine?: number | null;
   carta_igienica?: number | null;
   spugne_piatti?: number | null;
-  spugne_asciuga?: number | null;
 };
 
 export type LaundryCompletion = {
@@ -306,7 +305,6 @@ function buildLinenQuantityItems(linen: LinenCompletion): QuantityItem[] {
     { key: "mappine", names: ["mappine cucina"], qty: toNumber(linen.mappine) },
     { key: "carta_igienica", names: ["carta igienica"], qty: toNumber(linen.carta_igienica) },
     { key: "spugne_piatti", names: ["spugnette lavapiatti"], qty: toNumber(linen.spugne_piatti) },
-    { key: "spugne_asciuga", names: ["spugnette morbide"], qty: toNumber(linen.spugne_asciuga) },
   ];
 }
 
@@ -401,7 +399,6 @@ function toLinenCompletion(applied: Record<string, number>): LinenCompletion {
     mappine: applied.mappine ?? 0,
     carta_igienica: applied.carta_igienica ?? 0,
     spugne_piatti: applied.spugne_piatti ?? 0,
-    spugne_asciuga: applied.spugne_asciuga ?? 0,
   };
 }
 
@@ -531,6 +528,5 @@ export async function applyActionStatusEffects(
 
   await syncShoppingAction();
 }
-
 
 
