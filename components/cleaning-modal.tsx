@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Wrench } from "lucide-react";
 
 type StockStatus = "PIENO" | "A_META" | "TERMINATO";
+type CleaningMode = null | "SELF" | "EXTERNAL";
 
 type ProductCheck = {
   id: string;
@@ -26,6 +27,8 @@ const STATUS_CONFIG: Record<StockStatus, { label: string; bg: string; text: stri
 const STATUS_CYCLE: StockStatus[] = ["PIENO", "A_META", "TERMINATO"];
 
 export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props) {
+  const [mode, setMode] = useState<CleaningMode>(null);
+  const [externalHours, setExternalHours] = useState("");
   const [products, setProducts] = useState<ProductCheck[]>([]);
   const [maintenanceNote, setMaintenanceNote] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -66,10 +69,34 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
 
   async function handleSave() {
     if (!actionId) return;
+    if (!mode) { setError("Seleziona il tipo di pulizia"); return; }
+
+    if (mode === "EXTERNAL") {
+      const hours = Number(externalHours.replace(",", ".").trim());
+      if (!Number.isFinite(hours) || hours <= 0) {
+        setError("Inserisci le ore di pulizia esterna");
+        return;
+      }
+    }
+
     setSaving(true);
     setError("");
 
     try {
+      // 0. Segna l'azione come FATTO con il modo corretto
+      const hours = mode === "EXTERNAL" ? Number(externalHours.replace(",", ".").trim()) : null;
+      await fetch("/api/actions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: actionId,
+          status: "FATTO",
+          completion: mode === "EXTERNAL"
+            ? { mode: "EXTERNAL", external_amount: hours }
+            : { mode: "SELF" },
+        }),
+      });
+
       // 1. Salva stock_status prodotti
       const statusRes = await fetch("/api/products/stock-status", {
         method: "PATCH",
@@ -139,6 +166,55 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
         </div>
 
         <div className="px-5 py-4 space-y-5">
+          {/* Step 1 — tipo pulizia */}
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Chi ha fatto le pulizie?
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setMode("SELF")}
+                className={`flex flex-col items-center gap-2 rounded-xl border-2 py-4 text-sm font-medium transition ${
+                  mode === "SELF"
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                }`}
+              >
+                <span className="text-2xl">🙋</span>
+                Fatta da me
+              </button>
+              <button
+                onClick={() => setMode("EXTERNAL")}
+                className={`flex flex-col items-center gap-2 rounded-xl border-2 py-4 text-sm font-medium transition ${
+                  mode === "EXTERNAL"
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                }`}
+              >
+                <span className="text-2xl">🧹</span>
+                Esterna
+              </button>
+            </div>
+            {mode === "EXTERNAL" && (
+              <div className="mt-3">
+                <label className="text-sm text-zinc-600">
+                  Ore di pulizia esterna
+                  <input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    inputMode="decimal"
+                    placeholder="es. 2.5"
+                    value={externalHours}
+                    onChange={(e) => setExternalHours(e.target.value)}
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  />
+                </label>
+                <p className="mt-1 text-xs text-zinc-400">Le ore verranno registrate come spesa</p>
+              </div>
+            )}
+          </div>
+
           {/* Prodotti */}
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -207,7 +283,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
           </button>
           <button
             className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 text-sm text-zinc-500 hover:bg-zinc-50"
-            onClick={onClose}
+            onClick={() => { setMode(null); setExternalHours(""); setError(""); onClose(); }}
           >
             Chiudi senza salvare
           </button>
