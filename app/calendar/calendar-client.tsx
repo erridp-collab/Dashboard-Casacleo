@@ -15,6 +15,15 @@ type CalendarEvent = {
   color: string;
 };
 
+function getActionInitial(actionType: string): string {
+  const upper = String(actionType ?? "").toUpperCase();
+  if (upper.includes("BIANCHERIA")) return "B";
+  if (upper.includes("PULIZIA") || upper.includes("LETTO")) return "P";
+  if (upper.includes("LAVATRICI") || upper.includes("LAVAND")) return "L";
+  if (upper.includes("MANUT")) return "M";
+  return "A";
+}
+
 export default function CalendarClient() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
@@ -69,13 +78,14 @@ export default function CalendarClient() {
 
     const actionEvents: CalendarEvent[] = actions.map((a) => {
       const category = getActionCategory(a.action_type);
-      const rawLabel = String(a.action_type ?? "").replace(/_/g, " ");
-      const actionLabel = rawLabel.trim() !== "" ? rawLabel.trim()[0]?.toUpperCase() ?? "A" : "A";
+      const actionLabel = getActionInitial(a.action_type);
       const color =
         category === "cleaning"
           ? ACTION_COLORS.cleaning
           : category === "laundry"
             ? ACTION_COLORS.laundry
+            : category === "linen"
+              ? ACTION_COLORS.linen
             : category === "maintenance"
               ? ACTION_COLORS.maintenance
               : ACTION_COLORS.generic;

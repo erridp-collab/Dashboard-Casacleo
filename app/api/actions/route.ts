@@ -71,6 +71,18 @@ export async function PATCH(req: Request) {
         patch.amount = completedAmount;
       }
 
+      if (body.completion?.linen) {
+        const { data: actionRow, error: actionErr } = await supabase
+          .from("actions")
+          .select("id, action_type")
+          .eq("id", body.id)
+          .maybeSingle();
+        if (actionErr) return NextResponse.json({ error: actionErr.message }, { status: 400 });
+        if (actionRow && String(actionRow.action_type ?? "").toUpperCase().includes("BIANCHERIA")) {
+          patch.details = JSON.stringify({ linen: body.completion.linen });
+        }
+      }
+
       const { error } = await supabase.from("actions").update(patch).eq("id", body.id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 

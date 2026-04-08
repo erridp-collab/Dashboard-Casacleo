@@ -46,6 +46,7 @@ begin
   insert into tmp_seed_products (sku, name, category, unit, quantity, threshold, max_qty, consumption_per_checkout)
   values
     ('asciug_bidet', 'Asciugamani bidet', 'Asciugamani e bagno', 'pezzi', 6, 2, 6, null),
+    ('asciug_viso', 'Asciugamani viso', 'Asciugamani e bagno', 'pezzi', 8, 3, 8, null),
     ('asciug_doccia', 'Asciugamani doccia', 'Asciugamani e bagno', 'pezzi', 8, 3, 8, null),
     ('asciug_corpo', 'Asciugamani corpo', 'Asciugamani e bagno', 'pezzi', 8, 3, 8, null),
     ('tappetini_doccia', 'Tappetini doccia', 'Asciugamani e bagno', 'pezzi', 4, 2, 4, null),

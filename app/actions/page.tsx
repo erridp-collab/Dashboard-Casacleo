@@ -30,11 +30,56 @@ function monthRange(startDate: string) {
   return { from, to, label: d.toLocaleDateString("it-IT", { month: "long", year: "numeric" }) };
 }
 
+type LinenDraft = {
+  sets_estivo: string;
+  sets_invernale: string;
+  towels_bidet: string;
+  towels_viso: string;
+  towels_doccia: string;
+  tappetino: string;
+  mappine: string;
+  carta_igienica: string;
+  spugne_piatti: string;
+  spugne_asciuga: string;
+};
+
+function buildLinenSuggestion(guests: number): LinenDraft {
+  const safeGuests = Number.isFinite(guests) && guests > 0 ? guests : 1;
+  const sets = Math.ceil(safeGuests / 2);
+  return {
+    sets_estivo: String(sets),
+    sets_invernale: "0",
+    towels_bidet: String(safeGuests),
+    towels_viso: String(safeGuests),
+    towels_doccia: String(safeGuests),
+    tappetino: "1",
+    mappine: "1",
+    carta_igienica: "2",
+    spugne_piatti: "1",
+    spugne_asciuga: "1",
+  };
+}
+
+function toNumber(value: string): number | null {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return 0;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isLinenAction(actionType: string): boolean {
+  return String(actionType ?? "").toUpperCase().includes("BIANCHERIA");
+}
+
 export default function ActionsPage() {
   const [monthCursor, setMonthCursor] = useState(monthStartKey(new Date()));
   const { from, to, label: monthLabel } = useMemo(() => monthRange(monthCursor), [monthCursor]);
   const [actions, setActions] = useState<Action[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
+  const [linenAction, setLinenAction] = useState<Action | null>(null);
+  const [linenDraft, setLinenDraft] = useState<LinenDraft>(() => buildLinenSuggestion(2));
+  const [linenLoading, setLinenLoading] = useState(false);
+  const [linenError, setLinenError] = useState("");
   const [showDone, setShowDone] = useState(false);
   const [showAdvancedRange, setShowAdvancedRange] = useState(false);
   const [fromDraft, setFromDraft] = useState(from);
@@ -49,9 +94,85 @@ export default function ActionsPage() {
     setActions(data.actions ?? []);
   }, [from, to]);
 
+  async function openLinenModal(action: Action) {
+    setLinenAction(action);
+    setLinenError("");
+    if (!action.booking_id) {
+      setLinenDraft(buildLinenSuggestion(2));
+      return;
+    }
+
+    setLinenLoading(true);
+    try {
+      const res = await fetch(`/api/bookings/${action.booking_id}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setLinenError(data.error ?? "Errore caricamento booking");
+        setLinenDraft(buildLinenSuggestion(2));
+        return;
+      }
+      const guests = Number(data.booking?.guests ?? 2);
+      setLinenDraft(buildLinenSuggestion(guests));
+    } catch (e: unknown) {
+      setLinenError(String((e as Error)?.message ?? e));
+      setLinenDraft(buildLinenSuggestion(2));
+    } finally {
+      setLinenLoading(false);
+    }
+  }
+
+  async function confirmLinenUsage() {
+    if (!linenAction) return;
+    setLinenError("");
+    const values = {
+      sets_estivo: toNumber(linenDraft.sets_estivo),
+      sets_invernale: toNumber(linenDraft.sets_invernale),
+      towels_bidet: toNumber(linenDraft.towels_bidet),
+      towels_viso: toNumber(linenDraft.towels_viso),
+      towels_doccia: toNumber(linenDraft.towels_doccia),
+      tappetino: toNumber(linenDraft.tappetino),
+      mappine: toNumber(linenDraft.mappine),
+      carta_igienica: toNumber(linenDraft.carta_igienica),
+      spugne_piatti: toNumber(linenDraft.spugne_piatti),
+      spugne_asciuga: toNumber(linenDraft.spugne_asciuga),
+    };
+
+    if (Object.values(values).some((v) => v === null)) {
+      setLinenError("Valori non validi");
+      return;
+    }
+
+    const res = await fetch("/api/actions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: linenAction.id,
+        status: "FATTO",
+        completion: {
+          mode: "BIANCHERIA",
+          linen: values,
+        },
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setLinenError(data.error ?? "Errore aggiornamento biancheria");
+      return;
+    }
+
+    setActions((prev) => prev.map((x) => (x.id === linenAction.id ? { ...x, status: "FATTO" } : x)));
+    toast("Cambio biancheria registrato", "success");
+    setLinenAction(null);
+  }
+
   async function toggleStatus(action: Action) {
     const next = action.status === "DA_FARE" ? "FATTO" : "DA_FARE";
     const payload: Record<string, unknown> = { id: action.id, status: next };
+
+    if (next === "FATTO" && isLinenAction(action.action_type)) {
+      await openLinenModal(action);
+      return;
+    }
 
     if (next === "FATTO" && action.action_type.toUpperCase().includes("PULIZIA")) {
       const external = confirm("Pulizia esterna? OK = esterna, Annulla = fatta da te");
@@ -249,6 +370,10 @@ export default function ActionsPage() {
                   }`}
                   onClick={() => {
                     if (a.action_type.toUpperCase() === "SPESA") return;
+                    if (isLinenAction(a.action_type)) {
+                      void openLinenModal(a);
+                      return;
+                    }
                     setSelectedAction(a);
                   }}
                 >
@@ -293,6 +418,124 @@ export default function ActionsPage() {
           setActions((prev) => prev.map((a) => (a.id === actionId ? { ...a, status: nextStatus } : a)));
         }}
       />
+
+      {linenAction && (
+        <div className="fixed inset-0 z-40 bg-zinc-900/30 p-4 backdrop-blur-sm">
+          <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-zinc-900">Cambio biancheria</h3>
+              <button
+                className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+                onClick={() => setLinenAction(null)}
+              >
+                Chiudi
+              </button>
+            </div>
+
+            {linenLoading && <p className="text-sm text-zinc-500">Caricamento suggerimenti...</p>}
+            {linenError && <p className="mb-3 text-sm text-rose-600">{linenError}</p>}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm text-zinc-600">
+                Set estivo
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.sets_estivo}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, sets_estivo: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Set invernale
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.sets_invernale}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, sets_invernale: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Asciugamani bidet
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.towels_bidet}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_bidet: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Asciugamani viso
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.towels_viso}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_viso: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Asciugamani doccia
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.towels_doccia}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_doccia: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Tappetino doccia
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.tappetino}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, tappetino: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Mappine cucina
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.mappine}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, mappine: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Carta igienica
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.carta_igienica}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, carta_igienica: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Spugne piatti
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.spugne_piatti}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, spugne_piatti: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm text-zinc-600">
+                Spugne asciugatutto
+                <input
+                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  value={linenDraft.spugne_asciuga}
+                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, spugne_asciuga: e.target.value }))}
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              <button
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-300 px-4 text-sm text-zinc-700 hover:bg-zinc-50"
+                onClick={() => setLinenAction(null)}
+              >
+                Annulla
+              </button>
+              <button
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
+                onClick={() => void confirmLinenUsage()}
+                disabled={linenLoading}
+              >
+                Conferma
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

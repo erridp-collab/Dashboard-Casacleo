@@ -94,8 +94,10 @@ export default function DashboardPage() {
         <CalendarClient />
         <div className="calendar-legend mt-4">
           <span className="calendar-legend-label">Legenda</span>
-          <span className="calendar-legend-token calendar-legend-token--booking">B</span>
+          <span className="calendar-legend-token calendar-legend-token--booking">PR</span>
           <span className="calendar-legend-text">Prenotazioni</span>
+          <span className="calendar-legend-token calendar-legend-token--linen">B</span>
+          <span className="calendar-legend-text">Biancheria</span>
           <span className="calendar-legend-token calendar-legend-token--cleaning">P</span>
           <span className="calendar-legend-text">Pulizia</span>
           <span className="calendar-legend-token calendar-legend-token--laundry">L</span>

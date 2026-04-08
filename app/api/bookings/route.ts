@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncBookingAutomations } from "@/lib/booking-automation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { applyBookingConsumptions } from "@/lib/stock";
 
 type CreateBookingPayload = {
   check_in: string;
@@ -153,10 +152,8 @@ export async function POST(req: Request) {
     }
 
     // Fire-and-forget: run in background, don't block the response.
-    void Promise.all([
-      syncBookingAutomations(),
-      applyBookingConsumptions(check_in, check_out, parsedGuests),
-    ]).catch((err: unknown) => console.error("Booking post-create sync failed", err));
+    void syncBookingAutomations()
+      .catch((err: unknown) => console.error("Booking post-create sync failed", err));
 
     return NextResponse.json({ booking_id: bookingId }, { status: 200 });
   } catch (e: unknown) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncBookingAutomations } from "@/lib/booking-automation";
-import { applyBookingConsumptionDelta } from "@/lib/stock";
+import { applyLinenConsumptionDelta } from "@/lib/action-effects";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type UpdateBookingPayload = {
@@ -43,6 +43,45 @@ function isMissingTotalAmountError(error: { code?: string; message?: string } | 
     (error.code === "42703" || error.code === "PGRST204") &&
     String(error.message ?? "").includes("total_amount")
   );
+}
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    if (!id) return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
+    if (!UUID_LIKE.test(id)) {
+      return NextResponse.json({ error: "Invalid booking id format" }, { status: 400 });
+    }
+
+    const supabase = supabaseAdmin();
+    let { data, error } = await supabase
+      .from("bookings")
+      .select("id, check_in, check_out, guests, channel, notes, total_amount, created_at")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (isMissingTotalAmountError(error)) {
+      const retry = await supabase
+        .from("bookings")
+        .select("id, check_in, check_out, guests, channel, notes, created_at")
+        .eq("id", id)
+        .maybeSingle();
+      data = retry.data ? { ...retry.data, total_amount: null } : retry.data;
+      error = retry.error;
+    }
+
+    if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
+    if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    return NextResponse.json({ booking: data }, { status: 200 });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PATCH(
@@ -150,11 +189,8 @@ export async function PATCH(
     if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
     // Fire-and-forget: run in background, don't block the response.
-    void Promise.all([
-      applyBookingConsumptionDelta(String(current.check_in), String(current.check_out), Number(current.guests), -1)
-        .then(() => applyBookingConsumptionDelta(nextCheckIn, nextCheckOut, nextGuests, 1)),
-      syncBookingAutomations(),
-    ]).catch((err: unknown) => console.error("Booking update automation sync failed", err));
+    void syncBookingAutomations()
+      .catch((err: unknown) => console.error("Booking update automation sync failed", err));
 
     return NextResponse.json({ booking: data }, { status: 200 });
   } catch (e: unknown) {
@@ -187,12 +223,28 @@ export async function DELETE(
 
     const { data: actionRows, error: actionErr } = await supabase
       .from("actions")
-      .select("id")
+      .select("id, action_type, status, details")
       .eq("booking_id", id);
 
     if (actionErr) return NextResponse.json({ error: formatDbError(actionErr) }, { status: 400 });
 
     const actionIds = (actionRows ?? []).map((r) => r.id).filter(Boolean);
+
+    const linenActions = (actionRows ?? []).filter((row) => {
+      const type = String(row.action_type ?? "").toUpperCase();
+      return type.includes("BIANCHERIA") && String(row.status ?? "").toUpperCase() === "FATTO" && row.details;
+    });
+
+    for (const row of linenActions) {
+      try {
+        const parsed = JSON.parse(String(row.details)) as { linen?: Record<string, unknown> };
+        if (parsed?.linen) {
+          await applyLinenConsumptionDelta(parsed.linen as Record<string, unknown>, -1);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
 
     if (actionIds.length > 0) {
       const { error: checklistErr } = await supabase
@@ -211,10 +263,8 @@ export async function DELETE(
     if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
 
     // Fire-and-forget: run in background, don't block the response.
-    void Promise.all([
-      applyBookingConsumptionDelta(String(bookingRow.check_in), String(bookingRow.check_out), Number(bookingRow.guests), -1),
-      syncBookingAutomations(),
-    ]).catch((err: unknown) => console.error("Booking delete automation sync failed", err));
+    void syncBookingAutomations()
+      .catch((err: unknown) => console.error("Booking delete automation sync failed", err));
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {

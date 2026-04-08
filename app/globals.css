@@ -127,9 +127,10 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
+  min-width: 1.35rem;
   height: 1.35rem;
   border-radius: 999px;
+  padding: 0 0.3rem;
   font-weight: 700;
   color: #fff;
 }
@@ -144,6 +145,11 @@ body {
 
 .calendar-legend-token--cleaning {
   background: #16a34a;
+}
+
+.calendar-legend-token--linen {
+  background: #facc15;
+  color: #3f3426;
 }
 
 .calendar-legend-token--laundry {
@@ -182,8 +188,9 @@ body {
   }
 
   .calendar-legend-token {
-    width: 1.1rem;
+    min-width: 1.1rem;
     height: 1.1rem;
     font-size: 0.65rem;
+    padding: 0 0.25rem;
   }
 }

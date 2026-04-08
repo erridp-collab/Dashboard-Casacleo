@@ -1,4 +1,4 @@
-import { resolveProductSchema } from "@/lib/products-schema";
+import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
 import { syncShoppingAction } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -7,6 +7,20 @@ export type CleaningCompletion = {
   external_amount?: number | null;
   amount?: number | null;
   note?: string | null;
+  linen?: LinenCompletion | null;
+};
+
+export type LinenCompletion = {
+  sets_estivo?: number | null;
+  sets_invernale?: number | null;
+  towels_bidet?: number | null;
+  towels_viso?: number | null;
+  towels_doccia?: number | null;
+  tappetino?: number | null;
+  mappine?: number | null;
+  carta_igienica?: number | null;
+  spugne_piatti?: number | null;
+  spugne_asciuga?: number | null;
 };
 
 type DbError = { code?: string; message?: string } | null;
@@ -161,6 +175,11 @@ function normalizeName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function toNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function parseShoppingDetails(details: string | null): string[] {
   if (!details) return [];
   const names: string[] = [];
@@ -260,6 +279,71 @@ async function applyShoppingRestock(actionId: string, details: string | null) {
   }
 }
 
+function parseLinenDetails(details: string | null): LinenCompletion | null {
+  if (!details) return null;
+  try {
+    const parsed = JSON.parse(details) as { linen?: LinenCompletion };
+    if (parsed && typeof parsed === "object" && parsed.linen) return parsed.linen;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export async function applyLinenConsumptionDelta(linen: LinenCompletion, direction: 1 | -1): Promise<void> {
+  const supabase = supabaseAdmin();
+  const schema = await resolveProductSchema(supabase);
+  const { data, error } = await supabase
+    .from("products")
+    .select(`${schema.idColumn}, name, ${schema.quantityColumn}`);
+  if (error) throw new Error(error.message);
+
+  const byName = new Map<string, Record<string, unknown>>();
+  for (const raw of data ?? []) {
+    const row = raw as Record<string, unknown>;
+    byName.set(normalizeName(String(row.name ?? "")), row);
+  }
+
+  const setsTotal = toNumber(linen.sets_estivo) + toNumber(linen.sets_invernale);
+  const consumptionMap: Array<{ name: string; qty: number; fallback?: string }> = [
+    { name: "asciugamani bidet", qty: toNumber(linen.towels_bidet) },
+    { name: "asciugamani viso", qty: toNumber(linen.towels_viso), fallback: "asciugamani corpo" },
+    { name: "asciugamani doccia", qty: toNumber(linen.towels_doccia) },
+    { name: "tappetini doccia", qty: toNumber(linen.tappetino) },
+    { name: "mappine cucina", qty: toNumber(linen.mappine) },
+    { name: "carta igienica", qty: toNumber(linen.carta_igienica) },
+    { name: "spugnette lavapiatti", qty: toNumber(linen.spugne_piatti) },
+    { name: "spugnette morbide", qty: toNumber(linen.spugne_asciuga) },
+    { name: "completi letto completi", qty: setsTotal },
+  ];
+
+  const updates: Array<{ id: string; nextQty: number }> = [];
+  for (const item of consumptionMap) {
+    if (item.qty <= 0) continue;
+    const row = byName.get(normalizeName(item.name)) ?? (item.fallback ? byName.get(normalizeName(item.fallback)) : undefined);
+    if (!row) continue;
+    const id = getProductId(row, schema);
+    if (!id) continue;
+    const currentQty = getProductQuantity(row, schema);
+    const nextQty = Number(Math.max(0, currentQty - item.qty * direction).toFixed(2));
+    updates.push({ id, nextQty });
+  }
+
+  await Promise.all(
+    updates.map(({ id, nextQty }) =>
+      supabase
+        .from("products")
+        .update({ [schema.quantityColumn]: nextQty })
+        .eq(schema.idColumn, id)
+        .then(({ error: updateErr }) => {
+          if (updateErr) throw new Error(updateErr.message);
+        }),
+    ),
+  );
+
+  await syncShoppingAction();
+}
+
 export async function applyActionStatusEffects(
   actionId: string,
   nextStatus: "DA_FARE" | "FATTO",
@@ -289,6 +373,20 @@ export async function applyActionStatusEffects(
 
   if (isLaundryAction(actionType) && nextStatus === "FATTO") {
     await regenerateLaundryStock();
+  }
+
+  if (actionType.toUpperCase().includes("BIANCHERIA")) {
+    if (nextStatus === "FATTO") {
+      const linen = completion?.linen ?? parseLinenDetails(actionRow.details);
+      if (linen) {
+        await applyLinenConsumptionDelta(linen, 1);
+      }
+    } else {
+      const linen = parseLinenDetails(actionRow.details);
+      if (linen) {
+        await applyLinenConsumptionDelta(linen, -1);
+      }
+    }
   }
 
   if (isShoppingAction(actionType)) {

@@ -15,7 +15,7 @@ type DesiredAction = {
   details: string | null;
 };
 
-const MANAGED_ACTION_TYPES = ["PULIZIA", "PREPARA_LETTO", "LAVATRICI", "MANUT_3", "MANUT_4", "MANUTENZIONE"];
+const MANAGED_ACTION_TYPES = ["PULIZIA", "PREPARA_LETTO", "BIANCHERIA", "LAVATRICI", "MANUT_3", "MANUT_4", "MANUTENZIONE"];
 
 function daysBetween(fromDate: string, toDate: string): number {
   const from = new Date(fromDate);
@@ -73,6 +73,14 @@ export function computeDesiredActions(bookings: BookingRow[]): DesiredAction[] {
       action_type: "PULIZIA",
       status: "DA_FARE",
       details: null,
+    });
+
+    desired.push({
+      booking_id: booking.id,
+      action_date: booking.check_in,
+      action_type: "BIANCHERIA",
+      status: "DA_FARE",
+      details: "Cambio biancheria consigliato",
     });
 
     if (prevCheckOut && daysBetween(prevCheckOut, booking.check_in) > 3) {
