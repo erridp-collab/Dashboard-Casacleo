@@ -8,6 +8,42 @@ type PatchActionPayload =
   | { id: string; status: ActionStatus; completion?: CleaningCompletion }
   | { date: string; status?: ActionStatus; onlyPending?: boolean };
 
+type PostActionPayload = {
+  action_type: string;
+  action_date: string;
+  details?: string;
+  status?: ActionStatus;
+  booking_id?: string | null;
+};
+
+export async function POST(req: Request) {
+  try {
+    const body = (await req.json()) as PostActionPayload;
+    if (!body.action_type || !body.action_date) {
+      return NextResponse.json({ error: "Missing action_type or action_date" }, { status: 400 });
+    }
+    const supabase = supabaseAdmin();
+    const { data, error } = await supabase
+      .from("actions")
+      .insert({
+        action_type: body.action_type,
+        action_date: body.action_date,
+        details: body.details ?? null,
+        status: body.status ?? "DA_FARE",
+        booking_id: body.booking_id ?? null,
+      })
+      .select("id")
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true, id: data?.id }, { status: 201 });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
+      { status: 500 },
+    );
+  }
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);

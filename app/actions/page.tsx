@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
+import { CleaningModal } from "@/components/cleaning-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
 import { toast } from "@/components/toast";
@@ -38,7 +39,6 @@ type LinenDraft = {
   towels_doccia: string;
   tappetino: string;
   mappine: string;
-  carta_igienica: string;
   spugne_piatti: string;
   spugne_asciuga: string;
 };
@@ -54,7 +54,6 @@ function buildLinenSuggestion(guests: number): LinenDraft {
     towels_doccia: String(safeGuests),
     tappetino: "1",
     mappine: "1",
-    carta_igienica: "2",
     spugne_piatti: "1",
     spugne_asciuga: "1",
   };
@@ -77,6 +76,7 @@ export default function ActionsPage() {
   const [actions, setActions] = useState<Action[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [linenAction, setLinenAction] = useState<Action | null>(null);
+  const [cleaningAction, setCleaningAction] = useState<Action | null>(null);
   const [linenDraft, setLinenDraft] = useState<LinenDraft>(() => buildLinenSuggestion(2));
   const [linenLoading, setLinenLoading] = useState(false);
   const [linenError, setLinenError] = useState("");
@@ -132,7 +132,6 @@ export default function ActionsPage() {
       towels_doccia: toNumber(linenDraft.towels_doccia),
       tappetino: toNumber(linenDraft.tappetino),
       mappine: toNumber(linenDraft.mappine),
-      carta_igienica: toNumber(linenDraft.carta_igienica),
       spugne_piatti: toNumber(linenDraft.spugne_piatti),
       spugne_asciuga: toNumber(linenDraft.spugne_asciuga),
     };
@@ -175,19 +174,8 @@ export default function ActionsPage() {
     }
 
     if (next === "FATTO" && action.action_type.toUpperCase().includes("PULIZIA")) {
-      const external = confirm("Pulizia esterna? OK = esterna, Annulla = fatta da te");
-      if (external) {
-        const hoursRaw = prompt("Ore pulizia esterna", "");
-        if (hoursRaw === null) return;
-        const hours = Number(hoursRaw.replace(",", ".").trim());
-        if (!Number.isFinite(hours) || hours <= 0) {
-          setError("Ore pulizia esterna non valide");
-          return;
-        }
-        payload.completion = { mode: "EXTERNAL", external_amount: hours };
-      } else {
-        payload.completion = { mode: "SELF" };
-      }
+      setCleaningAction(action);
+      return;
     }
 
     if (next === "FATTO" && action.action_type.toUpperCase() === "SPESA") {
@@ -374,6 +362,10 @@ export default function ActionsPage() {
                       void openLinenModal(a);
                       return;
                     }
+                    if (a.action_type.toUpperCase().includes("PULIZIA")) {
+                      setCleaningAction(a);
+                      return;
+                    }
                     setSelectedAction(a);
                   }}
                 >
@@ -416,6 +408,17 @@ export default function ActionsPage() {
         onClose={() => setSelectedAction(null)}
         onActionStatusChange={(actionId, nextStatus) => {
           setActions((prev) => prev.map((a) => (a.id === actionId ? { ...a, status: nextStatus } : a)));
+        }}
+      />
+
+      <CleaningModal
+        actionId={cleaningAction?.id ?? null}
+        actionDate={cleaningAction?.action_date ?? ""}
+        onClose={() => setCleaningAction(null)}
+        onSaved={() => {
+          setCleaningAction(null);
+          toast("Check pulizie salvato!", "success");
+          void loadActions();
         }}
       />
 
@@ -493,14 +496,6 @@ export default function ActionsPage() {
                 />
               </label>
               <label className="text-sm text-zinc-600">
-                Carta igienica
-                <input
-                  className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                  value={linenDraft.carta_igienica}
-                  onChange={(e) => setLinenDraft((prev) => ({ ...prev, carta_igienica: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
                 Spugne piatti
                 <input
                   className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
@@ -518,19 +513,19 @@ export default function ActionsPage() {
               </label>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+            <div className="mt-5 flex flex-col gap-2">
               <button
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-300 px-4 text-sm text-zinc-700 hover:bg-zinc-50"
-                onClick={() => setLinenAction(null)}
-              >
-                Annulla
-              </button>
-              <button
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
+                className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50"
                 onClick={() => void confirmLinenUsage()}
                 disabled={linenLoading}
               >
-                Conferma
+                {linenLoading ? "Salvataggio..." : "Salva"}
+              </button>
+              <button
+                className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 text-sm text-zinc-500 hover:bg-zinc-50"
+                onClick={() => setLinenAction(null)}
+              >
+                Annulla
               </button>
             </div>
           </div>
