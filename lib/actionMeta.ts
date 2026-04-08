@@ -4,16 +4,16 @@ export const ACTION_COLORS = {
   laundry: "#ea580c",
   linen: "#facc15",
   maintenance: "#7e22ce",
-  generic: "#64748b",
+  shopping: "#64748b",
 } as const;
 
-export function getActionCategory(actionType: string): "cleaning" | "laundry" | "linen" | "maintenance" | "generic" {
+export function getActionCategory(actionType: string): "cleaning" | "laundry" | "linen" | "maintenance" | "shopping" {
   const upper = actionType.toUpperCase();
   if (upper.includes("BIANCHERIA")) return "linen";
   if (upper.includes("PULIZIA") || upper.includes("LETTO")) return "cleaning";
   if (upper.includes("LAVATRICI") || upper.includes("LAVAND")) return "laundry";
   if (upper.includes("MANUT")) return "maintenance";
-  return "generic";
+  return "shopping";
 }
 
 export function getActionIcon(actionType: string): string {

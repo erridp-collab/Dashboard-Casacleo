@@ -69,6 +69,8 @@ export default function DashboardPage() {
           <span className="calendar-legend-text">Lavatrici</span>
           <span className="calendar-legend-token calendar-legend-token--maintenance">M</span>
           <span className="calendar-legend-text">Manutenzione</span>
+          <span className="calendar-legend-token calendar-legend-token--shopping">S</span>
+          <span className="calendar-legend-text">Spesa</span>
         </div>
       </Card>
 

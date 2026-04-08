@@ -27,7 +27,7 @@ export function ActionTypeBadge({ actionType }: { actionType: string }) {
           ? "bg-yellow-100 text-yellow-800"
         : category === "maintenance"
           ? "bg-purple-100 text-purple-800"
-          : "bg-slate-100 text-slate-800";
+          : "bg-slate-100 text-slate-700";
 
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${className}`}>

@@ -21,7 +21,7 @@ function getActionInitial(actionType: string): string {
   if (upper.includes("PULIZIA") || upper.includes("LETTO")) return "P";
   if (upper.includes("LAVATRICI") || upper.includes("LAVAND")) return "L";
   if (upper.includes("MANUT")) return "M";
-  return "A";
+  return "S";
 }
 
 export default function CalendarClient() {
@@ -86,9 +86,9 @@ export default function CalendarClient() {
             ? ACTION_COLORS.laundry
             : category === "linen"
               ? ACTION_COLORS.linen
-            : category === "maintenance"
-              ? ACTION_COLORS.maintenance
-              : ACTION_COLORS.generic;
+              : category === "maintenance"
+                ? ACTION_COLORS.maintenance
+                : ACTION_COLORS.shopping;
 
       return {
         id: `action-${a.id}`,
