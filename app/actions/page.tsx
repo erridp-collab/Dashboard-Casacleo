@@ -1,12 +1,13 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarRange, CheckCheck, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
-import { CleaningModal } from "@/components/cleaning-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
+import { CleaningModal } from "@/components/cleaning-modal";
 import { toast } from "@/components/toast";
-import { CalendarRange, CheckCheck, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { Action } from "@/types/db";
 
 function groupByDate(actions: Action[]) {
@@ -43,6 +44,48 @@ type LinenDraft = {
   spugne_asciuga: string;
 };
 
+type LaundryDraft = {
+  sets_estivo: string;
+  sets_invernale: string;
+  towels_bidet: string;
+  towels_viso: string;
+  towels_doccia: string;
+  tappetino: string;
+  mappine: string;
+};
+
+type ParsedActionDetails = {
+  linen?: Partial<Record<keyof LinenDraft, number | null>>;
+  laundry?: Partial<Record<keyof LaundryDraft, number | null>>;
+};
+
+type QuantityField<T extends string> = {
+  key: T;
+  label: string;
+};
+
+const LINEN_FIELDS: QuantityField<keyof LinenDraft>[] = [
+  { key: "sets_estivo", label: "Set letto estivo" },
+  { key: "sets_invernale", label: "Set letto invernale" },
+  { key: "towels_bidet", label: "Asciugamani bidet" },
+  { key: "towels_viso", label: "Asciugamani viso" },
+  { key: "towels_doccia", label: "Asciugamani doccia" },
+  { key: "tappetino", label: "Tappetino doccia" },
+  { key: "mappine", label: "Mappine cucina" },
+  { key: "spugne_piatti", label: "Spugne piatti" },
+  { key: "spugne_asciuga", label: "Spugne asciugatutto" },
+];
+
+const LAUNDRY_FIELDS: QuantityField<keyof LaundryDraft>[] = [
+  { key: "sets_estivo", label: "Set letto estivo" },
+  { key: "sets_invernale", label: "Set letto invernale" },
+  { key: "towels_bidet", label: "Asciugamani bidet" },
+  { key: "towels_viso", label: "Asciugamani viso" },
+  { key: "towels_doccia", label: "Asciugamani doccia" },
+  { key: "tappetino", label: "Tappetino doccia" },
+  { key: "mappine", label: "Mappine cucina" },
+];
+
 function buildLinenSuggestion(guests: number): LinenDraft {
   const safeGuests = Number.isFinite(guests) && guests > 0 ? guests : 1;
   const sets = Math.ceil(safeGuests / 2);
@@ -59,6 +102,18 @@ function buildLinenSuggestion(guests: number): LinenDraft {
   };
 }
 
+function buildLaundryDraft(): LaundryDraft {
+  return {
+    sets_estivo: "0",
+    sets_invernale: "0",
+    towels_bidet: "0",
+    towels_viso: "0",
+    towels_doccia: "0",
+    tappetino: "0",
+    mappine: "0",
+  };
+}
+
 function toNumber(value: string): number | null {
   const normalized = value.trim().replace(",", ".");
   if (!normalized) return 0;
@@ -66,8 +121,171 @@ function toNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function toDraftValue(value: unknown, fallback = "0"): string {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? String(parsed) : fallback;
+}
+
+function parseActionDetails(details: string | null): ParsedActionDetails {
+  if (!details) return {};
+  try {
+    const parsed = JSON.parse(details) as ParsedActionDetails;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function fillLinenDraft(base: LinenDraft, values?: Partial<Record<keyof LinenDraft, number | null>>): LinenDraft {
+  if (!values) return base;
+  return {
+    sets_estivo: toDraftValue(values.sets_estivo, base.sets_estivo),
+    sets_invernale: toDraftValue(values.sets_invernale, base.sets_invernale),
+    towels_bidet: toDraftValue(values.towels_bidet, base.towels_bidet),
+    towels_viso: toDraftValue(values.towels_viso, base.towels_viso),
+    towels_doccia: toDraftValue(values.towels_doccia, base.towels_doccia),
+    tappetino: toDraftValue(values.tappetino, base.tappetino),
+    mappine: toDraftValue(values.mappine, base.mappine),
+    spugne_piatti: toDraftValue(values.spugne_piatti, base.spugne_piatti),
+    spugne_asciuga: toDraftValue(values.spugne_asciuga, base.spugne_asciuga),
+  };
+}
+
+function fillLaundryDraft(base: LaundryDraft, values?: Partial<Record<keyof LaundryDraft, number | null>>): LaundryDraft {
+  if (!values) return base;
+  return {
+    sets_estivo: toDraftValue(values.sets_estivo, base.sets_estivo),
+    sets_invernale: toDraftValue(values.sets_invernale, base.sets_invernale),
+    towels_bidet: toDraftValue(values.towels_bidet, base.towels_bidet),
+    towels_viso: toDraftValue(values.towels_viso, base.towels_viso),
+    towels_doccia: toDraftValue(values.towels_doccia, base.towels_doccia),
+    tappetino: toDraftValue(values.tappetino, base.tappetino),
+    mappine: toDraftValue(values.mappine, base.mappine),
+  };
+}
+
 function isLinenAction(actionType: string): boolean {
   return String(actionType ?? "").toUpperCase().includes("BIANCHERIA");
+}
+
+function isLaundryAction(actionType: string): boolean {
+  return String(actionType ?? "").toUpperCase().includes("LAVATRICI");
+}
+
+function summarizeSelection<T extends string>(
+  draft: Partial<Record<T, unknown>> | undefined,
+  fields: QuantityField<T>[],
+  prefix: string,
+): string | null {
+  if (!draft) return null;
+  const parts = fields
+    .map(({ key, label }) => {
+      const qty = Number(draft[key] ?? 0);
+      return Number.isFinite(qty) && qty > 0 ? `${label}: ${qty}` : null;
+    })
+    .filter((value): value is string => Boolean(value));
+
+  if (parts.length === 0) return null;
+  return `${prefix}: ${parts.join(", ")}`;
+}
+
+function getActionLabel(action: Action): string {
+  if (!action.details) return action.action_type;
+  const parsed = parseActionDetails(action.details);
+  return (
+    summarizeSelection(parsed.linen, LINEN_FIELDS, "Biancheria")
+    ?? summarizeSelection(parsed.laundry, LAUNDRY_FIELDS, "Lavato")
+    ?? action.details
+  );
+}
+
+function QuantityInputs<T extends string>({
+  draft,
+  fields,
+  onChange,
+}: {
+  draft: Record<T, string>;
+  fields: QuantityField<T>[];
+  onChange: (key: T, value: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {fields.map(({ key, label }) => (
+        <label key={key} className="text-sm text-zinc-600">
+          {label}
+          <input
+            type="number"
+            min="0"
+            step="1"
+            inputMode="numeric"
+            className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+            value={draft[key]}
+            onChange={(e) => onChange(key, e.target.value)}
+          />
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function ActionModalShell({
+  title,
+  subtitle,
+  error,
+  loadingLabel,
+  isBusy,
+  saveLabel,
+  onSave,
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  error?: string;
+  loadingLabel?: string;
+  isBusy?: boolean;
+  saveLabel: string;
+  onSave: () => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col bg-zinc-900/30 backdrop-blur-sm">
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden rounded-none bg-white shadow-xl sm:my-6 sm:max-h-[90vh] sm:rounded-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-5 py-4">
+          <div>
+            <h3 className="text-base font-semibold text-zinc-900">{title}</h3>
+            {subtitle ? <p className="mt-1 text-sm text-zinc-500">{subtitle}</p> : null}
+          </div>
+          <button className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100" onClick={onClose}>
+            Chiudi
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {loadingLabel && isBusy ? <p className="text-sm text-zinc-500">{loadingLabel}</p> : null}
+          {error ? <p className="mb-3 text-sm text-rose-600">{error}</p> : null}
+          {children}
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-2 border-t border-zinc-100 px-5 py-4">
+          <button
+            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50"
+            onClick={onSave}
+            disabled={isBusy}
+          >
+            {isBusy ? "Salvataggio..." : saveLabel}
+          </button>
+          <button
+            className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 text-sm text-zinc-500 hover:bg-zinc-50"
+            onClick={onClose}
+          >
+            Annulla
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ActionsPage() {
@@ -76,10 +294,14 @@ export default function ActionsPage() {
   const [actions, setActions] = useState<Action[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [linenAction, setLinenAction] = useState<Action | null>(null);
+  const [laundryAction, setLaundryAction] = useState<Action | null>(null);
   const [cleaningAction, setCleaningAction] = useState<Action | null>(null);
   const [linenDraft, setLinenDraft] = useState<LinenDraft>(() => buildLinenSuggestion(2));
+  const [laundryDraft, setLaundryDraft] = useState<LaundryDraft>(() => buildLaundryDraft());
   const [linenLoading, setLinenLoading] = useState(false);
+  const [laundryLoading, setLaundryLoading] = useState(false);
   const [linenError, setLinenError] = useState("");
+  const [laundryError, setLaundryError] = useState("");
   const [showDone, setShowDone] = useState(false);
   const [showAdvancedRange, setShowAdvancedRange] = useState(false);
   const [fromDraft, setFromDraft] = useState(from);
@@ -97,8 +319,9 @@ export default function ActionsPage() {
   async function openLinenModal(action: Action) {
     setLinenAction(action);
     setLinenError("");
+    const existing = parseActionDetails(action.details).linen;
     if (!action.booking_id) {
-      setLinenDraft(buildLinenSuggestion(2));
+      setLinenDraft(fillLinenDraft(buildLinenSuggestion(2), existing));
       return;
     }
 
@@ -108,22 +331,29 @@ export default function ActionsPage() {
       const data = await res.json();
       if (!res.ok) {
         setLinenError(data.error ?? "Errore caricamento booking");
-        setLinenDraft(buildLinenSuggestion(2));
+        setLinenDraft(fillLinenDraft(buildLinenSuggestion(2), existing));
         return;
       }
       const guests = Number(data.booking?.guests ?? 2);
-      setLinenDraft(buildLinenSuggestion(guests));
+      setLinenDraft(fillLinenDraft(buildLinenSuggestion(guests), existing));
     } catch (e: unknown) {
       setLinenError(String((e as Error)?.message ?? e));
-      setLinenDraft(buildLinenSuggestion(2));
+      setLinenDraft(fillLinenDraft(buildLinenSuggestion(2), existing));
     } finally {
       setLinenLoading(false);
     }
   }
 
+  function openLaundryModal(action: Action) {
+    setLaundryAction(action);
+    setLaundryError("");
+    setLaundryDraft(fillLaundryDraft(buildLaundryDraft(), parseActionDetails(action.details).laundry));
+  }
+
   async function confirmLinenUsage() {
     if (!linenAction) return;
     setLinenError("");
+    setLinenLoading(true);
     const values = {
       sets_estivo: toNumber(linenDraft.sets_estivo),
       sets_invernale: toNumber(linenDraft.sets_invernale),
@@ -138,6 +368,7 @@ export default function ActionsPage() {
 
     if (Object.values(values).some((v) => v === null)) {
       setLinenError("Valori non validi");
+      setLinenLoading(false);
       return;
     }
 
@@ -154,6 +385,7 @@ export default function ActionsPage() {
       }),
     });
     const data = await res.json();
+    setLinenLoading(false);
     if (!res.ok) {
       setLinenError(data.error ?? "Errore aggiornamento biancheria");
       return;
@@ -164,12 +396,61 @@ export default function ActionsPage() {
     setLinenAction(null);
   }
 
+  async function confirmLaundryUsage() {
+    if (!laundryAction) return;
+    setLaundryError("");
+    setLaundryLoading(true);
+    const values = {
+      sets_estivo: toNumber(laundryDraft.sets_estivo),
+      sets_invernale: toNumber(laundryDraft.sets_invernale),
+      towels_bidet: toNumber(laundryDraft.towels_bidet),
+      towels_viso: toNumber(laundryDraft.towels_viso),
+      towels_doccia: toNumber(laundryDraft.towels_doccia),
+      tappetino: toNumber(laundryDraft.tappetino),
+      mappine: toNumber(laundryDraft.mappine),
+    };
+
+    if (Object.values(values).some((v) => v === null)) {
+      setLaundryError("Valori non validi");
+      setLaundryLoading(false);
+      return;
+    }
+
+    const res = await fetch("/api/actions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: laundryAction.id,
+        status: "FATTO",
+        completion: {
+          mode: "LAVATRICI",
+          laundry: values,
+        },
+      }),
+    });
+    const data = await res.json();
+    setLaundryLoading(false);
+    if (!res.ok) {
+      setLaundryError(data.error ?? "Errore aggiornamento lavatrici");
+      return;
+    }
+
+    setActions((prev) => prev.map((x) => (x.id === laundryAction.id ? { ...x, status: "FATTO" } : x)));
+    toast("Lavatrici registrate", "success");
+    setLaundryAction(null);
+  }
+
   async function toggleStatus(action: Action) {
     const next = action.status === "DA_FARE" ? "FATTO" : "DA_FARE";
     const payload: Record<string, unknown> = { id: action.id, status: next };
 
     if (next === "FATTO" && isLinenAction(action.action_type)) {
       await openLinenModal(action);
+      return;
+    }
+
+    if (next === "FATTO" && isLaundryAction(action.action_type)) {
+      openLaundryModal(action);
       return;
     }
 
@@ -265,7 +546,10 @@ export default function ActionsPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95" onClick={() => void loadActions()}>
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95"
+            onClick={() => void loadActions()}
+          >
             <RefreshCw className="h-4 w-4" />
             Aggiorna
           </button>
@@ -334,7 +618,7 @@ export default function ActionsPage() {
         </div>
       </Card>
 
-      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
 
       <div className="space-y-4">
         {Object.entries(groupedVisible).map(([date, rows]) => (
@@ -344,7 +628,10 @@ export default function ActionsPage() {
                 <CalendarRange className="h-4 w-4 text-blue-600" />
                 {date}
               </h2>
-              <button className="inline-flex h-9 items-center gap-2 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50" onClick={() => void markDayDone(date)}>
+              <button
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50"
+                onClick={() => void markDayDone(date)}
+              >
                 <CheckCheck className="h-3.5 w-3.5 text-emerald-600" />
                 Segna tutto FATTO
               </button>
@@ -372,9 +659,7 @@ export default function ActionsPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <ActionTypeBadge actionType={a.action_type} />
-                      <span className="truncate text-xs text-zinc-500">
-                        {a.details ? a.details : a.action_type}
-                      </span>
+                      <span className="truncate text-xs text-zinc-500">{getActionLabel(a)}</span>
                     </div>
                     <button
                       className="rounded-full"
@@ -391,15 +676,15 @@ export default function ActionsPage() {
             </div>
           </Card>
         ))}
-        {visibleActions.length === 0 && (
+        {visibleActions.length === 0 ? (
           <Card>
             <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <span className="text-3xl">📅</span>
+              <span className="text-3xl">...</span>
               <p className="text-sm font-medium text-zinc-700">Nessuna azione</p>
               <p className="text-xs text-zinc-400">Nessuna azione pianificata nel range selezionato</p>
             </div>
           </Card>
-        )}
+        ) : null}
       </div>
 
       <ActionChecklistModal
@@ -422,120 +707,41 @@ export default function ActionsPage() {
         }}
       />
 
-      {linenAction && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-zinc-900/30 backdrop-blur-sm">
-          <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden rounded-none bg-white shadow-xl sm:my-6 sm:max-h-[90vh] sm:rounded-2xl">
-            {/* Header fisso */}
-            <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-900">Cambio biancheria</h3>
-              <button
-                className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
-                onClick={() => setLinenAction(null)}
-              >
-                Chiudi
-              </button>
-            </div>
+      {linenAction ? (
+        <ActionModalShell
+          title="Cambio biancheria"
+          error={linenError}
+          loadingLabel="Caricamento suggerimenti..."
+          isBusy={linenLoading}
+          saveLabel="Salva"
+          onSave={() => void confirmLinenUsage()}
+          onClose={() => setLinenAction(null)}
+        >
+          <QuantityInputs
+            draft={linenDraft}
+            fields={LINEN_FIELDS}
+            onChange={(key, value) => setLinenDraft((prev) => ({ ...prev, [key]: value }))}
+          />
+        </ActionModalShell>
+      ) : null}
 
-            {/* Corpo scrollabile */}
-            <div className="flex-1 overflow-y-auto px-5 py-4">
-              {linenLoading && <p className="text-sm text-zinc-500">Caricamento suggerimenti...</p>}
-              {linenError && <p className="mb-3 text-sm text-rose-600">{linenError}</p>}
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-sm text-zinc-600">
-                  Set estivo
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.sets_estivo}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, sets_estivo: e.target.value }))}
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Set invernale
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.sets_invernale}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, sets_invernale: e.target.value }))}
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Asciugamani bidet
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.towels_bidet}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_bidet: e.target.value }))}
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Asciugamani viso
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.towels_viso}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_viso: e.target.value }))}
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Asciugamani doccia
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.towels_doccia}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, towels_doccia: e.target.value }))}
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Tappetino doccia
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.tappetino}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, tappetino: e.target.value }))}
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Mappine cucina
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.mappine}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, mappine: e.target.value }))}
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Spugne piatti
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.spugne_piatti}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, spugne_piatti: e.target.value }))}
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Spugne asciugatutto
-                  <input
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
-                    value={linenDraft.spugne_asciuga}
-                    onChange={(e) => setLinenDraft((prev) => ({ ...prev, spugne_asciuga: e.target.value }))}
-                  />
-                </label>
-              </div>
-            </div>
-
-            {/* Footer fisso con tasti sempre visibili */}
-            <div className="shrink-0 border-t border-zinc-100 px-5 py-4 flex flex-col gap-2">
-              <button
-                className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50"
-                onClick={() => void confirmLinenUsage()}
-                disabled={linenLoading}
-              >
-                {linenLoading ? "Salvataggio..." : "Salva"}
-              </button>
-              <button
-                className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 text-sm text-zinc-500 hover:bg-zinc-50"
-                onClick={() => setLinenAction(null)}
-              >
-                Annulla
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {laundryAction ? (
+        <ActionModalShell
+          title="Lavatrici"
+          subtitle="Indica solo cosa hai lavato: il magazzino si ricarica su quei pezzi fino al massimo."
+          error={laundryError}
+          isBusy={laundryLoading}
+          saveLabel="Registra lavaggio"
+          onSave={() => void confirmLaundryUsage()}
+          onClose={() => setLaundryAction(null)}
+        >
+          <QuantityInputs
+            draft={laundryDraft}
+            fields={LAUNDRY_FIELDS}
+            onChange={(key, value) => setLaundryDraft((prev) => ({ ...prev, [key]: value }))}
+          />
+        </ActionModalShell>
+      ) : null}
     </section>
   );
 }

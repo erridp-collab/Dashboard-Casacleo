@@ -15,9 +15,6 @@ export default function SettingsPage() {
           <Link href="/warehouse" className="rounded-xl border border-zinc-200 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50">
             Magazzino completo (Warehouse)
           </Link>
-          <Link href="/calendar" className="rounded-xl border border-zinc-200 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50">
-            Calendario
-          </Link>
         </div>
       </Card>
     </section>

@@ -3,11 +3,12 @@ import { syncShoppingAction } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type CleaningCompletion = {
-  mode?: "SELF" | "EXTERNAL" | "SPESA";
+  mode?: "SELF" | "EXTERNAL" | "SPESA" | "BIANCHERIA" | "LAVATRICI";
   external_amount?: number | null;
   amount?: number | null;
   note?: string | null;
   linen?: LinenCompletion | null;
+  laundry?: LaundryCompletion | null;
 };
 
 export type LinenCompletion = {
@@ -21,6 +22,29 @@ export type LinenCompletion = {
   carta_igienica?: number | null;
   spugne_piatti?: number | null;
   spugne_asciuga?: number | null;
+};
+
+export type LaundryCompletion = {
+  sets_estivo?: number | null;
+  sets_invernale?: number | null;
+  towels_bidet?: number | null;
+  towels_viso?: number | null;
+  towels_doccia?: number | null;
+  tappetino?: number | null;
+  mappine?: number | null;
+};
+
+type StoredActionDetails = {
+  linen?: LinenCompletion;
+  linen_applied?: LinenCompletion;
+  laundry?: LaundryCompletion;
+  laundry_applied?: LaundryCompletion;
+};
+
+type QuantityItem = {
+  key: string;
+  names: string[];
+  qty: number;
 };
 
 type DbError = { code?: string; message?: string } | null;
@@ -68,19 +92,6 @@ function isLaundryAction(actionType: string): boolean {
 
 function isShoppingAction(actionType: string): boolean {
   return String(actionType ?? "").toUpperCase() === "SPESA";
-}
-
-function isLaundryProduct(name: string, category: string | null): boolean {
-  const c = String(category ?? "").toUpperCase();
-  if (c === "ASCIUGAMANI E BAGNO" || c === "LENZUOLA E COPERTE" || c === "TESSILI E BIANCHERIA") return true;
-  const n = String(name ?? "").toUpperCase();
-  return (
-    n.includes("ASCIUGAMANI") ||
-    n.includes("LENZUO") ||
-    n.includes("FEDER") ||
-    n.includes("COPRIPIUM") ||
-    n.includes("TAPPETINI")
-  );
 }
 
 async function upsertCleaningExpense(
@@ -144,40 +155,6 @@ async function deleteCleaningExpense(actionId: string) {
   if (!directDelete.error || isMissingColumn(directDelete.error)) return;
 }
 
-async function regenerateLaundryStock() {
-  const supabase = supabaseAdmin();
-  const schema = await resolveProductSchema(supabase);
-  const { data, error } = await supabase
-    .from("products")
-    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, max_qty`);
-  if (error) throw new Error(error.message);
-
-  const updates: Array<{ id: string; maxQty: number }> = [];
-  for (const raw of data ?? []) {
-    const row = raw as Record<string, unknown>;
-    const maxQty = Number(row.max_qty);
-    if (!Number.isFinite(maxQty) || maxQty <= 0) continue;
-    const name = String(row.name ?? "");
-    const category = row.category === null || row.category === undefined ? null : String(row.category);
-    if (!isLaundryProduct(name, category)) continue;
-    const id = String(row[schema.idColumn] ?? "");
-    if (!id) continue;
-    updates.push({ id, maxQty });
-  }
-
-  await Promise.all(
-    updates.map(({ id, maxQty }) =>
-      supabase
-        .from("products")
-        .update({ [schema.quantityColumn]: maxQty })
-        .eq(schema.idColumn, id)
-        .then(({ error: updateErr }) => {
-          if (updateErr) throw new Error(updateErr.message);
-        }),
-    ),
-  );
-}
-
 function normalizeName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -185,6 +162,20 @@ function normalizeName(name: string): string {
 function toNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function roundQty(value: number): number {
+  return Number(value.toFixed(2));
+}
+
+function parseActionDetails(details: string | null): StoredActionDetails {
+  if (!details) return {};
+  try {
+    const parsed = JSON.parse(details) as StoredActionDetails;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 function parseShoppingDetails(details: string | null): string[] {
@@ -287,22 +278,60 @@ async function applyShoppingRestock(actionId: string, details: string | null) {
 }
 
 function parseLinenDetails(details: string | null): LinenCompletion | null {
-  if (!details) return null;
-  try {
-    const parsed = JSON.parse(details) as { linen?: LinenCompletion };
-    if (parsed && typeof parsed === "object" && parsed.linen) return parsed.linen;
-  } catch {
-    return null;
-  }
-  return null;
+  return parseActionDetails(details).linen ?? null;
 }
 
-export async function applyLinenConsumptionDelta(linen: LinenCompletion, direction: 1 | -1): Promise<void> {
+function parseAppliedLinenDetails(details: string | null): LinenCompletion | null {
+  const parsed = parseActionDetails(details);
+  return parsed.linen_applied ?? parsed.linen ?? null;
+}
+
+function parseLaundryDetails(details: string | null): LaundryCompletion | null {
+  return parseActionDetails(details).laundry ?? null;
+}
+
+function parseAppliedLaundryDetails(details: string | null): LaundryCompletion | null {
+  const parsed = parseActionDetails(details);
+  return parsed.laundry_applied ?? parsed.laundry ?? null;
+}
+
+function buildLinenQuantityItems(linen: LinenCompletion): QuantityItem[] {
+  return [
+    { key: "sets_estivo", names: ["set letto estivo", "completi letto completi"], qty: toNumber(linen.sets_estivo) },
+    { key: "sets_invernale", names: ["set letto invernale", "copripiumini + federe"], qty: toNumber(linen.sets_invernale) },
+    { key: "towels_bidet", names: ["asciugamani bidet"], qty: toNumber(linen.towels_bidet) },
+    { key: "towels_viso", names: ["asciugamani viso", "asciugamani corpo"], qty: toNumber(linen.towels_viso) },
+    { key: "towels_doccia", names: ["asciugamani doccia"], qty: toNumber(linen.towels_doccia) },
+    { key: "tappetino", names: ["tappetini doccia"], qty: toNumber(linen.tappetino) },
+    { key: "mappine", names: ["mappine cucina"], qty: toNumber(linen.mappine) },
+    { key: "carta_igienica", names: ["carta igienica"], qty: toNumber(linen.carta_igienica) },
+    { key: "spugne_piatti", names: ["spugnette lavapiatti"], qty: toNumber(linen.spugne_piatti) },
+    { key: "spugne_asciuga", names: ["spugnette morbide"], qty: toNumber(linen.spugne_asciuga) },
+  ];
+}
+
+function buildLaundryQuantityItems(laundry: LaundryCompletion): QuantityItem[] {
+  return [
+    { key: "sets_estivo", names: ["set letto estivo", "completi letto completi"], qty: toNumber(laundry.sets_estivo) },
+    { key: "sets_invernale", names: ["set letto invernale", "copripiumini + federe"], qty: toNumber(laundry.sets_invernale) },
+    { key: "towels_bidet", names: ["asciugamani bidet"], qty: toNumber(laundry.towels_bidet) },
+    { key: "towels_viso", names: ["asciugamani viso", "asciugamani corpo"], qty: toNumber(laundry.towels_viso) },
+    { key: "towels_doccia", names: ["asciugamani doccia"], qty: toNumber(laundry.towels_doccia) },
+    { key: "tappetino", names: ["tappetini doccia"], qty: toNumber(laundry.tappetino) },
+    { key: "mappine", names: ["mappine cucina"], qty: toNumber(laundry.mappine) },
+  ];
+}
+
+async function applyProductQuantityDelta(
+  items: QuantityItem[],
+  operation: "consume" | "add",
+  options?: { capToMaxQty?: boolean },
+): Promise<Record<string, number>> {
   const supabase = supabaseAdmin();
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, ${schema.quantityColumn}`);
+    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, max_qty`);
   if (error) throw new Error(error.message);
 
   const byName = new Map<string, Record<string, unknown>>();
@@ -311,29 +340,39 @@ export async function applyLinenConsumptionDelta(linen: LinenCompletion, directi
     byName.set(normalizeName(String(row.name ?? "")), row);
   }
 
-  const setsTotal = toNumber(linen.sets_estivo) + toNumber(linen.sets_invernale);
-  const consumptionMap: Array<{ name: string; qty: number; fallback?: string }> = [
-    { name: "asciugamani bidet", qty: toNumber(linen.towels_bidet) },
-    { name: "asciugamani viso", qty: toNumber(linen.towels_viso), fallback: "asciugamani corpo" },
-    { name: "asciugamani doccia", qty: toNumber(linen.towels_doccia) },
-    { name: "tappetini doccia", qty: toNumber(linen.tappetino) },
-    { name: "mappine cucina", qty: toNumber(linen.mappine) },
-    { name: "carta igienica", qty: toNumber(linen.carta_igienica) },
-    { name: "spugnette lavapiatti", qty: toNumber(linen.spugne_piatti) },
-    { name: "spugnette morbide", qty: toNumber(linen.spugne_asciuga) },
-    { name: "completi letto completi", qty: setsTotal },
-  ];
-
+  const applied: Record<string, number> = {};
   const updates: Array<{ id: string; nextQty: number }> = [];
-  for (const item of consumptionMap) {
+
+  for (const item of items) {
     if (item.qty <= 0) continue;
-    const row = byName.get(normalizeName(item.name)) ?? (item.fallback ? byName.get(normalizeName(item.fallback)) : undefined);
+    const row = item.names
+      .map((name) => byName.get(normalizeName(name)))
+      .find((match): match is Record<string, unknown> => Boolean(match));
     if (!row) continue;
+
     const id = getProductId(row, schema);
     if (!id) continue;
+
     const currentQty = getProductQuantity(row, schema);
-    const nextQty = Number(Math.max(0, currentQty - item.qty * direction).toFixed(2));
+    let nextQty = currentQty;
+
+    if (operation === "consume") {
+      nextQty = roundQty(Math.max(0, currentQty - item.qty));
+    } else {
+      const rawTarget = currentQty + item.qty;
+      const maxQty = Number(row.max_qty);
+      nextQty = roundQty(
+        options?.capToMaxQty && Number.isFinite(maxQty) && maxQty > 0
+          ? Math.min(maxQty, rawTarget)
+          : rawTarget,
+      );
+    }
+
+    const appliedQty = roundQty(Math.abs(nextQty - currentQty));
+    if (appliedQty <= 0) continue;
+
     updates.push({ id, nextQty });
+    applied[item.key] = appliedQty;
   }
 
   await Promise.all(
@@ -348,7 +387,70 @@ export async function applyLinenConsumptionDelta(linen: LinenCompletion, directi
     ),
   );
 
+  return applied;
+}
+
+function toLinenCompletion(applied: Record<string, number>): LinenCompletion {
+  return {
+    sets_estivo: applied.sets_estivo ?? 0,
+    sets_invernale: applied.sets_invernale ?? 0,
+    towels_bidet: applied.towels_bidet ?? 0,
+    towels_viso: applied.towels_viso ?? 0,
+    towels_doccia: applied.towels_doccia ?? 0,
+    tappetino: applied.tappetino ?? 0,
+    mappine: applied.mappine ?? 0,
+    carta_igienica: applied.carta_igienica ?? 0,
+    spugne_piatti: applied.spugne_piatti ?? 0,
+    spugne_asciuga: applied.spugne_asciuga ?? 0,
+  };
+}
+
+function toLaundryCompletion(applied: Record<string, number>): LaundryCompletion {
+  return {
+    sets_estivo: applied.sets_estivo ?? 0,
+    sets_invernale: applied.sets_invernale ?? 0,
+    towels_bidet: applied.towels_bidet ?? 0,
+    towels_viso: applied.towels_viso ?? 0,
+    towels_doccia: applied.towels_doccia ?? 0,
+    tappetino: applied.tappetino ?? 0,
+    mappine: applied.mappine ?? 0,
+  };
+}
+
+async function saveActionDetails(actionId: string, details: StoredActionDetails): Promise<void> {
+  const supabase = supabaseAdmin();
+  const { error } = await supabase
+    .from("actions")
+    .update({ details: JSON.stringify(details) })
+    .eq("id", actionId);
+  if (error) throw new Error(error.message);
+}
+
+async function applyLinenConsumption(linen: LinenCompletion): Promise<LinenCompletion> {
+  const applied = await applyProductQuantityDelta(buildLinenQuantityItems(linen), "consume");
+  return toLinenCompletion(applied);
+}
+
+async function restoreLinenConsumption(linen: LinenCompletion): Promise<void> {
+  await applyProductQuantityDelta(buildLinenQuantityItems(linen), "add");
+}
+
+export async function applyLinenConsumptionDelta(linen: LinenCompletion, direction: 1 | -1): Promise<void> {
+  if (direction === 1) {
+    await applyLinenConsumption(linen);
+  } else {
+    await restoreLinenConsumption(linen);
+  }
   await syncShoppingAction();
+}
+
+async function applyLaundryRestock(laundry: LaundryCompletion): Promise<LaundryCompletion> {
+  const applied = await applyProductQuantityDelta(buildLaundryQuantityItems(laundry), "add", { capToMaxQty: true });
+  return toLaundryCompletion(applied);
+}
+
+async function revertLaundryRestock(laundry: LaundryCompletion): Promise<void> {
+  await applyProductQuantityDelta(buildLaundryQuantityItems(laundry), "consume");
 }
 
 export async function applyActionStatusEffects(
@@ -365,6 +467,7 @@ export async function applyActionStatusEffects(
   if (actionErr || !actionRow) return;
 
   const actionType = String(actionRow.action_type ?? "");
+  const storedDetails = parseActionDetails(actionRow.details);
 
   if (isCleaningAction(actionType)) {
     if (nextStatus === "FATTO") {
@@ -378,20 +481,38 @@ export async function applyActionStatusEffects(
     }
   }
 
-  if (isLaundryAction(actionType) && nextStatus === "FATTO") {
-    await regenerateLaundryStock();
+  if (isLaundryAction(actionType)) {
+    if (nextStatus === "FATTO") {
+      const laundry = completion?.laundry ?? parseLaundryDetails(actionRow.details);
+      if (laundry) {
+        storedDetails.laundry = laundry;
+        storedDetails.laundry_applied = await applyLaundryRestock(laundry);
+        await saveActionDetails(actionId, storedDetails);
+      }
+    } else {
+      const laundry = parseAppliedLaundryDetails(actionRow.details);
+      if (laundry) {
+        await revertLaundryRestock(laundry);
+        storedDetails.laundry_applied = undefined;
+        await saveActionDetails(actionId, storedDetails);
+      }
+    }
   }
 
   if (actionType.toUpperCase().includes("BIANCHERIA")) {
     if (nextStatus === "FATTO") {
       const linen = completion?.linen ?? parseLinenDetails(actionRow.details);
       if (linen) {
-        await applyLinenConsumptionDelta(linen, 1);
+        storedDetails.linen = linen;
+        storedDetails.linen_applied = await applyLinenConsumption(linen);
+        await saveActionDetails(actionId, storedDetails);
       }
     } else {
-      const linen = parseLinenDetails(actionRow.details);
+      const linen = parseAppliedLinenDetails(actionRow.details);
       if (linen) {
-        await applyLinenConsumptionDelta(linen, -1);
+        await restoreLinenConsumption(linen);
+        storedDetails.linen_applied = undefined;
+        await saveActionDetails(actionId, storedDetails);
       }
     }
   }
@@ -410,8 +531,6 @@ export async function applyActionStatusEffects(
 
   await syncShoppingAction();
 }
-
-
 
 
 

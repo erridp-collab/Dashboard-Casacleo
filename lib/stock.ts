@@ -51,7 +51,7 @@ export function getBookingConsumptionMap(checkIn: string, checkOut: string, gues
   consumptions.set("asciugamani bidet", setCount * 2);
   consumptions.set("asciugamani doccia", setCount * 2);
   consumptions.set("asciugamani corpo", setCount * 2);
-  consumptions.set("completi letto completi", setCount);
+  consumptions.set("set letto estivo", setCount);
 
   return consumptions;
 }

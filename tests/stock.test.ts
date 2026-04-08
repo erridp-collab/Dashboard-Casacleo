@@ -11,7 +11,7 @@ describe("stock business rules", () => {
     expect(map.get("asciugamani bidet")).toBe(4);
     expect(map.get("asciugamani doccia")).toBe(4);
     expect(map.get("asciugamani corpo")).toBe(4);
-    expect(map.get("completi letto completi")).toBe(2);
+    expect(map.get("set letto estivo")).toBe(2);
   });
 
   it("excludes linen-like products from SPESA shopping list", () => {
@@ -25,7 +25,7 @@ describe("stock business rules", () => {
 
     expect(
       shouldIncludeInShoppingList({
-        name: "Completi letto completi",
+        name: "Set letto estivo",
         category: "Lenzuola e coperte",
         unit: "set",
       }),

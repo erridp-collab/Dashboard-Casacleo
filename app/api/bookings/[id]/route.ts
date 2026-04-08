@@ -238,9 +238,13 @@ export async function DELETE(
 
     for (const row of linenActions) {
       try {
-        const parsed = JSON.parse(String(row.details)) as { linen?: Record<string, unknown> };
-        if (parsed?.linen) {
-          await applyLinenConsumptionDelta(parsed.linen as Record<string, unknown>, -1);
+        const parsed = JSON.parse(String(row.details)) as {
+          linen?: Record<string, unknown>;
+          linen_applied?: Record<string, unknown>;
+        };
+        const linenToRestore = parsed?.linen_applied ?? parsed?.linen;
+        if (linenToRestore) {
+          await applyLinenConsumptionDelta(linenToRestore, -1);
         }
       } catch {
         // ignore parse errors
