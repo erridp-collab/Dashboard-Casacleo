@@ -117,7 +117,7 @@ export async function GET(req: Request) {
         monthPoints[month].occupiedDays += overlapDays(checkIn, checkOut, bucketStart, bucketEnd);
       }
 
-      const overlapsSelected = checkOut >= monthStart && checkIn <= new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate() + 1);
+      const overlapsSelected = checkOut > monthStart && checkIn <= monthEnd;
       if (overlapsSelected && amount > 0) {
         entries.push({
           id: String(row.id ?? `booking-${checkInStr}-${checkOutStr}`),

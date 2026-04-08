@@ -152,6 +152,7 @@ async function regenerateLaundryStock() {
     .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, max_qty`);
   if (error) throw new Error(error.message);
 
+  const updates: Array<{ id: string; maxQty: number }> = [];
   for (const raw of data ?? []) {
     const row = raw as Record<string, unknown>;
     const maxQty = Number(row.max_qty);
@@ -159,16 +160,22 @@ async function regenerateLaundryStock() {
     const name = String(row.name ?? "");
     const category = row.category === null || row.category === undefined ? null : String(row.category);
     if (!isLaundryProduct(name, category)) continue;
-
     const id = String(row[schema.idColumn] ?? "");
     if (!id) continue;
-
-    const { error: updateErr } = await supabase
-      .from("products")
-      .update({ [schema.quantityColumn]: maxQty })
-      .eq(schema.idColumn, id);
-    if (updateErr) throw new Error(updateErr.message);
+    updates.push({ id, maxQty });
   }
+
+  await Promise.all(
+    updates.map(({ id, maxQty }) =>
+      supabase
+        .from("products")
+        .update({ [schema.quantityColumn]: maxQty })
+        .eq(schema.idColumn, id)
+        .then(({ error: updateErr }) => {
+          if (updateErr) throw new Error(updateErr.message);
+        }),
+    ),
+  );
 }
 
 function normalizeName(name: string): string {

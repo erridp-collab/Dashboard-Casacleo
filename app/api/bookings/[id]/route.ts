@@ -141,12 +141,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Numero ospiti non valido" }, { status: 400 });
     }
 
+    // Half-open interval [check_in, check_out) — allows same-day turnover.
     const { data: conflictRows, error: conflictErr } = await supabase
       .from("bookings")
       .select("id")
       .neq("id", id)
-      .lte("check_in", nextCheckOut)
-      .gte("check_out", nextCheckIn)
+      .lt("check_in", nextCheckOut)
+      .gt("check_out", nextCheckIn)
       .limit(1);
 
     if (conflictErr) return NextResponse.json({ error: formatDbError(conflictErr) }, { status: 400 });
