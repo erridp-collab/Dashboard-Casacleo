@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: "📊" },
-  { href: "/calendar", label: "Calendar", icon: "🗓️" },
   { href: "/bookings", label: "Bookings", icon: "🏠" },
   { href: "/actions", label: "Actions", icon: "✅" },
   { href: "/inventory", label: "Inventory", icon: "📦" },
@@ -42,4 +41,3 @@ export function Sidebar() {
     </aside>
   );
 }
-

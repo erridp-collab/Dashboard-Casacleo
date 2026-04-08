@@ -92,6 +92,19 @@ export default function DashboardPage() {
       <Card className="p-4">
         <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
         <CalendarClient />
+        <div className="calendar-legend mt-4">
+          <span className="calendar-legend-label">Legenda</span>
+          <span className="calendar-legend-token calendar-legend-token--booking">B</span>
+          <span className="calendar-legend-text">Prenotazioni</span>
+          <span className="calendar-legend-token calendar-legend-token--cleaning">P</span>
+          <span className="calendar-legend-text">Pulizia</span>
+          <span className="calendar-legend-token calendar-legend-token--laundry">L</span>
+          <span className="calendar-legend-text">Lavatrici</span>
+          <span className="calendar-legend-token calendar-legend-token--maintenance">M</span>
+          <span className="calendar-legend-text">Manutenzione</span>
+          <span className="calendar-legend-token calendar-legend-token--generic">A</span>
+          <span className="calendar-legend-text">Altro</span>
+        </div>
       </Card>
     </section>
   );
