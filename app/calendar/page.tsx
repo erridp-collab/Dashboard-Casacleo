@@ -18,6 +18,13 @@ export default function CalendarPage() {
           <span className="calendar-chip calendar-chip-maintenance">Manutenzioni</span>
         </div>
         <CalendarClient />
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+          <span className="calendar-legend-label">Legenda azioni</span>
+          <span className="calendar-legend-pill">P = Pulizia</span>
+          <span className="calendar-legend-pill">L = Lavatrici</span>
+          <span className="calendar-legend-pill">M = Manutenzione</span>
+          <span className="calendar-legend-pill">A = Altro</span>
+        </div>
       </Card>
     </section>
   );

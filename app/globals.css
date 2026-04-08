@@ -127,6 +127,21 @@ body {
   box-shadow: 0 4px 12px rgba(54, 40, 24, 0.12);
 }
 
+.calendar-legend-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.calendar-legend-pill {
+  border-radius: 999px;
+  border: 1px solid #e1d7c8;
+  padding: 0.2rem 0.6rem;
+  background: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  color: #3f3426;
+}
+
 .calendar-modern .fc-daygrid-event-dot {
   display: none;
 }
@@ -134,5 +149,10 @@ body {
 @media (max-width: 900px) {
   .calendar-modern .fc-toolbar-title {
     font-size: 1rem;
+  }
+
+  .calendar-modern .fc-event {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.3rem;
   }
 }
