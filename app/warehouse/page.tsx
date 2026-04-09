@@ -5,6 +5,8 @@ import { AlertTriangle, Save } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
 
+type StockStatus = "PIENO" | "A_META" | "TERMINATO";
+
 type ProductRow = {
   id: string;
   name: string;
@@ -14,7 +16,19 @@ type ProductRow = {
   threshold: string;
   max_qty: string;
   consumption_per_checkout: string;
+  stock_status: StockStatus | null;
 };
+
+const STATUS_CYCLE: StockStatus[] = ["PIENO", "A_META", "TERMINATO"];
+const STATUS_CONFIG: Record<StockStatus, { label: string; bg: string; text: string; dot: string }> = {
+  PIENO: { label: "Pieno", bg: "bg-emerald-100", text: "text-emerald-700", dot: "bg-emerald-500" },
+  A_META: { label: "A metà", bg: "bg-amber-100", text: "text-amber-700", dot: "bg-amber-400" },
+  TERMINATO: { label: "Finito", bg: "bg-rose-100", text: "text-rose-700", dot: "bg-rose-500" },
+};
+
+function isCleaningProduct(category: string | null): boolean {
+  return Boolean(category && category.toLowerCase().includes("pulizia"));
+}
 
 type ProductSnapshot = {
   qty: number;
@@ -116,6 +130,9 @@ export default function WarehousePage() {
         threshold: toStringValue(threshold, "0"),
         max_qty: toStringValue(maxQty, ""),
         consumption_per_checkout: toStringValue(consumption, ""),
+        stock_status: (["PIENO", "A_META", "TERMINATO"].includes(String(p.stock_status ?? ""))
+          ? (p.stock_status as StockStatus)
+          : null),
       };
     });
 
@@ -259,6 +276,28 @@ export default function WarehousePage() {
     await loadProducts();
   }
 
+  async function cycleStockStatus(id: string) {
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== id) return row;
+        const current = row.stock_status ?? "PIENO";
+        const idx = STATUS_CYCLE.indexOf(current);
+        return { ...row, stock_status: STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length] };
+      }),
+    );
+
+    const row = rows.find((r) => r.id === id);
+    const current = row?.stock_status ?? "PIENO";
+    const idx = STATUS_CYCLE.indexOf(current);
+    const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+
+    await fetch("/api/products/stock-status", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates: [{ id, stock_status: next }] }),
+    }).catch(console.error);
+  }
+
   function setField(id: string, field: keyof Omit<ProductRow, "id" | "name" | "category" | "unit">, value: string) {
     setRows((prev) =>
       prev.map((row) =>
@@ -329,7 +368,20 @@ export default function WarehousePage() {
                     const state = rowState[row.id];
                     return (
                       <TableRow key={row.id} className={state?.qtyNegative ? "bg-amber-50/40" : ""}>
-                        <TableCell className="font-medium text-zinc-900">{row.name}</TableCell>
+                        <TableCell className="font-medium text-zinc-900">
+                          <div className="flex items-center gap-2">
+                            <span>{row.name}</span>
+                            {isCleaningProduct(row.category) && row.stock_status ? (
+                              <button
+                                onClick={() => void cycleStockStatus(row.id)}
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold transition active:scale-95 ${STATUS_CONFIG[row.stock_status].bg} ${STATUS_CONFIG[row.stock_status].text}`}
+                              >
+                                <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[row.stock_status].dot}`} />
+                                {STATUS_CONFIG[row.stock_status].label}
+                              </button>
+                            ) : null}
+                          </div>
+                        </TableCell>
                         <TableCell>{row.category ?? "-"}</TableCell>
                         <TableCell>{row.unit ?? "-"}</TableCell>
                         <TableCell>
@@ -387,7 +439,18 @@ export default function WarehousePage() {
                   >
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold text-zinc-900">{row.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-zinc-900">{row.name}</p>
+                          {isCleaningProduct(row.category) && row.stock_status ? (
+                            <button
+                              onClick={() => void cycleStockStatus(row.id)}
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold transition active:scale-95 ${STATUS_CONFIG[row.stock_status].bg} ${STATUS_CONFIG[row.stock_status].text}`}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[row.stock_status].dot}`} />
+                              {STATUS_CONFIG[row.stock_status].label}
+                            </button>
+                          ) : null}
+                        </div>
                         <p className="text-xs text-zinc-500">
                           {row.category ?? "Senza categoria"} · {row.unit ?? "-"}
                         </p>

@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const schema = await resolveProductSchema(supabase);
     const { data: row, error: findErr } = await supabase
       .from("products")
-      .select(`${schema.idColumn}, ${schema.quantityColumn}, name`)
+      .select(`${schema.idColumn}, ${schema.quantityColumn}, name, category`)
       .eq(schema.idColumn, body.id)
       .maybeSingle();
     if (findErr) return NextResponse.json({ error: findErr.message }, { status: 400 });
@@ -42,9 +42,14 @@ export async function POST(req: Request) {
     const currentQty = toNumber((row as Record<string, unknown>)[schema.quantityColumn], 0);
     const nextQty = Number((currentQty + addQuantity).toFixed(2));
 
+    const rowData = row as Record<string, unknown>;
+    const isCleaningProduct = typeof rowData.category === "string" && rowData.category.toLowerCase().includes("pulizia");
+    const updatePayload: Record<string, unknown> = { [schema.quantityColumn]: nextQty };
+    if (isCleaningProduct) updatePayload.stock_status = "PIENO";
+
     const { error: updateErr } = await supabase
       .from("products")
-      .update({ [schema.quantityColumn]: nextQty })
+      .update(updatePayload)
       .eq(schema.idColumn, body.id);
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 400 });
 
