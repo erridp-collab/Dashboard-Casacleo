@@ -50,7 +50,9 @@ type DbError = { code?: string; message?: string } | null;
 
 function isMissingColumn(error: DbError, column?: string): boolean {
   if (!error) return false;
-  if (String(error.code) !== "42703") return false;
+  const code = String(error.code);
+  // 42703 = PostgreSQL "column does not exist"; PGRST204 = PostgREST schema cache miss
+  if (code !== "42703" && code !== "PGRST204") return false;
   const msg = String(error.message ?? "");
   return column ? msg.includes(column) : true;
 }
@@ -100,10 +102,10 @@ async function upsertCleaningExpense(
   note?: string | null,
 ) {
   const supabase = supabaseAdmin();
-  const hoursLabel = `Pulizia esterna - ore ${amount}`;
+  const baseLabel = `Pulizia esterna - €${amount.toFixed(2)}`;
   const description = note?.trim()
-    ? `${hoursLabel} (${note.trim()})`
-    : hoursLabel;
+    ? `${baseLabel} (${note.trim()})`
+    : baseLabel;
 
   const payloads = [
     {
@@ -152,6 +154,59 @@ async function deleteCleaningExpense(actionId: string) {
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_pulizia");
   if (!directDelete.error || isMissingColumn(directDelete.error)) return;
+}
+
+async function upsertLaundryExpense(actionId: string, actionDate: string, amount: number) {
+  const supabase = supabaseAdmin();
+  const description = `Lavanderia - €${amount.toFixed(2)}`;
+  const payloads = [
+    {
+      expense_date: actionDate,
+      amount,
+      category: "Lavanderia",
+      description,
+      origin: "automatica_da_lavatrici",
+      source_action_id: actionId,
+    },
+    {
+      expense_date: actionDate,
+      amount,
+      category: "Lavanderia",
+      description,
+    },
+    {
+      date: actionDate,
+      amount,
+      category: "Lavanderia",
+      description,
+    },
+  ];
+
+  const existing = await supabase
+    .from("expenses")
+    .select("id")
+    .eq("source_action_id", actionId)
+    .eq("origin", "automatica_da_lavatrici")
+    .maybeSingle();
+
+  if (!existing.error && existing.data?.id) {
+    const updated = await tryUpdateExpense(existing.data.id, payloads);
+    if (updated) return;
+  }
+
+  await tryInsertExpense(payloads);
+}
+
+async function deleteLaundryExpense(actionId: string) {
+  const supabase = supabaseAdmin();
+  const result = await supabase
+    .from("expenses")
+    .delete()
+    .eq("source_action_id", actionId)
+    .eq("origin", "automatica_da_lavatrici");
+  if (result.error && !isMissingColumn(result.error)) {
+    throw new Error(result.error.message);
+  }
 }
 
 function normalizeName(name: string): string {
@@ -486,6 +541,10 @@ export async function applyActionStatusEffects(
         storedDetails.laundry_applied = await applyLaundryRestock(laundry);
         await saveActionDetails(actionId, storedDetails);
       }
+      const laundryAmount = Number(completion?.amount ?? 0);
+      if (Number.isFinite(laundryAmount) && laundryAmount > 0) {
+        await upsertLaundryExpense(actionId, String(actionRow.action_date), laundryAmount);
+      }
     } else {
       const laundry = parseAppliedLaundryDetails(actionRow.details);
       if (laundry) {
@@ -493,6 +552,7 @@ export async function applyActionStatusEffects(
         storedDetails.laundry_applied = undefined;
         await saveActionDetails(actionId, storedDetails);
       }
+      await deleteLaundryExpense(actionId);
     }
   }
 

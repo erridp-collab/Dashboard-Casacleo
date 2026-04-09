@@ -292,8 +292,13 @@ export default function ActionsPage() {
   const [linenAction, setLinenAction] = useState<Action | null>(null);
   const [laundryAction, setLaundryAction] = useState<Action | null>(null);
   const [cleaningAction, setCleaningAction] = useState<Action | null>(null);
+  const [spesaAction, setSpesaAction] = useState<Action | null>(null);
+  const [spesaAmount, setSpesaAmount] = useState("");
+  const [spesaSaving, setSpesaSaving] = useState(false);
+  const [spesaError, setSpesaError] = useState("");
   const [linenDraft, setLinenDraft] = useState<LinenDraft>(() => buildLinenSuggestion(2));
   const [laundryDraft, setLaundryDraft] = useState<LaundryDraft>(() => buildLaundryDraft());
+  const [laundryCost, setLaundryCost] = useState("");
   const [linenLoading, setLinenLoading] = useState(false);
   const [laundryLoading, setLaundryLoading] = useState(false);
   const [linenError, setLinenError] = useState("");
@@ -343,6 +348,7 @@ export default function ActionsPage() {
   function openLaundryModal(action: Action) {
     setLaundryAction(action);
     setLaundryError("");
+    setLaundryCost("");
     setLaundryDraft(fillLaundryDraft(buildLaundryDraft(), parseActionDetails(action.details).laundry));
   }
 
@@ -411,6 +417,14 @@ export default function ActionsPage() {
       return;
     }
 
+    const costRaw = laundryCost.trim().replace(",", ".");
+    const costAmount = costRaw ? Number(costRaw) : null;
+    if (costRaw && (!Number.isFinite(costAmount) || (costAmount ?? 0) <= 0)) {
+      setLaundryError("Costo non valido");
+      setLaundryLoading(false);
+      return;
+    }
+
     const res = await fetch("/api/actions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -420,6 +434,7 @@ export default function ActionsPage() {
         completion: {
           mode: "LAVATRICI",
           laundry: values,
+          ...(costAmount != null ? { amount: costAmount } : {}),
         },
       }),
     });
@@ -433,6 +448,34 @@ export default function ActionsPage() {
     setActions((prev) => prev.map((x) => (x.id === laundryAction.id ? { ...x, status: "FATTO" } : x)));
     toast("Lavatrici registrate", "success");
     setLaundryAction(null);
+  }
+
+  async function confirmSpesa() {
+    if (!spesaAction) return;
+    const trimmed = spesaAmount.trim().replace(",", ".");
+    const amount = trimmed ? Number(trimmed) : null;
+    if (trimmed && (!Number.isFinite(amount) || (amount ?? 0) <= 0)) {
+      setSpesaError("Importo non valido");
+      return;
+    }
+    setSpesaSaving(true);
+    setSpesaError("");
+    const completion: Record<string, unknown> = { mode: "SPESA" };
+    if (amount != null) completion.amount = amount;
+    const res = await fetch("/api/actions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: spesaAction.id, status: "FATTO", completion }),
+    });
+    const data = await res.json();
+    setSpesaSaving(false);
+    if (!res.ok) {
+      setSpesaError(data.error ?? "Errore salvataggio spesa");
+      return;
+    }
+    setActions((prev) => prev.map((x) => (x.id === spesaAction.id ? { ...x, status: "FATTO" } : x)));
+    toast("Spesa registrata!", "success");
+    setSpesaAction(null);
   }
 
   async function toggleStatus(action: Action) {
@@ -455,19 +498,10 @@ export default function ActionsPage() {
     }
 
     if (next === "FATTO" && action.action_type.toUpperCase() === "SPESA") {
-      const amountRaw = prompt("Importo spesa/rifornimento (EUR, opzionale)", "");
-      if (amountRaw === null) return;
-      const trimmed = amountRaw.trim();
-      if (trimmed !== "") {
-        const amount = Number(trimmed.replace(",", "."));
-        if (!Number.isFinite(amount) || amount <= 0) {
-          setError("Importo spesa non valido");
-          return;
-        }
-        payload.completion = { mode: "SPESA", amount };
-      } else {
-        payload.completion = { mode: "SPESA" };
-      }
+      setSpesaAction(action);
+      setSpesaAmount("");
+      setSpesaError("");
+      return;
     }
 
     const res = await fetch("/api/actions", {
@@ -639,7 +673,12 @@ export default function ActionsPage() {
                     a.status === "FATTO" ? "opacity-70 line-through" : ""
                   }`}
                   onClick={() => {
-                    if (a.action_type.toUpperCase() === "SPESA") return;
+                    if (a.action_type.toUpperCase() === "SPESA") {
+                      setSpesaAction(a);
+                      setSpesaAmount("");
+                      setSpesaError("");
+                      return;
+                    }
                     if (isLinenAction(a.action_type)) {
                       void openLinenModal(a);
                       return;
@@ -720,6 +759,41 @@ export default function ActionsPage() {
         </ActionModalShell>
       ) : null}
 
+      {spesaAction ? (
+        <ActionModalShell
+          title="Registra spesa"
+          subtitle={spesaAction.status === "FATTO" ? "Già segnata come fatta" : "Inserisci l'importo speso per registrare la spesa"}
+          error={spesaError}
+          isBusy={spesaSaving}
+          saveLabel="Segna come fatto"
+          onSave={() => void confirmSpesa()}
+          onClose={() => setSpesaAction(null)}
+        >
+          {spesaAction.details ? (
+            <div className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Lista prodotti</p>
+              <pre className="whitespace-pre-wrap text-xs text-zinc-700">{spesaAction.details}</pre>
+            </div>
+          ) : null}
+          <label className="block text-sm text-zinc-600">
+            Importo speso (€, opzionale)
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="es. 34.50"
+              value={spesaAmount}
+              onChange={(e) => setSpesaAmount(e.target.value)}
+              className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+            />
+          </label>
+          {spesaAmount.trim() && Number(spesaAmount.replace(",", ".")) > 0 ? (
+            <p className="mt-1 text-xs text-zinc-400">Verrà registrata una spesa di €{Number(spesaAmount.replace(",", ".")).toFixed(2)}</p>
+          ) : null}
+        </ActionModalShell>
+      ) : null}
+
       {laundryAction ? (
         <ActionModalShell
           title="Lavatrici"
@@ -735,6 +809,22 @@ export default function ActionsPage() {
             fields={LAUNDRY_FIELDS}
             onChange={(key, value) => setLaundryDraft((prev) => ({ ...prev, [key]: value }))}
           />
+          <label className="mt-4 block text-sm text-zinc-600">
+            Costo lavanderia (€, opzionale)
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              inputMode="decimal"
+              placeholder="es. 15"
+              value={laundryCost}
+              onChange={(e) => setLaundryCost(e.target.value)}
+              className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+            />
+          </label>
+          {laundryCost.trim() && Number(laundryCost.replace(",", ".")) > 0 ? (
+            <p className="mt-1 text-xs text-zinc-400">Verrà registrata una spesa di €{Number(laundryCost.replace(",", ".")).toFixed(2)}</p>
+          ) : null}
         </ActionModalShell>
       ) : null}
     </section>

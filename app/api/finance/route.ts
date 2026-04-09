@@ -220,10 +220,17 @@ export async function POST(req: Request) {
     const payload = { expense_date, amount, category, description, origin: "manuale" };
     let { error } = await supabase.from("expenses").insert(payload);
 
-    // Fallback: table may use "date" column instead of "expense_date".
-    if (error && String(error.code) === "42703" && String(error.message).includes("expense_date")) {
-      const fallback = await supabase.from("expenses").insert({ date: expense_date, amount, category, description });
-      error = fallback.error;
+    // Fallback: "origin" or "expense_date" column may not exist yet (migration pending).
+    if (error && (String(error.code) === "42703" || String(error.code) === "PGRST204")) {
+      const msg = String(error.message ?? "");
+      if (msg.includes("origin")) {
+        const f2 = await supabase.from("expenses").insert({ expense_date, amount, category, description });
+        error = f2.error;
+      }
+      if (error && msg.includes("expense_date")) {
+        const f3 = await supabase.from("expenses").insert({ date: expense_date, amount, category, description });
+        error = f3.error;
+      }
     }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });

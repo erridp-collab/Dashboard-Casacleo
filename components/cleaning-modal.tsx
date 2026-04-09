@@ -30,6 +30,7 @@ const STATUS_CYCLE: StockStatus[] = ["PIENO", "A_META", "TERMINATO"];
 export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props) {
   const [mode, setMode] = useState<CleaningMode>(null);
   const [externalHours, setExternalHours] = useState("");
+  const [externalRate, setExternalRate] = useState("");
   const [products, setProducts] = useState<ProductCheck[]>([]);
   const [maintenanceNote, setMaintenanceNote] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -76,8 +77,13 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
 
     if (mode === "EXTERNAL") {
       const hours = Number(externalHours.replace(",", ".").trim());
+      const rate = Number(externalRate.replace(",", ".").trim());
       if (!Number.isFinite(hours) || hours <= 0) {
         setError("Inserisci le ore di pulizia esterna");
+        return;
+      }
+      if (!Number.isFinite(rate) || rate <= 0) {
+        setError("Inserisci la tariffa oraria (€/ora)");
         return;
       }
     }
@@ -86,14 +92,19 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
     setError("");
 
     try {
-      const hours = mode === "EXTERNAL" ? Number(externalHours.replace(",", ".").trim()) : null;
+      let externalAmount: number | null = null;
+      if (mode === "EXTERNAL") {
+        const hours = Number(externalHours.replace(",", ".").trim());
+        const rate = Number(externalRate.replace(",", ".").trim());
+        externalAmount = Number((hours * rate).toFixed(2));
+      }
       await fetch("/api/actions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: actionId,
           status: "FATTO",
-          completion: mode === "EXTERNAL" ? { mode: "EXTERNAL", external_amount: hours } : { mode: "SELF" },
+          completion: mode === "EXTERNAL" ? { mode: "EXTERNAL", external_amount: externalAmount } : { mode: "SELF" },
         }),
       });
 
@@ -187,7 +198,25 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                     className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
                   />
                 </label>
-                <p className="mt-1 text-xs text-zinc-400">Le ore verranno registrate come spesa</p>
+                <label className="mt-2 block text-sm text-zinc-600">
+                  Tariffa oraria (€/ora)
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    inputMode="decimal"
+                    placeholder="es. 12"
+                    value={externalRate}
+                    onChange={(e) => setExternalRate(e.target.value)}
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                  />
+                </label>
+                {externalHours && externalRate && Number(externalHours.replace(",", ".")) > 0 && Number(externalRate.replace(",", ".")) > 0 ? (
+                  <p className="mt-1 text-xs font-medium text-blue-600">
+                    Totale: €{(Number(externalHours.replace(",", ".")) * Number(externalRate.replace(",", "."))).toFixed(2)}
+                  </p>
+                ) : null}
+                <p className="mt-1 text-xs text-zinc-400">Il totale verrà registrato come spesa</p>
               </div>
             ) : null}
           </div>
@@ -258,6 +287,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
             onClick={() => {
               setMode(null);
               setExternalHours("");
+              setExternalRate("");
               setError("");
               onClose();
             }}
