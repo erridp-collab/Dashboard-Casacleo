@@ -46,6 +46,8 @@ type QuantityItem = {
   qty: number;
 };
 
+type ProductRow = Record<string, unknown>;
+
 type DbError = { code?: string; message?: string } | null;
 
 function isMissingColumn(error: DbError, column?: string): boolean {
@@ -222,6 +224,31 @@ function roundQty(value: number): number {
   return Number(value.toFixed(2));
 }
 
+function getRowQuantity(row: ProductRow, quantityColumn: string): number {
+  return toNumber(row[quantityColumn]);
+}
+
+function selectPreferredProductRow(
+  byName: Map<string, ProductRow[]>,
+  names: string[],
+  quantityColumn: string,
+): ProductRow | null {
+  const candidates = names.flatMap((name, index) =>
+    (byName.get(normalizeName(name)) ?? []).map((row) => ({ row, index })),
+  );
+
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    const qtyA = getRowQuantity(a.row, quantityColumn);
+    const qtyB = getRowQuantity(b.row, quantityColumn);
+    if (qtyB !== qtyA) return qtyB - qtyA;
+    return a.index - b.index;
+  });
+
+  return candidates[0]?.row ?? null;
+}
+
 function parseActionDetails(details: string | null): StoredActionDetails {
   if (!details) return {};
   try {
@@ -354,7 +381,7 @@ function buildLinenQuantityItems(linen: LinenCompletion): QuantityItem[] {
     { key: "sets_estivo", names: ["set letto estivo", "completi letto completi"], qty: toNumber(linen.sets_estivo) },
     { key: "sets_invernale", names: ["set letto invernale", "copripiumini + federe"], qty: toNumber(linen.sets_invernale) },
     { key: "towels_bidet", names: ["asciugamani bidet"], qty: toNumber(linen.towels_bidet) },
-    { key: "towels_viso", names: ["asciugamani viso", "asciugamani corpo"], qty: toNumber(linen.towels_viso) },
+    { key: "towels_viso", names: ["asciugamani viso"], qty: toNumber(linen.towels_viso) },
     { key: "towels_doccia", names: ["asciugamani doccia"], qty: toNumber(linen.towels_doccia) },
     { key: "tappetino", names: ["tappetini doccia"], qty: toNumber(linen.tappetino) },
     { key: "mappine", names: ["mappine cucina"], qty: toNumber(linen.mappine) },
@@ -368,7 +395,7 @@ function buildLaundryQuantityItems(laundry: LaundryCompletion): QuantityItem[] {
     { key: "sets_estivo", names: ["set letto estivo", "completi letto completi"], qty: toNumber(laundry.sets_estivo) },
     { key: "sets_invernale", names: ["set letto invernale", "copripiumini + federe"], qty: toNumber(laundry.sets_invernale) },
     { key: "towels_bidet", names: ["asciugamani bidet"], qty: toNumber(laundry.towels_bidet) },
-    { key: "towels_viso", names: ["asciugamani viso", "asciugamani corpo"], qty: toNumber(laundry.towels_viso) },
+    { key: "towels_viso", names: ["asciugamani viso"], qty: toNumber(laundry.towels_viso) },
     { key: "towels_doccia", names: ["asciugamani doccia"], qty: toNumber(laundry.towels_doccia) },
     { key: "tappetino", names: ["tappetini doccia"], qty: toNumber(laundry.tappetino) },
     { key: "mappine", names: ["mappine cucina"], qty: toNumber(laundry.mappine) },
@@ -387,10 +414,16 @@ async function applyProductQuantityDelta(
     .select(`${schema.idColumn}, name, ${schema.quantityColumn}, max_qty`);
   if (error) throw new Error(error.message);
 
-  const byName = new Map<string, Record<string, unknown>>();
+  const byName = new Map<string, ProductRow[]>();
   for (const raw of data ?? []) {
-    const row = raw as Record<string, unknown>;
-    byName.set(normalizeName(String(row.name ?? "")), row);
+    const row = raw as ProductRow;
+    const normalized = normalizeName(String(row.name ?? ""));
+    const existing = byName.get(normalized);
+    if (existing) {
+      existing.push(row);
+    } else {
+      byName.set(normalized, [row]);
+    }
   }
 
   const applied: Record<string, number> = {};
@@ -398,9 +431,7 @@ async function applyProductQuantityDelta(
 
   for (const item of items) {
     if (item.qty <= 0) continue;
-    const row = item.names
-      .map((name) => byName.get(normalizeName(name)))
-      .find((match): match is Record<string, unknown> => Boolean(match));
+    const row = selectPreferredProductRow(byName, item.names, schema.quantityColumn);
     if (!row) continue;
 
     const id = getProductId(row, schema);
@@ -588,4 +619,3 @@ export async function applyActionStatusEffects(
 
   await syncShoppingAction();
 }
-

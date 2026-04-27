@@ -128,7 +128,13 @@ describe("action effects — BIANCHERIA integration", () => {
 
   async function snapshotLinenQty(): Promise<Array<{ id: string; qty: number }>> {
     const schema = await resolveProductSchema(supabase);
-    const LINEN_NAMES = ["asciugamani bidet", "asciugamani doccia", "asciugamani corpo", "set letto estivo"];
+    const LINEN_NAMES = [
+      "asciugamani bidet",
+      "asciugamani viso",
+      "asciugamani doccia",
+      "set letto estivo",
+      "completi letto completi",
+    ];
     const { data } = await supabase.from("products").select(`${schema.idColumn}, name, ${schema.quantityColumn}`);
     const result: Array<{ id: string; qty: number }> = [];
     for (const raw of data ?? []) {
