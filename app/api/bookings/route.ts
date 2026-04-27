@@ -69,7 +69,34 @@ export async function GET() {
     }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ bookings: data ?? [] }, { status: 200 });
+
+    const bookings = data ?? [];
+    const bookingIds = bookings.map((row) => String(row.id)).filter(Boolean);
+    const cleaningStatusByBookingId = new Map<string, "DA_FARE" | "FATTO" | null>();
+
+    if (bookingIds.length > 0) {
+      const { data: actionsData, error: actionsErr } = await supabase
+        .from("actions")
+        .select("booking_id, action_type, status")
+        .in("booking_id", bookingIds);
+
+      if (actionsErr) return NextResponse.json({ error: actionsErr.message }, { status: 400 });
+
+      for (const row of actionsData ?? []) {
+        const bookingId = row.booking_id ? String(row.booking_id) : "";
+        const actionType = String(row.action_type ?? "").toUpperCase();
+        const status = row.status === "FATTO" ? "FATTO" : row.status === "DA_FARE" ? "DA_FARE" : null;
+        if (!bookingId || !actionType.includes("PULIZIA")) continue;
+        cleaningStatusByBookingId.set(bookingId, status);
+      }
+    }
+
+    return NextResponse.json({
+      bookings: bookings.map((row) => ({
+        ...row,
+        cleaning_status: cleaningStatusByBookingId.get(String(row.id)) ?? null,
+      })),
+    }, { status: 200 });
   } catch (e: unknown) {
     console.error("[GET /api/bookings]", e);
     return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });

@@ -80,6 +80,9 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 # Password per il login all'applicazione (singolo utente condiviso)
 APP_PASSWORD=
+
+# Chiave usata per firmare il cookie auth-token (consigliata; se assente viene usata APP_PASSWORD come fallback)
+AUTH_SECRET=
 ```
 
 > **Sicurezza**: `SUPABASE_SERVICE_ROLE_KEY` bypassa le RLS policies di Supabase. Usata solo server-side tramite `lib/supabaseAdmin.ts` che importa `server-only`. Non aggiungerla mai a variabili pubbliche (`NEXT_PUBLIC_*`).
@@ -204,6 +207,12 @@ Supabase (Database)
 4. Confronta con le azioni esistenti nel DB → crea le mancanti, elimina le obsolete
 5. Per ogni nuova azione, crea automaticamente la checklist dal template corrispondente
 
+### Flusso visibilità prenotazioni
+
+1. `GET /api/bookings` arricchisce ogni prenotazione con `cleaning_status`
+2. La pagina `Bookings` nasconde di default le prenotazioni la cui `PULIZIA` collegata è già `FATTO`
+3. Il toggle `Mostra completate` consente di rivedere anche le prenotazioni già pulite
+
 ### Flusso completamento azione → effetti collaterali
 
 1. Utente segna un'azione come FATTO (con dettagli opzionali: importo, biancheria usata, etc.)
@@ -221,11 +230,17 @@ Supabase (Database)
 
 ### Autenticazione custom con cookie httpOnly
 
-**Scelta**: singolo utente con password statica in env var, cookie httpOnly con valore fisso `"authenticated"`.
+**Scelta**: singolo utente con password statica in env var, cookie httpOnly firmato con HMAC.
 
 **Perché**: app personale mono-utente, nessun bisogno di gestione account multipli. Setup minimale senza dipendenze aggiuntive.
 
-**Limite critico**: il cookie contiene solo la stringa `"authenticated"` senza firma/JWT. Il middleware non valida il contenuto, solo la presenza. Chiunque riesca a iniettare quel cookie bypassa l'auth.
+**Implementazione attuale**:
+- `loginAction()` confronta la password con `APP_PASSWORD`
+- il cookie `auth-token` contiene `timestamp.firma`
+- la firma usa `AUTH_SECRET`, con fallback a `APP_PASSWORD` per compatibilitÃ  con ambienti vecchi
+- `proxy.ts` valida la firma prima di consentire l'accesso
+
+**Limite residuo**: Ã¨ ancora un sistema auth custom mono-utente, senza gestione account, revoca centralizzata o audit trail. Se l'app diventa esposta esternamente o multiutente, sostituire con Supabase Auth o JWT strutturato.
 
 ### Retrocompatibilità schema products via probe queries
 
@@ -325,8 +340,8 @@ Ogni modifica all'inventario deve ricalcolare se la lista spesa automatica (azio
 
 ### Parti fragili
 
-**F1 — Auth middleware senza validazione firma** ([proxy.ts:11](proxy.ts#L11))
-Il cookie `auth-token` contiene la stringa letterale `"authenticated"`. Il middleware controlla solo che esista, non che sia valido. Un cookie forgiato bypassa completamente l'auth. Se l'app diventa accessibile a più utenti o esternamente, sostituire con Supabase Auth o JWT firmato.
+**F1 — Auth custom mono-utente** ([proxy.ts:11](proxy.ts#L11))
+Il cookie `auth-token` oggi è firmato e validato, quindi non basta più forgiarne uno arbitrario. Resta però un sistema custom basilare: dipende da secret in env, non ha gestione account, revoca centralizzata o audit trail. Se l'app diventa accessibile a più utenti o esternamente, sostituire con Supabase Auth o JWT firmato strutturato.
 
 **F2 — Cache schema in-memory di processo** ([lib/products-schema.ts:9](lib/products-schema.ts#L9))
 `_cachedSchema` è una variabile module-level. In ambiente serverless (Vercel), ogni Lambda ha la propria istanza → nessun problema. In ambienti con processi persistenti (PM2, Docker) la cache è condivisa tra request dello stesso worker → possibile race condition se lo schema cambia. Usare una cache request-scoped o Redis se necessario.
@@ -359,9 +374,9 @@ Le quantità di biancheria sono mappate ai prodotti per nome normalizzato (lower
 
 ### Aree da migliorare (priorità suggerita)
 
-1. **Autenticazione** — sostituire il cookie fisso con Supabase Auth o JWT firmato
+1. **Autenticazione** — sostituire l'auth custom attuale con Supabase Auth o JWT strutturato
 2. **Error tracking** — aggiungere Sentry o equivalente; gli errori fire-and-forget sono invisibili
-3. **Rate limiting** — il login non ha protezione brute force
+3. **Rate limiting** — il login ha un rate limit in-memory basilare, ma non condiviso tra istanze
 4. **Database migrations** — usare Supabase CLI migrations per tracciare lo schema
 5. **Stabilizzare schema products** — una volta scelto id/quantity o sku/qty, rimuovere tutto il codice di probing
 6. **Test coverage** — aggiungere test per i route handler API e per `action-effects.ts`

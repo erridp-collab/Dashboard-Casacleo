@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
 import { RowSkeleton } from "@/components/skeleton";
@@ -49,6 +49,7 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [error, setError] = useState("");
 
   async function loadBookings() {
@@ -175,6 +176,11 @@ export default function BookingsPage() {
     return () => clearTimeout(t);
   }, []);
 
+  const visibleBookings = useMemo(
+    () => (showCompleted ? bookings : bookings.filter((booking) => booking.cleaning_status !== "FATTO")),
+    [bookings, showCompleted],
+  );
+
   return (
     <section className="space-y-6">
       <header className="space-y-1">
@@ -234,7 +240,18 @@ export default function BookingsPage() {
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
       <Card>
-        <CardHeader title="Lista prenotazioni" subtitle="Modifica rapida inline" />
+        <CardHeader
+          title="Lista prenotazioni"
+          subtitle={showCompleted ? "Tutte le prenotazioni" : "Solo prenotazioni ancora da pulire"}
+        />
+
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="text-xs text-zinc-500">Visibili: {visibleBookings.length} su {bookings.length}</p>
+          <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm text-zinc-600">
+            <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
+            Mostra completate
+          </label>
+        </div>
 
         {loadingBookings ? (
           <>
@@ -253,16 +270,20 @@ export default function BookingsPage() {
               ))}
             </div>
           </>
-        ) : bookings.length === 0 ? (
+        ) : visibleBookings.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <span className="text-3xl">🏠</span>
-            <p className="text-sm font-medium text-zinc-700">Nessuna prenotazione</p>
-            <p className="text-xs text-zinc-400">Aggiungi la prima prenotazione qui sopra</p>
+            <p className="text-sm font-medium text-zinc-700">Nessuna prenotazione visibile</p>
+            <p className="text-xs text-zinc-400">
+              {bookings.length === 0
+                ? "Aggiungi la prima prenotazione qui sopra"
+                : "Le prenotazioni con pulizia FATTO sono nascoste"}
+            </p>
           </div>
         ) : (
           <>
           <div className="space-y-3 md:hidden">
-            {bookings.map((b) => {
+            {visibleBookings.map((b) => {
               const isEditing = editId === b.id;
               const linked = bookingActions[b.id] ?? [];
 
@@ -356,7 +377,7 @@ export default function BookingsPage() {
               </tr>
             </TableHead>
             <TableBody>
-              {bookings.map((b) => {
+              {visibleBookings.map((b) => {
                 const isEditing = editId === b.id;
 
                 return (

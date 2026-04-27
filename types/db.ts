@@ -8,6 +8,7 @@ export interface Booking {
   channel: string | null;
   notes: string | null;
   total_amount?: number | null;
+  cleaning_status?: ActionStatus | null;
   created_at?: string;
 }
 
