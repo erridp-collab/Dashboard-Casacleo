@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 
-const SECRET = process.env.AUTH_SECRET ?? "";
+// Backward-compatible fallback: older environments may only define APP_PASSWORD.
+const SECRET = process.env.AUTH_SECRET ?? process.env.APP_PASSWORD ?? "";
 
 function verifyToken(token: string): boolean {
   if (!SECRET || !token) return false;

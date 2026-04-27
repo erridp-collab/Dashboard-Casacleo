@@ -1,7 +1,8 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "crypto";
 
-const SECRET = process.env.AUTH_SECRET ?? "";
+// Backward-compatible fallback: older environments may only define APP_PASSWORD.
+const SECRET = process.env.AUTH_SECRET ?? process.env.APP_PASSWORD ?? "";
 
 function hmac(payload: string): string {
   return createHmac("sha256", SECRET).update(payload).digest("hex");
