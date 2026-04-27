@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncBookingAutomations } from "@/lib/booking-automation";
-import { applyLinenConsumptionDelta } from "@/lib/action-effects";
+import { syncShoppingAction } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type UpdateBookingPayload = {
@@ -13,6 +13,20 @@ type UpdateBookingPayload = {
 };
 
 const UUID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LINEN_KEYS = [
+  "sets_estivo",
+  "sets_invernale",
+  "towels_bidet",
+  "towels_viso",
+  "towels_doccia",
+  "tappetino",
+  "mappine",
+  "carta_igienica",
+  "spugne_piatti",
+] as const;
+
+type LinenKey = typeof LINEN_KEYS[number];
+type LinenRestore = Partial<Record<LinenKey, number>>;
 
 function formatDbError(error: { message?: string; code?: string; details?: string; hint?: string }) {
   const details = [error.message, error.code && `code=${error.code}`, error.details, error.hint]
@@ -43,6 +57,55 @@ function isMissingTotalAmountError(error: { code?: string; message?: string } | 
     (error.code === "42703" || error.code === "PGRST204") &&
     String(error.message ?? "").includes("total_amount")
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseLinenRestore(details: string): { ok: true; linen: LinenRestore | null } | { ok: false; error: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(details);
+  } catch {
+    return { ok: false, error: "details non è JSON valido" };
+  }
+
+  if (!isRecord(parsed)) {
+    return { ok: false, error: "details deve essere un oggetto JSON" };
+  }
+
+  const source = isRecord(parsed.linen_applied)
+    ? parsed.linen_applied
+    : isRecord(parsed.linen)
+      ? parsed.linen
+      : null;
+
+  if (!source) return { ok: true, linen: null };
+
+  const normalized: LinenRestore = {};
+  for (const key of LINEN_KEYS) {
+    const raw = source[key];
+    if (raw === undefined || raw === null || raw === "") continue;
+    const qty = Number(raw);
+    if (!Number.isFinite(qty) || qty < 0) {
+      return { ok: false, error: `valore non valido per ${key}` };
+    }
+    if (qty > 0) {
+      normalized[key] = Number(qty.toFixed(2));
+    }
+  }
+
+  return { ok: true, linen: Object.keys(normalized).length > 0 ? normalized : null };
+}
+
+function accumulateLinenRestore(target: LinenRestore, linen: LinenRestore): LinenRestore {
+  for (const key of LINEN_KEYS) {
+    const next = Number(linen[key] ?? 0);
+    if (next <= 0) continue;
+    target[key] = Number(((target[key] ?? 0) + next).toFixed(2));
+  }
+  return target;
 }
 
 export async function GET(
@@ -225,45 +288,39 @@ export async function DELETE(
 
     if (actionErr) return NextResponse.json({ error: formatDbError(actionErr) }, { status: 400 });
 
-    const actionIds = (actionRows ?? []).map((r) => r.id).filter(Boolean);
-
     const linenActions = (actionRows ?? []).filter((row) => {
       const type = String(row.action_type ?? "").toUpperCase();
       return type.includes("BIANCHERIA") && String(row.status ?? "").toUpperCase() === "FATTO" && row.details;
     });
 
+    const linenRestoreTotals: LinenRestore = {};
     for (const row of linenActions) {
-      try {
-        const parsed = JSON.parse(String(row.details)) as {
-          linen?: Record<string, unknown>;
-          linen_applied?: Record<string, unknown>;
-        };
-        const linenToRestore = parsed?.linen_applied ?? parsed?.linen;
-        if (linenToRestore) {
-          await applyLinenConsumptionDelta(linenToRestore, -1);
-        }
-      } catch {
-        // ignore parse errors
+      const parsed = parseLinenRestore(String(row.details));
+      if (!parsed.ok) {
+        console.error("[DELETE /api/bookings/[id]] invalid BIANCHERIA details", {
+          bookingId: id,
+          actionId: String(row.id ?? ""),
+          error: parsed.error,
+        });
+        return NextResponse.json(
+          { error: "Dettagli biancheria non validi: impossibile eliminare la prenotazione in sicurezza" },
+          { status: 409 },
+        );
+      }
+      if (parsed.linen) {
+        accumulateLinenRestore(linenRestoreTotals, parsed.linen);
       }
     }
 
-    if (actionIds.length > 0) {
-      const { error: checklistErr } = await supabase
-        .from("action_checklist")
-        .delete()
-        .in("action_id", actionIds);
-      if (checklistErr) return NextResponse.json({ error: formatDbError(checklistErr) }, { status: 400 });
-
-      const { error: actionsDeleteErr } = await supabase.from("actions").delete().eq("booking_id", id);
-      if (actionsDeleteErr) {
-        return NextResponse.json({ error: formatDbError(actionsDeleteErr) }, { status: 400 });
-      }
-    }
-
-    const { error } = await supabase.from("bookings").delete().eq("id", id);
+    const { error } = await supabase.rpc("delete_booking_atomic", {
+      p_booking_id: id,
+      p_linen_restore: linenRestoreTotals,
+    });
     if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
 
     // Fire-and-forget: run in background, don't block the response.
+    void syncShoppingAction()
+      .catch((err: unknown) => console.error("Booking delete shopping sync failed", err));
     void syncBookingAutomations()
       .catch((err: unknown) => console.error("Booking delete automation sync failed", err));
 

@@ -23,21 +23,52 @@ begin
     qty_col := 'quantity';
   end if;
 
+  -- Normalize rows already migrated.
+  update public.products
+     set name = 'Set letto estivo',
+         category = coalesce(category, 'Lenzuola e coperte'),
+         unit = coalesce(unit, 'set')
+   where lower(trim(coalesce(sku, ''))) = 'set_letto_estivo';
+
+  update public.products
+     set name = 'Set letto invernale',
+         category = coalesce(category, 'Lenzuola e coperte'),
+         unit = coalesce(unit, 'set')
+   where lower(trim(coalesce(sku, ''))) = 'set_letto_invernale';
+
+  -- Rename legacy summer rows only when the target SKU does not already exist.
   update public.products
      set sku = 'set_letto_estivo',
          name = 'Set letto estivo',
          category = coalesce(category, 'Lenzuola e coperte'),
          unit = coalesce(unit, 'set')
-   where lower(trim(coalesce(sku, ''))) = 'completi_letto'
-      or lower(trim(coalesce(name, ''))) = 'completi letto completi';
+   where (
+           lower(trim(coalesce(sku, ''))) = 'completi_letto'
+        or lower(trim(coalesce(name, ''))) = 'completi letto completi'
+         )
+     and not exists (
+           select 1
+             from public.products existing
+            where lower(trim(coalesce(existing.sku, ''))) = 'set_letto_estivo'
+              and existing.ctid <> public.products.ctid
+         );
 
+  -- Rename legacy winter rows only when the target SKU does not already exist.
   update public.products
      set sku = 'set_letto_invernale',
          name = 'Set letto invernale',
          category = coalesce(category, 'Lenzuola e coperte'),
          unit = coalesce(unit, 'set')
-   where lower(trim(coalesce(sku, ''))) = 'copripiumini_federe'
-      or lower(trim(coalesce(name, ''))) = 'copripiumini + federe';
+   where (
+           lower(trim(coalesce(sku, ''))) = 'copripiumini_federe'
+        or lower(trim(coalesce(name, ''))) = 'copripiumini + federe'
+         )
+     and not exists (
+           select 1
+             from public.products existing
+            where lower(trim(coalesce(existing.sku, ''))) = 'set_letto_invernale'
+              and existing.ctid <> public.products.ctid
+         );
 
   execute format(
     'insert into public.products (sku, name, category, unit, %I, threshold, max_qty, consumption_per_checkout)

@@ -64,7 +64,7 @@ export function getProductId(row: Record<string, unknown>, schema: ProductSchema
   if (direct !== null && direct !== undefined && String(direct).trim() !== "") return String(direct);
   if (row.id !== null && row.id !== undefined && String(row.id).trim() !== "") return String(row.id);
   if (row.sku !== null && row.sku !== undefined && String(row.sku).trim() !== "") return String(row.sku);
-  return "";
+  throw new Error(`Unable to resolve product id using schema ${schema.idColumn}/${schema.quantityColumn}`);
 }
 
 export function getProductQuantity(row: Record<string, unknown>, schema: ProductSchema): number {

@@ -1,384 +1,229 @@
 # Airbnb Manager
 
-Gestionale operativo per una proprietà in affitto breve. Permette di tracciare prenotazioni, azioni di pulizia/manutenzione, inventario prodotti, lavatrice/biancheria e finanze — tutto da un'unica interfaccia ottimizzata per uso quotidiano su mobile.
+Gestionale operativo per una proprieta in affitto breve. L'app tiene insieme prenotazioni, azioni operative, inventario, biancheria e finanze con una UI pensata per uso quotidiano.
 
----
+Questa README e pensata come file di ripartenza: descrive lo stato reale del progetto dopo gli ultimi fix applicati a codice e database.
 
-## Stack tecnologico
+## Stato attuale
 
-| Layer | Tecnologia | Versione |
-|---|---|---|
-| Framework | Next.js (App Router) | 16.1.6 |
-| UI | React | 19.2.3 |
-| Styling | Tailwind CSS | ^4 |
-| Database / BaaS | Supabase (PostgreSQL + PostgREST) | @supabase/supabase-js ^2.98.0 |
-| Calendario | FullCalendar (daygrid + interaction + react) | ^6.1.19 |
-| Grafici | Recharts | ^2.15.4 |
-| Toast/notifiche | Sonner | ^2.0.7 |
-| Export Excel | xlsx (SheetJS) | ^0.18.5 |
-| Icone | Lucide React | ^0.577.0 |
-| Linguaggio | TypeScript | ^5 |
-| Test | Vitest | ^4.0.18 |
+- `npm test` passa
+- `npm run build` passa
+- le migration Supabase presenti nel repo sono state applicate anche al database remoto
+- l'autenticazione e attiva tramite `proxy.ts`
+- le prenotazioni con pulizia gia completata vengono nascoste di default nella pagina bookings
 
----
+## Stack
 
-## Installazione e avvio
+| Layer | Tecnologia |
+|---|---|
+| Framework | Next.js 16 App Router |
+| UI | React 19 |
+| Styling | Tailwind CSS 4 |
+| Database | Supabase PostgreSQL |
+| Test | Vitest |
+| Charts | Recharts |
+| Calendar | FullCalendar |
+
+## Setup
 
 ### Prerequisiti
 
-- Node.js >= 18
-- Un progetto Supabase attivo con le tabelle descritte nella sezione [Schema database](#schema-database)
+- Node.js 18+
+- progetto Supabase attivo
 
-### Setup
+### Installazione
 
 ```bash
-git clone <repo-url>
-cd airbnb-manager
 npm install
 ```
 
-Crea il file `.env.local` nella root (non committarlo mai):
+### Variabili d'ambiente
 
-```bash
-cp .env.example .env.local
-# poi modifica .env.local con i valori reali
-```
-
-### Avvio sviluppo
-
-```bash
-npm run dev
-# http://localhost:3000
-```
-
-### Build produzione
-
-```bash
-npm run build
-npm start
-```
-
-### Test
-
-```bash
-npm test          # singola esecuzione
-npm run test:watch  # watch mode
-```
-
----
-
-## Variabili d'ambiente
-
-Crea `.env.local` con queste variabili (non includere valori reali nel repo):
+Crea `.env.local` nella root:
 
 ```env
-# URL del progetto Supabase (es. https://xxxx.supabase.co)
 SUPABASE_URL=
-
-# Service Role Key di Supabase — accesso admin completo, NON esporre mai al browser
 SUPABASE_SERVICE_ROLE_KEY=
-
-# Password per il login all'applicazione (singolo utente condiviso)
 APP_PASSWORD=
-
-# Chiave usata per firmare il cookie auth-token (consigliata; se assente viene usata APP_PASSWORD come fallback)
 AUTH_SECRET=
 ```
 
-> **Sicurezza**: `SUPABASE_SERVICE_ROLE_KEY` bypassa le RLS policies di Supabase. Usata solo server-side tramite `lib/supabaseAdmin.ts` che importa `server-only`. Non aggiungerla mai a variabili pubbliche (`NEXT_PUBLIC_*`).
+Note:
 
----
+- `SUPABASE_SERVICE_ROLE_KEY` e server-side only e non deve mai finire nel browser
+- `AUTH_SECRET` e consigliata; se manca, il sistema usa `APP_PASSWORD` come fallback per firmare e verificare il cookie
 
-## Architettura
+### Avvio
 
-### Struttura delle cartelle
-
-```
-airbnb-manager/
-├── app/
-│   ├── api/                    # Route handlers Next.js (server-side API)
-│   │   ├── actions/            # CRUD azioni + checklist
-│   │   │   ├── route.ts        # GET list, POST crea, PATCH aggiorna
-│   │   │   ├── checklist/      # PATCH aggiorna stato checklist globale
-│   │   │   └── [id]/checklist/ # GET checklist di una singola azione
-│   │   ├── bookings/           # CRUD prenotazioni
-│   │   │   ├── route.ts        # GET list, POST crea
-│   │   │   └── [id]/route.ts   # GET, PATCH, DELETE singola prenotazione
-│   │   ├── finance/            # Report finanziari e spese
-│   │   │   └── route.ts        # GET report, POST/DELETE spese manuali
-│   │   └── products/           # Gestione inventario
-│   │       ├── route.ts        # GET list, PATCH aggiorna prodotto
-│   │       ├── bulk/           # PUT aggiornamento massivo quantità
-│   │       ├── restock/        # POST rifornimento prodotti
-│   │       └── stock-status/   # PATCH aggiorna stato stock manuale
-│   │
-│   ├── actions/                # Pagina azioni (server component wrapper)
-│   │   └── auth.ts             # Server actions: login/logout
-│   ├── bookings/page.tsx       # Pagina prenotazioni (client)
-│   ├── finance/page.tsx        # Dashboard finanze (client)
-│   ├── inventory/page.tsx      # Inventario prodotti (client)
-│   ├── warehouse/page.tsx      # Magazzino/biancheria (client)
-│   ├── calendar/               # Vista calendario prenotazioni
-│   ├── login/page.tsx          # Pagina login
-│   ├── settings/page.tsx       # Impostazioni
-│   ├── layout.tsx              # Layout radice (sidebar + top bar)
-│   ├── page.tsx                # Dashboard home
-│   ├── error.tsx               # Error boundary globale
-│   └── globals.css             # Stili globali Tailwind
-│
-├── components/                 # Componenti UI riutilizzabili
-│   ├── action-badges.tsx       # Badge colorati per tipo/stato azione
-│   ├── action-checklist-modal.tsx # Modal checklist azione
-│   ├── bottom-nav.tsx          # Navigazione bottom bar mobile
-│   ├── card.tsx                # Card generica
-│   ├── cleaning-modal.tsx      # Modal completamento pulizia
-│   ├── kpi-card.tsx            # Card KPI per dashboard
-│   ├── page-container.tsx      # Wrapper layout pagina
-│   ├── sidebar.tsx             # Sidebar desktop
-│   ├── skeleton.tsx            # Loading skeleton
-│   ├── table.tsx               # Tabella generica
-│   ├── toast.tsx               # Sistema toast notifiche
-│   └── top-bar.tsx             # Barra superiore mobile
-│
-├── lib/                        # Business logic pura (server-only)
-│   ├── supabaseAdmin.ts        # Factory client Supabase con service role
-│   ├── booking-automation.ts   # Calcolo e sync azioni automatiche da prenotazioni
-│   ├── action-effects.ts       # Effetti collaterali completamento azioni (spese, stock)
-│   ├── stock.ts                # Gestione lista spesa e consumi biancheria
-│   ├── products-schema.ts      # Risoluzione schema tabella products (retrocompatibilità)
-│   ├── refill.ts               # Logica rifornimento prodotti
-│   ├── checklist-templates.ts  # Template checklist per tipo azione
-│   ├── actionMeta.ts           # Metadati azioni (label, colori, icone)
-│   └── format.ts               # Utility formattazione date/numeri/valuta
-│
-├── types/
-│   └── db.ts                   # Tipi TypeScript per le tabelle Supabase
-│
-├── tests/
-│   ├── booking-automation.test.ts  # Unit test logica automazioni
-│   ├── stock.test.ts               # Unit test gestione stock
-│   └── stubs/server-only.ts        # Stub per import server-only nei test
-│
-├── proxy.ts                    # Middleware Next.js per autenticazione
-├── next.config.ts              # Configurazione Next.js (proxy come middleware)
-├── vitest.config.ts            # Configurazione test
-└── .env.local                  # Variabili d'ambiente (NON committare)
+```bash
+npm run dev
 ```
 
-### Schema database (tabelle Supabase)
+### Verifica locale
 
-Le tabelle sono gestite direttamente in Supabase (no migration files nel repo):
-
-| Tabella | Scopo |
-|---|---|
-| `bookings` | Prenotazioni (check_in, check_out, guests, platform, revenue) |
-| `actions` | Azioni operative (pulizie, manutenzioni, spese, biancheria) |
-| `action_checklist` | Checklist per singola azione |
-| `expenses` | Spese (manuale + automatiche da azioni) |
-| `products` | Inventario prodotti (quantità, threshold, stock_status) |
-
-> La tabella `products` può avere schema variabile: colonna id o sku, quantity o qty. La libreria `products-schema.ts` risolve automaticamente quale schema è presente (vedi [Scelte architetturali](#scelte-architetturali)).
-
----
-
-## Flusso principale dell'applicazione
-
-```
-Browser (Client Component)
-        │
-        │  fetch() verso /api/*
-        ▼
-Route Handler (app/api/*/route.ts)
-        │
-        │  chiama funzioni in lib/
-        ▼
-Business Logic (lib/*.ts)
-        │
-        │  supabaseAdmin() → query PostgreSQL
-        ▼
-Supabase (Database)
+```bash
+npm test
+npm run build
 ```
 
-### Flusso prenotazione → azioni automatiche
+## Architettura rapida
 
-1. Utente crea/modifica/elimina una prenotazione via `POST /api/bookings`
-2. Il route handler chiama `syncBookingAutomations()` in fire-and-forget (non blocca la risposta)
-3. `syncBookingAutomations()` calcola le azioni desiderate per tutte le prenotazioni (pulizie, biancheria, manutenzioni periodiche)
-4. Confronta con le azioni esistenti nel DB → crea le mancanti, elimina le obsolete
-5. Per ogni nuova azione, crea automaticamente la checklist dal template corrispondente
+### Flusso applicativo
 
-### Flusso visibilità prenotazioni
+```text
+UI client
+  -> /api/*
+  -> lib/*
+  -> Supabase
+```
 
-1. `GET /api/bookings` arricchisce ogni prenotazione con `cleaning_status`
-2. La pagina `Bookings` nasconde di default le prenotazioni la cui `PULIZIA` collegata è già `FATTO`
-3. Il toggle `Mostra completate` consente di rivedere anche le prenotazioni già pulite
+### Cartelle principali
 
-### Flusso completamento azione → effetti collaterali
+```text
+app/
+  api/                 route handlers
+  actions/             pagina azioni + server actions auth
+  bookings/            pagina prenotazioni
+  finance/             pagina finanze
+  inventory/           pagina inventario
+  warehouse/           pagina magazzino / biancheria
+lib/
+  booking-automation.ts
+  action-effects.ts
+  stock.ts
+  products-schema.ts
+types/
+  db.ts
+supabase/
+  migrations/
+tests/
+```
 
-1. Utente segna un'azione come FATTO (con dettagli opzionali: importo, biancheria usata, etc.)
-2. `PATCH /api/actions` chiama `applyActionStatusEffects()`
-3. In base al tipo di azione vengono applicati effetti:
-   - **PULIZIA esterna**: crea una spesa automatica nella tabella `expenses`
-   - **BIANCHERIA**: decrementa le quantità dei prodotti tessili nell'inventario
-   - **LAVATRICI**: incrementa le quantità dei tessili (lavati e rientrati)
-   - **SPESA**: incrementa le quantità dei prodotti comprati, aggiorna la lista spesa
-4. Dopo ogni modifica inventario, `syncShoppingAction()` ricalcola se esiste una lista spesa pendente
+## Funzionamento importante
 
----
+### Autenticazione
 
-## Scelte architetturali
+- login via server action in [app/actions/auth.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/actions/auth.ts:1)
+- cookie httpOnly firmato
+- verifica accesso in [proxy.ts](/abs/path/c:/Users/Enrico/airbnb-manager/proxy.ts:1)
+- rate limit login supportato da tabella DB `auth_rate_limits`, con fallback in-memory se la tabella non e disponibile
 
-### Autenticazione custom con cookie httpOnly
+Nota:
 
-**Scelta**: singolo utente con password statica in env var, cookie httpOnly firmato con HMAC.
+- `proxy.ts` e corretto per questa versione del progetto e va lasciato cosi
+- non rinominarlo in `middleware.ts`
 
-**Perché**: app personale mono-utente, nessun bisogno di gestione account multipli. Setup minimale senza dipendenze aggiuntive.
+### Prenotazioni e azioni automatiche
 
-**Implementazione attuale**:
-- `loginAction()` confronta la password con `APP_PASSWORD`
-- il cookie `auth-token` contiene `timestamp.firma`
-- la firma usa `AUTH_SECRET`, con fallback a `APP_PASSWORD` per compatibilitÃ  con ambienti vecchi
-- `proxy.ts` valida la firma prima di consentire l'accesso
+- le prenotazioni sono gestite in [app/api/bookings/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/route.ts:1) e [app/api/bookings/[id]/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/[id]/route.ts:1)
+- la generazione/sync delle azioni automatiche vive in [lib/booking-automation.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/booking-automation.ts:1)
+- la pagina bookings nasconde di default le prenotazioni la cui azione `PULIZIA` collegata e gia `FATTO`
+- nella UI esiste un toggle `Mostra completate`
 
-**Limite residuo**: Ã¨ ancora un sistema auth custom mono-utente, senza gestione account, revoca centralizzata o audit trail. Se l'app diventa esposta esternamente o multiutente, sostituire con Supabase Auth o JWT strutturato.
+### Completamento azioni
 
-### Retrocompatibilità schema products via probe queries
+- il cambio stato azioni passa da [app/api/actions/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/actions/route.ts:1)
+- gli effetti collaterali stanno in [lib/action-effects.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/action-effects.ts:1)
+- ora `applyActionStatusEffects()` non e piu fire-and-forget: se fallisce, la route fallisce
 
-**Scelta**: `lib/products-schema.ts` rileva a runtime se la tabella usa `id` o `sku`, `quantity` o `qty`.
+### Booking delete atomico
 
-**Perché**: il database è stato migrato in corso d'opera e alcune query devono funzionare con entrambi gli schemi. Piuttosto che duplicare le query, viene risolto lo schema una volta e cached per 30s.
+La cancellazione di una prenotazione con eventuale ripristino biancheria e stata resa atomica via funzione SQL:
 
-**Effetto collaterale**: introduce latenza alla prima chiamata per ogni processo Node (cache in-memory del processo, si azzera a ogni cold start).
+- migration: [supabase/migrations/20260427193000_add_delete_booking_atomic_function.sql](/abs/path/c:/Users/Enrico/airbnb-manager/supabase/migrations/20260427193000_add_delete_booking_atomic_function.sql:1)
+- uso nella route: [app/api/bookings/[id]/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/[id]/route.ts:1)
 
-### Payload variants (try multiple insert shapes)
+Inoltre il parsing dei dettagli biancheria e ora runtime-safe: se i dati sono invalidi, il delete viene bloccato invece di saltare silenziosamente il ripristino.
 
-**Scelta**: molte funzioni in `lib/` tentano più varianti di payload (con campi opzionali in ordine decrescente) fino a trovare quella accettata dal DB.
+## Database e migration
 
-**Perché**: alcune colonne (`source_action_id`, `origin`, `created_at`) potrebbero non esistere in tutte le versioni del DB. Piuttosto che bloccare, si degrada gracefully.
+Le migration adesso sono tracciate nel repo in `supabase/migrations`.
 
-**Rischio**: se il DB cambia schema in modo incompatibile, gli errori silenti possono produrre dati parziali senza alert visibili.
+Migration presenti:
 
-### Fire-and-forget per automazioni
+- `20260306135500_add_total_amount_to_bookings.sql`
+- `20260306152000_seed_warehouse_products_and_spesa_fields.sql`
+- `20260406120000_ensure_expenses_schema.sql`
+- `20260408120000_add_stock_status_to_products.sql`
+- `20260408173000_split_bed_sets_into_summer_and_winter.sql`
+- `20260427193000_add_delete_booking_atomic_function.sql`
+- `20260427200000_add_auth_rate_limits.sql`
 
-**Scelta**: `syncBookingAutomations()` e `syncShoppingAction()` sono chiamate fire-and-forget nei route handler (`void fn()`).
+Le ultime due sono importanti per lo stato corrente del codice:
 
-**Perché**: non bloccare la risposta all'utente per operazioni secondarie che possono richiedere 100-500ms.
+- `add_delete_booking_atomic_function`
+- `add_auth_rate_limits`
 
-**Rischio**: errori nelle sync non raggiungono mai l'utente. Se la sync fallisce, lo stato del DB può diventare incoerente silenziosamente.
+### Comandi Supabase utili
 
-### No Redux/Zustand — stato locale React
+CLI installata come dev dependency:
 
-**Scelta**: ogni pagina gestisce il proprio stato con `useState` e `useEffect`, senza store globale.
+```bash
+npx supabase migration list
+npx supabase db push
+```
 
-**Perché**: app mono-pagina con sezioni ben separate. Non ci sono dati condivisi tra pagine che richiedano stato globale.
+## Scelte e workaround ancora presenti
 
-### Supabase Service Role Key (no RLS)
+### Schema products retrocompatibile
 
-**Scelta**: tutte le query usano il client admin con service role key, bypassando le Row Level Security policies.
+In [lib/products-schema.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/products-schema.ts:1) il codice continua a supportare varianti di schema tipo:
 
-**Perché**: app server-side pura, accesso totale al DB richiesto per le automazioni. Non ci sono utenti multipli con permessi diversi.
+- `id` oppure `sku`
+- `quantity` oppure `qty`
 
-**Rischio**: se un attaccante riesce a eseguire codice server-side, ha accesso illimitato al DB.
+Ora `getProductId()` non fallisce piu in silenzio: se non riesce a risolvere un id prodotto, lancia errore esplicito.
 
----
+### Payload variants
 
-## Dipendenze esterne e motivazioni
+In piu punti del codice sono ancora presenti fallback per schemi DB non perfettamente allineati. Non vanno rimossi alla cieca finche non decidiamo di stabilizzare definitivamente lo schema.
 
-| Dipendenza | Motivazione |
-|---|---|
-| `@supabase/supabase-js` | Client ufficiale per Supabase, gestisce query, auth, realtime |
-| `@fullcalendar/*` | Vista calendario prenotazioni con drag-drop, unica libreria matura per React |
-| `recharts` | Grafici finanziari (aree, barre), buon compromesso dimensioni/API |
-| `sonner` | Toast notifications leggere, API semplice, ottimo per mobile |
-| `xlsx` | Export dati in Excel — richiesta operativa specifica |
-| `lucide-react` | Icone SVG coerenti, tree-shakeable, ben mantenute |
-| `tailwindcss` v4 | Utility-first CSS, zero configurazione temi, ottimo per rapid UI |
+### Fire-and-forget ancora presenti
 
----
+Le sync secondarie come `syncBookingAutomations()` o `syncShoppingAction()` sono ancora usate in alcuni punti come operazioni non bloccanti. E una scelta consapevole per non rallentare la UI, ma significa che parte della consistenza e eventuale, non immediatamente transazionale.
 
-## Decision log
+## Cosa e stato sistemato di recente
 
-### Problemi incontrati durante lo sviluppo
+- fix auth quando `AUTH_SECRET` manca
+- bookings: nascoste di default quelle con pulizia gia fatta
+- README riallineata al progetto reale
+- delete booking atomico con restore biancheria sicuro
+- parsing dettagli biancheria reso robusto
+- `applyActionStatusEffects()` non piu scollegato dalla risposta HTTP
+- delete finance piu sicuro: niente fallback che cancelli spese automatiche per errore
+- rate limiting login supportato da tabella DB
+- confronto password timing-safe
+- migration Supabase applicate anche al database remoto
 
-**P1 — Schema tabella products non fisso**
-La tabella `products` è stata creata inizialmente con `id`/`quantity`, poi migrata a `sku`/`qty`. Le query existenti in produzione fallivano con errore `42703 column does not exist`. Soluzione: `products-schema.ts` risolve lo schema a runtime con probe queries e cache 30s.
+## Cose ancora aperte davvero
 
-**P2 — Colonne opzionali in `actions` e `expenses`**
-Colonne come `source_action_id`, `origin`, `created_at` sono state aggiunte al DB in momenti diversi. Le INSERT fallivano su schemi vecchi. Soluzione: pattern "payload variants" — si tentano insert in ordine dal più completo al minimo, ci si ferma al primo successo.
+Queste sono le due aree che vale la pena tenere a mente per il prossimo giro:
 
-**P3 — Checklist con colonne nome variabile**
-La tabella `action_checklist` può avere la colonna del testo chiamata `label`, `item_text`, o `item`. Soluzione: `ensureChecklist()` in `booking-automation.ts` tenta 6 varianti di insert.
+1. [lib/action-effects.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/action-effects.ts:1)
+   Aggiornamenti stock ancora basati in alcuni casi su pattern `read -> compute -> write`, quindi con rischio di race condition se arrivano richieste concorrenti.
 
-**P4 — `created_at` mancante in `actions`**
-La query per trovare la SPESA pendente ordinava per `created_at`. Su DB senza quella colonna falliva. Soluzione: fallback esplicito se l'errore è `42703` con messaggio contenente `created_at`.
+2. Hardening CSRF sulle route `POST`, `PATCH`, `DELETE`
+   Non e prioritario per l'uso attuale interno e fidato, ma resta un tema aperto se l'app diventera piu esposta.
 
-**P5 — Sincronizzazione lista spesa**
-Ogni modifica all'inventario deve ricalcolare se la lista spesa automatica (azione SPESA) deve esistere o meno. Invece di gestire questo nei singoli punti di modifica, ogni funzione che tocca prodotti chiama `syncShoppingAction()` al termine — approccio "eventual consistency" manuale.
+## Priorita pratica per la prossima sessione
 
-### Alternative valutate e scartate
+Se si riparte da qui, l'ordine consigliato e:
 
-| Alternativa | Perché scartata |
-|---|---|
-| Supabase Auth (email/password) | Sovra-ingegnerizzato per app mono-utente personale |
-| Prisma ORM | Aggiunge complessità di migrazione non necessaria; Supabase SDK è sufficiente |
-| Zustand per stato globale | Non necessario: le pagine sono isolate, nessun dato condiviso |
-| Supabase Realtime (WebSocket) | Non richiesto — aggiornamenti on-demand sufficienti |
-| Edge Runtime per middleware | Non necessario, latency non è un problema per uso personale |
-| Database migrations (Supabase CLI) | Non implementato — schema gestito manualmente. Da aggiungere. |
+1. nuove funzionalita operative, se servono al flusso quotidiano
+2. solo se necessario, affrontare la concorrenza stock in `lib/action-effects.ts`
+3. lasciare CSRF e altri affinamenti di sicurezza a un secondo momento
 
-### Workaround non ovvi
+## File chiave da aprire subito
 
-**W1 — `server-only` nei test**: il modulo `server-only` di Next.js lancia un errore se importato fuori dal server. I test Vitest girano in Node, non nel contesto Next. Soluzione: `tests/stubs/server-only.ts` è uno stub vuoto, e `vitest.config.ts` lo aliasa.
+- [app/bookings/page.tsx](/abs/path/c:/Users/Enrico/airbnb-manager/app/bookings/page.tsx:1)
+- [app/api/bookings/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/route.ts:1)
+- [app/api/bookings/[id]/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/[id]/route.ts:1)
+- [app/api/actions/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/actions/route.ts:1)
+- [lib/booking-automation.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/booking-automation.ts:1)
+- [lib/action-effects.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/action-effects.ts:1)
+- [lib/stock.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/stock.ts:1)
+- [lib/products-schema.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/products-schema.ts:1)
 
-**W2 — `proxy.ts` come middleware**: Next.js richiede che il middleware sia esportato da `middleware.ts` nella root. Qui il file si chiama `proxy.ts` ed è referenziato in `next.config.ts` come custom middleware tramite la config `matcher`. Questo è un pattern non standard — se si rinomina il file o si aggiorna Next.js verificare che il wiring regga.
+## Nota finale
 
-**W3 — Route duplicate italiano/inglese**: esistono `/warehouse` e `/magazzino`, `/settings` e `/impostazioni`, `/finance` e `/spese`. Solo una di ciascuna coppia è attiva nell'app; l'altra è dead code rimasto da refactoring incompleto.
-
----
-
-## Note per il prossimo developer
-
-### Parti fragili
-
-**F1 — Auth custom mono-utente** ([proxy.ts:11](proxy.ts#L11))
-Il cookie `auth-token` oggi è firmato e validato, quindi non basta più forgiarne uno arbitrario. Resta però un sistema custom basilare: dipende da secret in env, non ha gestione account, revoca centralizzata o audit trail. Se l'app diventa accessibile a più utenti o esternamente, sostituire con Supabase Auth o JWT firmato strutturato.
-
-**F2 — Cache schema in-memory di processo** ([lib/products-schema.ts:9](lib/products-schema.ts#L9))
-`_cachedSchema` è una variabile module-level. In ambiente serverless (Vercel), ogni Lambda ha la propria istanza → nessun problema. In ambienti con processi persistenti (PM2, Docker) la cache è condivisa tra request dello stesso worker → possibile race condition se lo schema cambia. Usare una cache request-scoped o Redis se necessario.
-
-**F3 — Errori fire-and-forget invisibili** ([app/api/bookings/route.ts](app/api/bookings/route.ts))
-`void syncBookingAutomations()` — se questa funzione lancia un'eccezione, sparisce silenziosamente. Aggiungere almeno `.catch(console.error)` o un sistema di logging.
-
-**F4 — Payload variants** ([lib/stock.ts:104](lib/stock.ts#L104), [lib/action-effects.ts:60](lib/action-effects.ts#L60))
-Il pattern di tentare più payload è un workaround per schemi DB non fissi. Una volta stabilizzato lo schema definitivo, questi vanno semplificati a un singolo payload. Mantenerli è un debito tecnico.
-
-**F5 — Regole consumo biancheria hardcoded** ([lib/stock.ts:47](lib/stock.ts#L47))
-`setCount = Math.ceil(parsedGuests / 2)` — la regola "1 set ogni 2 ospiti" è hardcoded. Se cambia la logica di gestione della biancheria va modificato qui.
-
-**F6 — Nomi prodotti come chiave di matching** ([lib/stock.ts:48](lib/stock.ts#L48), [lib/action-effects.ts:354](lib/action-effects.ts#L354))
-Le quantità di biancheria sono mappate ai prodotti per nome normalizzato (lowercase, trim). Se un prodotto viene rinominato nel DB, smette di essere aggiornato silenziosamente. Non c'è ID stabile che colleghi le regole ai prodotti.
-
-### Cosa NON fare
-
-**NON** aggiungere `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` — la service role key esposta al browser dà accesso admin completo al database da chiunque.
-
-**NON** usare `supabaseAdmin()` in Client Components — il file importa `server-only` che lo impedisce a livello di build, ma architetturalmente è corretto: il service role non deve mai uscire dal server.
-
-**NON** rimuovere il pattern "payload variants" senza prima verificare che il DB abbia lo schema unificato su tutti gli ambienti (dev, staging, prod se presente).
-
-**NON** modificare i nomi dei prodotti in Supabase senza aggiornare anche i mapping in `lib/stock.ts` e `lib/action-effects.ts` — il matching è basato su nome stringa, non su ID.
-
-**NON** assumere che `syncBookingAutomations()` sia sincrona rispetto alla risposta HTTP — è fire-and-forget. Leggere il DB qualche secondo dopo una modifica prenotazione per vedere le azioni aggiornate.
-
-**NON** committare `.env.local` — è già in `.gitignore` ma verificare sempre prima di un push con `git status`.
-
-### Aree da migliorare (priorità suggerita)
-
-1. **Autenticazione** — sostituire l'auth custom attuale con Supabase Auth o JWT strutturato
-2. **Error tracking** — aggiungere Sentry o equivalente; gli errori fire-and-forget sono invisibili
-3. **Rate limiting** — il login ha un rate limit in-memory basilare, ma non condiviso tra istanze
-4. **Database migrations** — usare Supabase CLI migrations per tracciare lo schema
-5. **Stabilizzare schema products** — una volta scelto id/quantity o sku/qty, rimuovere tutto il codice di probing
-6. **Test coverage** — aggiungere test per i route handler API e per `action-effects.ts`
-7. **Rimuovere route duplicate** — scegliere tra inglese e italiano per i path e cancellare le pagine morte
-8. **Paginazione** — `GET /api/bookings` ritorna tutte le prenotazioni senza limite
+Questo progetto oggi e in uno stato sensibilmente piu solido di prima, senza essere stato appesantito da hardening non utile al contesto reale. La prossima volta possiamo usare questa README come base e andare subito sul prossimo lavoro, senza dover ricostruire da zero cosa e gia stato sistemato.

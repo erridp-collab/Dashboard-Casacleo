@@ -123,9 +123,15 @@ export async function PATCH(req: Request) {
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
       // Fire-and-forget side effects (expenses, stock) — never crash the response.
-      void applyActionStatusEffects(body.id, body.status, body.completion).catch(
-        (err: unknown) => console.error("applyActionStatusEffects failed", err),
-      );
+      try {
+        await applyActionStatusEffects(body.id, body.status, body.completion);
+      } catch (sideEffectErr: unknown) {
+        console.error("applyActionStatusEffects failed", sideEffectErr);
+        return NextResponse.json(
+          { error: "Stato azione aggiornato ma effetti collaterali falliti. Verificare inventario e spese." },
+          { status: 500 },
+        );
+      }
 
       return NextResponse.json({ ok: true }, { status: 200 });
     }
