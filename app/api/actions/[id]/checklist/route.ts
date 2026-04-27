@@ -92,9 +92,7 @@ export async function GET(
     }));
     return NextResponse.json({ checklist }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[GET /api/actions/[id]/checklist]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }

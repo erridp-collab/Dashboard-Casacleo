@@ -77,10 +77,8 @@ export async function GET(
     if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     return NextResponse.json({ booking: data }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[GET /api/bookings/[id]]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
 
@@ -195,10 +193,8 @@ export async function PATCH(
 
     return NextResponse.json({ booking: data }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[PATCH /api/bookings/[id]]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
 
@@ -273,9 +269,7 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[DELETE /api/bookings/[id]]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }

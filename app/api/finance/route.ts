@@ -194,10 +194,8 @@ export async function GET(req: Request) {
       { status: 200 },
     );
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[GET /api/finance]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
 
@@ -236,10 +234,8 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[POST /api/finance]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
 
@@ -258,9 +254,7 @@ export async function DELETE(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[DELETE /api/finance]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }

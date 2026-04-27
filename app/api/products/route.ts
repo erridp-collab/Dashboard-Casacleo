@@ -26,10 +26,8 @@ export async function GET() {
     });
     return NextResponse.json({ products }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[GET /api/products]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
 
@@ -58,9 +56,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[PATCH /api/products]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }

@@ -71,10 +71,8 @@ export async function GET() {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ bookings: data ?? [] }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[GET /api/bookings]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
 
@@ -157,9 +155,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ booking_id: bookingId }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[POST /api/bookings]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }

@@ -5,19 +5,18 @@ export type ProductSchema = {
   quantityColumn: "quantity" | "qty";
 };
 
-// Request-scoped cache: avoids duplicate schema probes within the same API call.
+// Process-level cache: avoids duplicate schema probes within short time windows.
+// Safe on Vercel (each Lambda is isolated). On long-lived processes, resets every 30s.
 let _cachedSchema: ProductSchema | null = null;
-let _cacheTimer: ReturnType<typeof setTimeout> | null = null;
+let _cacheExpiresAt = 0;
 
 function setCachedSchema(schema: ProductSchema): void {
   _cachedSchema = schema;
-  if (_cacheTimer) clearTimeout(_cacheTimer);
-  // Invalidate after 30s — covers any single API request lifetime.
-  _cacheTimer = setTimeout(() => { _cachedSchema = null; }, 30_000);
+  _cacheExpiresAt = Date.now() + 30_000;
 }
 
 export async function resolveProductSchema(supabase: SupabaseClient): Promise<ProductSchema> {
-  if (_cachedSchema) return _cachedSchema;
+  if (_cachedSchema && Date.now() < _cacheExpiresAt) return _cachedSchema;
   const { data, error } = await supabase
     .from("information_schema.columns")
     .select("column_name")

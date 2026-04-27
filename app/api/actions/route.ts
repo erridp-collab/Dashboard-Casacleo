@@ -37,10 +37,8 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ ok: true, id: data?.id }, { status: 201 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[POST /api/actions]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
 
@@ -84,10 +82,8 @@ export async function GET(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ actions: data ?? [] }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[GET /api/actions]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
 
@@ -152,9 +148,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[PATCH /api/actions]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }

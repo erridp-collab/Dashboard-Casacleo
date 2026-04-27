@@ -52,9 +52,7 @@ export async function PATCH(req: Request) {
       { status: 200 },
     );
   } catch (e: unknown) {
-    return NextResponse.json(
-      { error: "SERVER_CRASH", details: String((e as Error)?.message ?? e) },
-      { status: 500 },
-    );
+    console.error("[PATCH /api/actions/checklist]", e);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
