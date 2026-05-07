@@ -2,6 +2,7 @@ import { errJson, okJson } from "@/lib/http/apiResponse";
 import { applyProductQuantityDeltas } from "@/lib/product-quantity";
 import { resolveProductSchema } from "@/lib/products-schema";
 import { todayLocalIT } from "@/lib/localDate";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 
@@ -19,6 +20,10 @@ function toNumber(value: unknown, fallback = 0): number {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const body = (await req.json()) as RestockPayload;
     const addQuantity = toNumber(body.add_quantity, NaN);
     const amount = body.amount === null || body.amount === undefined ? null : toNumber(body.amount, NaN);
@@ -36,6 +41,7 @@ export async function POST(req: Request) {
     const { data: row, error: findErr } = await supabase
       .from("products")
       .select(`${schema.idColumn}, ${schema.quantityColumn}, name, category`)
+      .eq("organization_id", organizationId)
       .eq(schema.idColumn, body.id)
       .maybeSingle();
     if (findErr) return errJson(findErr.message, 400);
@@ -56,6 +62,7 @@ export async function POST(req: Request) {
       const { error: updateErr } = await supabase
         .from("products")
         .update({ stock_status: "PIENO" })
+        .eq("organization_id", organizationId)
         .eq(schema.idColumn, body.id);
       if (updateErr) return errJson(updateErr.message, 400);
     }
@@ -67,6 +74,7 @@ export async function POST(req: Request) {
 
       const today = todayLocalIT();
       let expenseInsert = await supabase.from("expenses").insert({
+        organization_id: organizationId,
         expense_date: today,
         amount,
         category: "Rifornimento",
@@ -78,6 +86,7 @@ export async function POST(req: Request) {
 
       if (expenseInsert.error) {
         expenseInsert = await supabase.from("expenses").insert({
+          organization_id: organizationId,
           expense_date: today,
           amount,
           category: "Rifornimento",
@@ -87,6 +96,7 @@ export async function POST(req: Request) {
 
       if (expenseInsert.error && String(expenseInsert.error.code) === "42703" && String(expenseInsert.error.message).includes("expense_date")) {
         expenseInsert = await supabase.from("expenses").insert({
+          organization_id: organizationId,
           date: today,
           amount,
           category: "Rifornimento",
@@ -99,7 +109,7 @@ export async function POST(req: Request) {
       }
     }
 
-    await syncShoppingAction();
+    await syncShoppingAction(organizationId);
 
     return okJson({ ok: true, quantity: nextQty });
   } catch (e: unknown) {

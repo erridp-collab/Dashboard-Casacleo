@@ -15,6 +15,9 @@ const NAV_ITEMS = [
 
 export function TopBar() {
   const pathname = usePathname();
+  if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
+    return null;
+  }
 
   return (
     <header className="border-b border-zinc-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">

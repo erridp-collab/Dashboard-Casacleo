@@ -1,11 +1,13 @@
 import { getChecklistTemplate } from "@/lib/checklist-templates";
 import { errJson, okJson } from "@/lib/http/apiResponse";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-async function fetchChecklist(supabase: ReturnType<typeof supabaseAdmin>, actionId: string) {
+async function fetchChecklist(supabase: ReturnType<typeof supabaseAdmin>, actionId: string, organizationId: string) {
   let { data, error } = await supabase
     .from("action_checklist")
     .select("*")
+    .eq("organization_id", organizationId)
     .eq("action_id", actionId)
     .order("sort_order", { ascending: true });
 
@@ -13,6 +15,7 @@ async function fetchChecklist(supabase: ReturnType<typeof supabaseAdmin>, action
     const retry = await supabase
       .from("action_checklist")
       .select("*")
+      .eq("organization_id", organizationId)
       .eq("action_id", actionId);
     data = retry.data;
     error = retry.error;
@@ -25,17 +28,18 @@ async function seedChecklistFromTemplate(
   supabase: ReturnType<typeof supabaseAdmin>,
   actionId: string,
   actionType: string,
+  organizationId: string,
 ) {
   const template = await getChecklistTemplate(supabase, actionType);
   if (!template || template.length === 0) return;
 
   const variants: Record<string, unknown>[][] = [
-    template.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, label })),
-    template.map((label) => ({ action_id: actionId, done: false, label })),
-    template.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, item_text: label })),
-    template.map((label) => ({ action_id: actionId, done: false, item_text: label })),
-    template.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, item: label })),
-    template.map((label) => ({ action_id: actionId, done: false, item: label })),
+    template.map((label, index) => ({ organization_id: organizationId, action_id: actionId, done: false, sort_order: index + 1, label })),
+    template.map((label) => ({ organization_id: organizationId, action_id: actionId, done: false, label })),
+    template.map((label, index) => ({ organization_id: organizationId, action_id: actionId, done: false, sort_order: index + 1, item_text: label })),
+    template.map((label) => ({ organization_id: organizationId, action_id: actionId, done: false, item_text: label })),
+    template.map((label, index) => ({ organization_id: organizationId, action_id: actionId, done: false, sort_order: index + 1, item: label })),
+    template.map((label) => ({ organization_id: organizationId, action_id: actionId, done: false, item: label })),
   ];
 
   let lastError = "";
@@ -53,28 +57,33 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const { id } = await params;
     if (!id) return errJson("Missing action id", 400);
 
     const supabase = supabaseAdmin();
-    let { data, error } = await fetchChecklist(supabase, id);
+    let { data, error } = await fetchChecklist(supabase, id, organizationId);
 
     if (!error && (data ?? []).length === 0) {
       const { data: actionRow, error: actionErr } = await supabase
         .from("actions")
         .select("action_type")
+        .eq("organization_id", organizationId)
         .eq("id", id)
         .maybeSingle();
       if (actionErr) return errJson(actionErr.message, 400);
       if (actionRow?.action_type) {
         try {
-          await seedChecklistFromTemplate(supabase, id, String(actionRow.action_type));
+          await seedChecklistFromTemplate(supabase, id, String(actionRow.action_type), organizationId);
         } catch (seedErr: unknown) {
           return errJson("CHECKLIST_TEMPLATE_SEED_FAILED", 400, {
             details: String((seedErr as Error)?.message ?? seedErr),
           });
         }
-        const retry = await fetchChecklist(supabase, id);
+        const retry = await fetchChecklist(supabase, id, organizationId);
         data = retry.data;
         error = retry.error;
       }

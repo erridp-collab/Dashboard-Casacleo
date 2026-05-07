@@ -1,5 +1,6 @@
 import { errJson, okJson } from "@/lib/http/apiResponse";
 import { scheduleBookingDomainResync } from "@/lib/booking-automation";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type CreateBookingPayload = {
@@ -35,11 +36,12 @@ function isMissingTotalAmountError(error: { code?: string; message?: string } | 
   );
 }
 
-async function hasDateConflict(checkIn: string, checkOut: string): Promise<boolean> {
+async function hasDateConflict(checkIn: string, checkOut: string, organizationId: string): Promise<boolean> {
   const supabase = supabaseAdmin();
   const { data, error } = await supabase
     .from("bookings")
     .select("id")
+    .eq("organization_id", organizationId)
     // Overlap on half-open intervals: [check_in, check_out)
     // This allows same-day turnover (existing.check_out === new.check_in).
     .lt("check_in", checkOut)
@@ -52,10 +54,15 @@ async function hasDateConflict(checkIn: string, checkOut: string): Promise<boole
 
 export async function GET() {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const supabase = supabaseAdmin();
     let { data, error } = await supabase
       .from("bookings")
       .select("id, check_in, check_out, guests, channel, notes, total_amount")
+      .eq("organization_id", organizationId)
       .order("check_in", { ascending: true });
 
     // Backward-compatible fallback when total_amount is not present in older schemas.
@@ -63,8 +70,9 @@ export async function GET() {
       const retry = await supabase
         .from("bookings")
         .select("id, check_in, check_out, guests, channel, notes")
+        .eq("organization_id", organizationId)
         .order("check_in", { ascending: true });
-      data = (retry.data ?? []).map((row) => ({ ...row, total_amount: null }));
+      data = (retry.data ?? []).map((row: Record<string, unknown>) => ({ ...row, total_amount: null })) as typeof data;
       error = retry.error;
     }
 
@@ -78,6 +86,7 @@ export async function GET() {
       const { data: actionsData, error: actionsErr } = await supabase
         .from("actions")
         .select("booking_id, action_type, status")
+        .eq("organization_id", organizationId)
         .in("booking_id", bookingIds);
 
       if (actionsErr) return errJson(actionsErr.message, 400);
@@ -92,7 +101,7 @@ export async function GET() {
     }
 
     return okJson({
-      bookings: bookings.map((row) => ({
+      bookings: bookings.map((row: Record<string, unknown>) => ({
         ...row,
         cleaning_status: cleaningStatusByBookingId.get(String(row.id)) ?? null,
       })),
@@ -105,6 +114,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const body = (await req.json()) as CreateBookingPayload;
     const { check_in, check_out, guests, channel, notes, total_amount } = body;
     const parsedGuests = Number(guests);
@@ -126,12 +139,13 @@ export async function POST(req: Request) {
       return errJson("Importo non valido", 400);
     }
 
-    const conflict = await hasDateConflict(check_in, check_out);
+    const conflict = await hasDateConflict(check_in, check_out, organizationId);
     if (conflict) {
       return errJson("Esiste gia una prenotazione nello stesso giorno o in sovrapposizione", 409);
     }
 
     const payload = {
+      organization_id: organizationId,
       check_in,
       check_out,
       guests: parsedGuests,
@@ -170,7 +184,7 @@ export async function POST(req: Request) {
       return errJson("Creazione prenotazione fallita", 400);
     }
 
-    scheduleBookingDomainResync("bookings.create", { bookingId: String(bookingId) });
+    scheduleBookingDomainResync("bookings.create", { bookingId: String(bookingId) }, organizationId);
 
     return okJson({
       booking_id: bookingId,

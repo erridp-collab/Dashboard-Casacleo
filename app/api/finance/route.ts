@@ -1,6 +1,7 @@
 import { monthKey, toNumber } from "@/lib/format";
 import { errJson, okJson } from "@/lib/http/apiResponse";
 import { formatLocalDateIT } from "@/lib/localDate";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type FinanceEntry = {
@@ -48,6 +49,10 @@ function parseMonthInput(monthInput: string | null): Date {
 
 export async function GET(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const { searchParams } = new URL(req.url);
     const months = Math.max(1, Math.min(24, Number(searchParams.get("months") ?? 6)));
     const selectedMonthDate = parseMonthInput(searchParams.get("month"));
@@ -63,11 +68,13 @@ export async function GET(req: Request) {
         supabase
           .from("bookings")
           .select("*")
+          .eq("organization_id", organizationId)
           .gte("check_out", formatLocalDateIT(start))
           .lte("check_in", formatLocalDateIT(end)),
         supabase
           .from("expenses")
           .select("*")
+          .eq("organization_id", organizationId)
           .gte("expense_date", formatLocalDateIT(start))
           .lte("expense_date", formatLocalDateIT(end)),
       ]);
@@ -79,6 +86,7 @@ export async function GET(req: Request) {
       const retry = await supabase
         .from("expenses")
         .select("*")
+        .eq("organization_id", organizationId)
         .gte("date", formatLocalDateIT(start))
         .lte("date", formatLocalDateIT(end));
       expenses = retry.data;
@@ -201,6 +209,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const body = await req.json() as Record<string, unknown>;
     const expense_date = String(body.expense_date ?? "");
     const amount = Number(body.amount);
@@ -215,18 +227,18 @@ export async function POST(req: Request) {
     }
 
     const supabase = supabaseAdmin();
-    const payload = { expense_date, amount, category, description, origin: "manuale" };
+    const payload = { organization_id: organizationId, expense_date, amount, category, description, origin: "manuale" };
     let { error } = await supabase.from("expenses").insert(payload);
 
     // Fallback: "origin" or "expense_date" column may not exist yet (migration pending).
     if (error && (String(error.code) === "42703" || String(error.code) === "PGRST204")) {
       const msg = String(error.message ?? "");
       if (msg.includes("origin")) {
-        const f2 = await supabase.from("expenses").insert({ expense_date, amount, category, description });
+        const f2 = await supabase.from("expenses").insert({ organization_id: organizationId, expense_date, amount, category, description });
         error = f2.error;
       }
       if (error && msg.includes("expense_date")) {
-        const f3 = await supabase.from("expenses").insert({ date: expense_date, amount, category, description });
+        const f3 = await supabase.from("expenses").insert({ organization_id: organizationId, date: expense_date, amount, category, description });
         error = f3.error;
       }
     }
@@ -241,12 +253,16 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return errJson("Missing id", 400);
 
     const supabase = supabaseAdmin();
-    const result = await supabase.from("expenses").delete().eq("id", id).eq("origin", "manuale");
+    const result = await supabase.from("expenses").delete().eq("organization_id", organizationId).eq("id", id).eq("origin", "manuale");
     const { error } = result;
     if (error && String(error.code) === "42703" && String(error.message).includes("origin")) {
       return errJson("La colonna expenses.origin non esiste nel database. Applica la migration prima di eliminare spese manuali in sicurezza.", 409);

@@ -1,5 +1,6 @@
 import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
 import { errJson, okJson } from "@/lib/http/apiResponse";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 
@@ -11,9 +12,13 @@ type ProductPatch = {
 
 export async function GET() {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const supabase = supabaseAdmin();
     const schema = await resolveProductSchema(supabase);
-    const { data, error } = await supabase.from("products").select("*").order("name", { ascending: true });
+    const { data, error } = await supabase.from("products").select("*").eq("organization_id", organizationId).order("name", { ascending: true });
 
     if (error) return errJson(error.message, 400);
     const products = (data ?? []).map((raw) => {
@@ -43,6 +48,10 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const body = (await req.json()) as { updates?: ProductPatch[] };
     const updates = body.updates ?? [];
 
@@ -58,11 +67,11 @@ export async function PATCH(req: Request) {
       if (item.threshold !== undefined) payload.threshold = item.threshold;
       if (Object.keys(payload).length === 0) continue;
 
-      const { error } = await supabase.from("products").update(payload).eq(schema.idColumn, item.id);
+      const { error } = await supabase.from("products").update(payload).eq("organization_id", organizationId).eq(schema.idColumn, item.id);
       if (error) return errJson(error.message, 400, { item });
     }
 
-    await syncShoppingAction();
+    await syncShoppingAction(organizationId);
 
     return okJson({ ok: true });
   } catch (e: unknown) {

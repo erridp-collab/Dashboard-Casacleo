@@ -1,5 +1,6 @@
 import { errJson, okJson } from "@/lib/http/apiResponse";
 import { resolveProductSchema } from "@/lib/products-schema";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 
@@ -9,6 +10,10 @@ type StockStatusPayload = {
 
 export async function PATCH(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const body = (await req.json()) as StockStatusPayload;
     const updates = body.updates ?? [];
 
@@ -25,11 +30,12 @@ export async function PATCH(req: Request) {
       const { error } = await supabase
         .from("products")
         .update({ stock_status: item.stock_status })
+        .eq("organization_id", organizationId)
         .eq(schema.idColumn, item.id);
       if (error) return errJson(error.message, 400);
     }
 
-    await syncShoppingAction();
+    await syncShoppingAction(organizationId);
 
     return okJson({ ok: true });
   } catch (e: unknown) {

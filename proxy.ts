@@ -1,42 +1,60 @@
+import { findPrimaryOrganizationForUser, isOnboardingComplete } from "@/lib/organizationContext";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
+import {
+  clearAuthCookies,
+  readActiveOrganizationId,
+  readSessionTokens,
+  verifySessionTokens,
+  writeSessionCookies,
+} from "@/lib/supabaseAuth";
 
-// Backward-compatible fallback: older environments may only define APP_PASSWORD.
-const SECRET = process.env.AUTH_SECRET ?? process.env.APP_PASSWORD ?? "";
+const PUBLIC_PATH_PREFIXES = ["/login", "/signup"];
 
-function verifyToken(token: string): boolean {
-  if (!SECRET || !token) return false;
-  const dot = token.lastIndexOf(".");
-  if (dot === -1) return false;
-  const ts = token.slice(0, dot);
-  const sig = token.slice(dot + 1);
-  const expected = createHmac("sha256", SECRET).update(ts).digest("hex");
-  try {
-    return timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"));
-  } catch {
-    return false;
-  }
-}
-
-export function proxy(request: NextRequest) {
-  const rawToken = request.cookies.get("auth-token")?.value ?? "";
-  const isAuthenticated = verifyToken(rawToken);
+export async function proxy(request: NextRequest) {
+  const tokens = readSessionTokens(request.cookies);
+  const verified = await verifySessionTokens(tokens);
   const isLoginPage = request.nextUrl.pathname.startsWith("/login");
+  const isSignupPage = request.nextUrl.pathname.startsWith("/signup");
+  const isOnboardingPage = request.nextUrl.pathname.startsWith("/onboarding");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+  const isPublicPage = PUBLIC_PATH_PREFIXES.some((prefix) => request.nextUrl.pathname.startsWith(prefix));
+  const isAuthenticated = Boolean(verified.user);
+  const response = NextResponse.next();
 
-  if (!isAuthenticated && !isLoginPage) {
+  if (verified.refreshed && verified.session) {
+    writeSessionCookies(response.cookies, verified.session);
+  }
+
+  if (!isAuthenticated && tokens?.accessToken) {
+    clearAuthCookies(response.cookies);
+  }
+
+  if (!isAuthenticated && !isPublicPage) {
     if (isApiRoute) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.redirect(new URL("/login", request.url));
+    const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
+    if (tokens?.accessToken) {
+      clearAuthCookies(redirectResponse.cookies);
+    }
+    return redirectResponse;
   }
 
-  if (isAuthenticated && isLoginPage) {
+  if (isAuthenticated && (isLoginPage || isSignupPage)) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  return NextResponse.next();
+  if (isAuthenticated && !isApiRoute && !isPublicPage && !isOnboardingPage && verified.user) {
+    const activeOrganizationId = readActiveOrganizationId(request.cookies);
+    const organization = await findPrimaryOrganizationForUser(verified.user.id, activeOrganizationId);
+
+    if (organization && !isOnboardingComplete(organization.settings)) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+  }
+
+  return response;
 }
 
 export const config = {

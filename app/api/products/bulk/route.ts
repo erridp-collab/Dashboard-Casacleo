@@ -1,5 +1,6 @@
 import { errJson, okJson } from "@/lib/http/apiResponse";
 import { resolveProductSchema } from "@/lib/products-schema";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 
@@ -17,6 +18,10 @@ function isFiniteNumber(value: unknown): value is number {
 
 export async function PUT(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const body = (await req.json()) as { updates?: ProductBulkUpdate[] };
     const updates = body.updates ?? [];
 
@@ -67,11 +72,11 @@ export async function PUT(req: Request) {
 
       if (Object.keys(payload).length === 0) continue;
 
-      const { error } = await supabase.from("products").update(payload).eq(schema.idColumn, item.id);
+      const { error } = await supabase.from("products").update(payload).eq("organization_id", organizationId).eq(schema.idColumn, item.id);
       if (error) return errJson(error.message, 400, { item });
     }
 
-    await syncShoppingAction();
+    await syncShoppingAction(organizationId);
 
     return okJson({ ok: true, updated: updates.length });
   } catch (e: unknown) {

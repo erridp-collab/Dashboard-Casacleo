@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { LockKeyhole } from "lucide-react";
 import { loginAction } from "@/app/actions/auth";
@@ -15,23 +16,37 @@ export default function LoginPage() {
             <LockKeyhole className="h-6 w-6 text-zinc-900" />
           </div>
           <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-zinc-900">
-            Accesso Riservato
+            Accedi
           </h2>
           <p className="mt-2 text-sm text-zinc-600">
-            Inserisci la password di squadra per continuare.
+            Usa email e password del tuo workspace.
           </p>
         </div>
         
         <form className="mt-8 space-y-6" action={formAction}>
+          <div>
+            <label htmlFor="email" className="sr-only">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              className="relative block w-full appearance-none rounded-xl border border-zinc-300 px-3 py-3 text-zinc-900 placeholder-zinc-500 focus:z-10 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
+              placeholder="Email"
+            />
+          </div>
+
           <div>
             <label htmlFor="password" className="sr-only">Password</label>
             <input
               id="password"
               name="password"
               type="password"
+              autoComplete="current-password"
               required
               className="relative block w-full appearance-none rounded-xl border border-zinc-300 px-3 py-3 text-zinc-900 placeholder-zinc-500 focus:z-10 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
-              placeholder="Password..."
+              placeholder="Password"
             />
           </div>
 
@@ -50,6 +65,13 @@ export default function LoginPage() {
               {isPending ? "Accesso..." : "Accedi"}
             </button>
           </div>
+
+          <p className="text-center text-sm text-zinc-600">
+            Primo accesso?{" "}
+            <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-700">
+              Crea il tuo workspace
+            </Link>
+          </p>
         </form>
       </div>
     </div>

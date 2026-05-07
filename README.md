@@ -10,9 +10,10 @@ Questa README e pensata come file di ripartenza: descrive lo stato reale del pro
 - `npm run lint` passa
 - `npx tsc --noEmit` passa
 - le migration Supabase presenti nel repo sono state applicate anche al database remoto
-- l'autenticazione e attiva tramite `proxy.ts`
+- l'autenticazione applicativa usa Supabase Auth con cookie server-side verificati in `proxy.ts`
 - le prenotazioni con pulizia gia completata vengono nascoste di default nella pagina bookings
 - gli aggiornamenti stock concorrenti usano un percorso atomico via RPC SQL, con fallback compatibile lato codice
+- `.env.local` attivo punta al Supabase locale su Docker (`127.0.0.1`)
 
 ## Stack
 
@@ -148,6 +149,13 @@ Nota pratica:
 - finche `docker info` fallisce, non ha senso proseguire con `supabase start`
 - la multi-tenancy va ripresa solo dopo che il flusso `Docker -> Supabase locale -> .env.local` e stabile
 
+### Target ambiente verificato per questa iterazione
+
+- `.env.local` punta a `http://127.0.0.1:54321`
+- `.env.local.supabase-local` punta anch'esso a `127.0.0.1`
+- `.env.local.production-current` resta separato e punta al progetto hosted
+- quindi le modifiche di questa iterazione sono pensate per il database locale Docker, non per il progetto remoto
+
 ### Avvio
 
 ```bash
@@ -199,15 +207,20 @@ tests/
 
 ### Autenticazione
 
-- login via server action in [app/actions/auth.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/actions/auth.ts:1)
-- cookie httpOnly firmato
-- verifica accesso in [proxy.ts](/abs/path/c:/Users/Enrico/airbnb-manager/proxy.ts:1)
+- login/signup via server action in [app/actions/auth.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/actions/auth.ts:1)
+- sessione basata su Supabase Auth, con cookie httpOnly server-side
+- verifica accesso e refresh sessione in [proxy.ts](/abs/path/c:/Users/Enrico/airbnb-manager/proxy.ts:1)
 - rate limit login supportato da tabella DB `auth_rate_limits`, con fallback in-memory se la tabella non e disponibile
+- organizzazione attiva risolta lato server tramite membership in `user_roles`
+- onboarding owner-only disponibile su [app/onboarding/page.tsx](/abs/path/c:/Users/Enrico/airbnb-manager/app/onboarding/page.tsx:1)
+- gli utenti autenticati con workspace non ancora configurato vengono reindirizzati automaticamente a `/onboarding`
 
 Nota:
 
 - `proxy.ts` e corretto per questa versione del progetto e va lasciato cosi
 - non rinominarlo in `middleware.ts`
+- il primo utente locale puo registrarsi da `/signup`, che crea anche organization e ruolo `owner`
+- in questa fase beta il prodotto e pensato come `owner-only`: niente ruoli multipli o personalizzazioni utente avanzate per ora
 
 ### Prenotazioni e azioni automatiche
 
@@ -256,6 +269,8 @@ Migration presenti:
 - `20260427200000_add_auth_rate_limits.sql`
 - `20260427213000_fix_delete_booking_atomic_linen_alias_resolution.sql`
 - `20260507123000_add_apply_product_quantity_deltas_atomic.sql`
+- `20260507150000_add_multi_tenant_foundation.sql`
+- `20260507154000_fix_atomic_product_uuid_lookup.sql`
 
 Le ultime migration importanti per lo stato corrente del codice sono:
 
@@ -263,6 +278,26 @@ Le ultime migration importanti per lo stato corrente del codice sono:
 - `add_auth_rate_limits`
 - `fix_delete_booking_atomic_linen_alias_resolution`
 - `add_apply_product_quantity_deltas_atomic`
+- `add_multi_tenant_foundation`
+
+### Multi-tenancy: stato reale di questa iterazione
+
+La migration `add_multi_tenant_foundation` introduce:
+
+- `organizations`
+- `user_roles`
+- `organization_id` su dati operativi (`bookings`, `actions`, `action_checklist`, `expenses`, `products`, `counters`)
+- RLS basata su membership organizzativa
+- bootstrap automatico di una workspace legacy per il caso single-tenant attuale
+- hardening delle RPC SQL piu sensibili, limitate al `service_role`
+
+Nota importante:
+
+- il database ora e pronto per l'isolamento tenant lato Supabase
+- login/sessione sono stati migrati a Supabase Auth
+- le API principali ora risolvono il contesto organizzativo lato server e filtrano i dati con `organization_id`
+- onboarding base protetto post-login e ora disponibile
+- il passaggio SaaS non e ancora completo finche non aggiungiamo inviti collaboratori, cambio workspace, recupero password e billing
 
 ### Comandi Supabase utili
 

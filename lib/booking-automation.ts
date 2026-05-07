@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getChecklistTemplate } from "@/lib/checklist-templates";
 import { parseLocalDateIT } from "@/lib/localDate";
+import { resolveOrganizationId } from "@/lib/organizationContext";
 import { syncShoppingAction } from "@/lib/stock";
 
 type BookingRow = {
@@ -32,15 +33,18 @@ function actionKey(action: { booking_id: string | null; action_type: string; act
   return `${action.booking_id ?? ""}|${action.action_type}|${action.action_date}`;
 }
 
-async function ensureChecklist(actionId: string, actionType: string): Promise<void> {
+async function ensureChecklist(actionId: string, actionType: string, organizationId?: string): Promise<void> {
   const supabase = supabaseAdmin();
   const checklist = await getChecklistTemplate(supabase, actionType);
   if (!checklist || checklist.length === 0) return;
 
-  const { data: existingRows, error: existingErr } = await supabase
+  let existingQuery = supabase
     .from("action_checklist")
     .select("id")
     .eq("action_id", actionId);
+  if (organizationId) existingQuery = existingQuery.eq("organization_id", organizationId);
+
+  const { data: existingRows, error: existingErr } = await existingQuery;
 
   if (existingErr) throw new Error(existingErr.message);
   if ((existingRows ?? []).length > 0) return;
@@ -130,12 +134,15 @@ export function computeDesiredActions(bookings: BookingRow[]): DesiredAction[] {
   return desired;
 }
 
-export async function syncBookingAutomations(): Promise<void> {
+export async function syncBookingAutomations(organizationId?: string): Promise<void> {
   const supabase = supabaseAdmin();
+  const resolvedOrganizationId = await resolveOrganizationId(organizationId);
+  if (!resolvedOrganizationId) throw new Error("Unable to resolve organization");
 
   const { data: bookingsData, error: bookingsErr } = await supabase
     .from("bookings")
     .select("id, check_in, check_out")
+    .eq("organization_id", resolvedOrganizationId)
     .order("check_out", { ascending: true });
 
   if (bookingsErr) throw new Error(bookingsErr.message);
@@ -152,6 +159,7 @@ export async function syncBookingAutomations(): Promise<void> {
   const { data: existingData, error: existingErr } = await supabase
     .from("actions")
     .select("id, booking_id, action_type, action_date")
+    .eq("organization_id", resolvedOrganizationId)
     .not("booking_id", "is", null)
     .in("action_type", MANAGED_ACTION_TYPES);
 
@@ -173,7 +181,7 @@ export async function syncBookingAutomations(): Promise<void> {
     toDelete.map(async (row) => {
       const { error: checklistErr } = await supabase.from("action_checklist").delete().eq("action_id", row.id);
       if (checklistErr) throw new Error(checklistErr.message);
-      const { error: actionErr } = await supabase.from("actions").delete().eq("id", row.id);
+      const { error: actionErr } = await supabase.from("actions").delete().eq("organization_id", resolvedOrganizationId).eq("id", row.id);
       if (actionErr) throw new Error(actionErr.message);
     }),
   );
@@ -183,14 +191,14 @@ export async function syncBookingAutomations(): Promise<void> {
     toCreate.map(async (row) => {
       const { data: created, error: createErr } = await supabase
         .from("actions")
-        .insert(row)
+        .insert({ ...row, organization_id: resolvedOrganizationId })
         .select("id")
         .single();
       if (createErr) throw new Error(createErr.message);
       return { id: String(created.id), action_type: row.action_type };
     }),
   );
-  await Promise.all(createdIds.map(({ id, action_type }) => ensureChecklist(id, action_type)));
+  await Promise.all(createdIds.map(({ id, action_type }) => ensureChecklist(id, action_type, resolvedOrganizationId)));
 
   // Ensure checklist also for pre-existing managed actions.
   const merged = [...existing.filter((a) => desiredMap.has(actionKey(a))), ...toCreate.map((a) => ({
@@ -204,16 +212,19 @@ export async function syncBookingAutomations(): Promise<void> {
     const { data: refreshed, error: refreshErr } = await supabase
       .from("actions")
       .select("id, action_type, booking_id, action_date")
+      .eq("organization_id", resolvedOrganizationId)
       .not("booking_id", "is", null)
       .in("action_type", ["PULIZIA", "LAVATRICI", "MANUT_3", "MANUT_4"]);
     if (refreshErr) throw new Error(refreshErr.message);
-    await Promise.all((refreshed ?? []).map((row) => ensureChecklist(String(row.id), String(row.action_type))));
+    await Promise.all((refreshed ?? []).map((row) => ensureChecklist(String(row.id), String(row.action_type), resolvedOrganizationId)));
   }
 }
 
-export async function resyncBookingDomainState(): Promise<void> {
-  await syncBookingAutomations();
-  await syncShoppingAction();
+export async function resyncBookingDomainState(organizationId?: string): Promise<void> {
+  const resolvedOrganizationId = await resolveOrganizationId(organizationId);
+  if (!resolvedOrganizationId) throw new Error("Unable to resolve organization");
+  await syncBookingAutomations(resolvedOrganizationId);
+  await syncShoppingAction(resolvedOrganizationId);
 }
 
 function wait(ms: number): Promise<void> {
@@ -222,11 +233,15 @@ function wait(ms: number): Promise<void> {
   });
 }
 
-export function scheduleBookingDomainResync(source: string, metadata?: Record<string, string>): void {
+export function scheduleBookingDomainResync(
+  source: string,
+  metadata?: Record<string, string>,
+  organizationId?: string,
+): void {
   void (async () => {
     for (let attempt = 1; attempt <= ASYNC_RESYNC_RETRIES; attempt += 1) {
       try {
-        await resyncBookingDomainState();
+        await resyncBookingDomainState(organizationId);
         console.info("[booking-resync] completed", { source, attempt, ...(metadata ?? {}) });
         return;
       } catch (error) {

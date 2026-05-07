@@ -1,5 +1,6 @@
 import { errJson, okJson } from "@/lib/http/apiResponse";
 import { scheduleBookingDomainResync } from "@/lib/booking-automation";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type UpdateBookingPayload = {
@@ -112,6 +113,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const { id } = await params;
     if (!id) return errJson("Missing booking id", 400);
     if (!UUID_LIKE.test(id)) {
@@ -122,6 +127,7 @@ export async function GET(
     let { data, error } = await supabase
       .from("bookings")
       .select("id, check_in, check_out, guests, channel, notes, total_amount, created_at")
+      .eq("organization_id", organizationId)
       .eq("id", id)
       .maybeSingle();
 
@@ -129,6 +135,7 @@ export async function GET(
       const retry = await supabase
         .from("bookings")
         .select("id, check_in, check_out, guests, channel, notes, created_at")
+        .eq("organization_id", organizationId)
         .eq("id", id)
         .maybeSingle();
       data = retry.data ? { ...retry.data, total_amount: null } : retry.data;
@@ -149,6 +156,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const { id } = await params;
     if (!id) return errJson("Missing booking id", 400);
     if (!UUID_LIKE.test(id)) {
@@ -181,6 +192,7 @@ export async function PATCH(
     const { data: current, error: currentErr } = await supabase
       .from("bookings")
       .select("id, check_in, check_out, guests")
+      .eq("organization_id", organizationId)
       .eq("id", id)
       .maybeSingle();
 
@@ -205,6 +217,7 @@ export async function PATCH(
     const { data: conflictRows, error: conflictErr } = await supabase
       .from("bookings")
       .select("id")
+      .eq("organization_id", organizationId)
       .neq("id", id)
       .lt("check_in", nextCheckOut)
       .gt("check_out", nextCheckIn)
@@ -218,6 +231,7 @@ export async function PATCH(
     let { data, error } = await supabase
       .from("bookings")
       .update(updates)
+      .eq("organization_id", organizationId)
       .eq("id", id)
       .select("id, check_in, check_out, guests, channel, notes, total_amount, created_at")
       .maybeSingle();
@@ -232,6 +246,7 @@ export async function PATCH(
       const retry = await supabase
         .from("bookings")
         .update(retryUpdates)
+        .eq("organization_id", organizationId)
         .eq("id", id)
         .select("id, check_in, check_out, guests, channel, notes, created_at")
         .maybeSingle();
@@ -243,7 +258,7 @@ export async function PATCH(
     if (error) return errJson(formatDbError(error), 400);
     if (!data) return errJson("Booking not found", 404);
 
-    scheduleBookingDomainResync("bookings.update", { bookingId: id });
+    scheduleBookingDomainResync("bookings.update", { bookingId: id }, organizationId);
 
     return okJson({
       booking: data,
@@ -260,6 +275,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const { id } = await params;
     if (!id) return errJson("Missing booking id", 400);
     if (!UUID_LIKE.test(id)) {
@@ -270,6 +289,7 @@ export async function DELETE(
     const { data: bookingRow, error: bookingFindErr } = await supabase
       .from("bookings")
       .select("id, check_in, check_out, guests")
+      .eq("organization_id", organizationId)
       .eq("id", id)
       .maybeSingle();
     if (bookingFindErr) return errJson(formatDbError(bookingFindErr), 400);
@@ -278,6 +298,7 @@ export async function DELETE(
     const { data: actionRows, error: actionErr } = await supabase
       .from("actions")
       .select("id, action_type, status, details")
+      .eq("organization_id", organizationId)
       .eq("booking_id", id);
 
     if (actionErr) return errJson(formatDbError(actionErr), 400);
@@ -309,7 +330,7 @@ export async function DELETE(
     });
     if (error) return errJson(formatDbError(error), 400);
 
-    scheduleBookingDomainResync("bookings.delete", { bookingId: id });
+    scheduleBookingDomainResync("bookings.delete", { bookingId: id }, organizationId);
 
     return okJson({
       ok: true,

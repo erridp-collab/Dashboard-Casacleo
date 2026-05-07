@@ -1,4 +1,5 @@
 import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
+import { resolveOrganizationId } from "@/lib/organizationContext";
 import { applyProductQuantityDeltas } from "@/lib/product-quantity";
 import { syncShoppingAction } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -74,10 +75,16 @@ async function tryInsertExpense(payloads: Record<string, unknown>[]): Promise<vo
   if (lastError) throw new Error(String(lastError.message ?? "Unable to insert expense"));
 }
 
-async function tryUpdateExpense(expenseId: string, payloads: Record<string, unknown>[]): Promise<boolean> {
+async function tryUpdateExpense(
+  expenseId: string,
+  payloads: Record<string, unknown>[],
+  organizationId?: string,
+): Promise<boolean> {
   const supabase = supabaseAdmin();
   for (const payload of payloads) {
-    const update = await supabase.from("expenses").update(payload).eq("id", expenseId);
+    let updateQuery = supabase.from("expenses").update(payload).eq("id", expenseId);
+    if (organizationId) updateQuery = updateQuery.eq("organization_id", organizationId);
+    const update = await updateQuery;
     if (!update.error) return true;
     if (!isMissingColumn(update.error)) {
       throw new Error(update.error.message);
@@ -102,6 +109,7 @@ async function upsertCleaningExpense(
   actionId: string,
   actionDate: string,
   amount: number,
+  organizationId: string,
   note?: string | null,
 ) {
   const supabase = supabaseAdmin();
@@ -118,6 +126,7 @@ async function upsertCleaningExpense(
       description,
       origin: "automatica_da_pulizia",
       source_action_id: actionId,
+      organization_id: organizationId,
     },
     {
       expense_date: actionDate,
@@ -137,29 +146,31 @@ async function upsertCleaningExpense(
   const existing = await supabase
     .from("expenses")
     .select("id")
+    .eq("organization_id", organizationId)
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_pulizia")
     .maybeSingle();
 
   if (!existing.error && existing.data?.id) {
-    const updated = await tryUpdateExpense(existing.data.id, payloads);
+    const updated = await tryUpdateExpense(existing.data.id, payloads, organizationId);
     if (updated) return;
   }
 
   await tryInsertExpense(payloads);
 }
 
-async function deleteCleaningExpense(actionId: string) {
+async function deleteCleaningExpense(actionId: string, organizationId: string) {
   const supabase = supabaseAdmin();
   const directDelete = await supabase
     .from("expenses")
     .delete()
+    .eq("organization_id", organizationId)
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_pulizia");
   if (!directDelete.error || isMissingColumn(directDelete.error)) return;
 }
 
-async function upsertLaundryExpense(actionId: string, actionDate: string, amount: number) {
+async function upsertLaundryExpense(actionId: string, actionDate: string, amount: number, organizationId: string) {
   const supabase = supabaseAdmin();
   const description = `Lavanderia - €${amount.toFixed(2)}`;
   const payloads = [
@@ -170,6 +181,7 @@ async function upsertLaundryExpense(actionId: string, actionDate: string, amount
       description,
       origin: "automatica_da_lavatrici",
       source_action_id: actionId,
+      organization_id: organizationId,
     },
     {
       expense_date: actionDate,
@@ -188,23 +200,25 @@ async function upsertLaundryExpense(actionId: string, actionDate: string, amount
   const existing = await supabase
     .from("expenses")
     .select("id")
+    .eq("organization_id", organizationId)
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_lavatrici")
     .maybeSingle();
 
   if (!existing.error && existing.data?.id) {
-    const updated = await tryUpdateExpense(existing.data.id, payloads);
+    const updated = await tryUpdateExpense(existing.data.id, payloads, organizationId);
     if (updated) return;
   }
 
   await tryInsertExpense(payloads);
 }
 
-async function deleteLaundryExpense(actionId: string) {
+async function deleteLaundryExpense(actionId: string, organizationId: string) {
   const supabase = supabaseAdmin();
   const result = await supabase
     .from("expenses")
     .delete()
+    .eq("organization_id", organizationId)
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_lavatrici");
   if (result.error && !isMissingColumn(result.error)) {
@@ -273,7 +287,13 @@ function parseShoppingDetails(details: string | null): string[] {
   return names;
 }
 
-async function upsertShoppingExpense(actionId: string, actionDate: string, amount: number, note?: string | null) {
+async function upsertShoppingExpense(
+  actionId: string,
+  actionDate: string,
+  amount: number,
+  organizationId: string,
+  note?: string | null,
+) {
   const supabase = supabaseAdmin();
   const description = note?.trim() ? `Rifornimento - ${note.trim()}` : "Rifornimento";
   const payloads = [
@@ -284,6 +304,7 @@ async function upsertShoppingExpense(actionId: string, actionDate: string, amoun
       description,
       origin: "automatica_da_rifornimento",
       source_action_id: actionId,
+      organization_id: organizationId,
     },
     {
       expense_date: actionDate,
@@ -302,23 +323,25 @@ async function upsertShoppingExpense(actionId: string, actionDate: string, amoun
   const existing = await supabase
     .from("expenses")
     .select("id")
+    .eq("organization_id", organizationId)
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_rifornimento")
     .maybeSingle();
 
   if (!existing.error && existing.data?.id) {
-    const updated = await tryUpdateExpense(existing.data.id, payloads);
+    const updated = await tryUpdateExpense(existing.data.id, payloads, organizationId);
     if (updated) return;
   }
 
   await tryInsertExpense(payloads);
 }
 
-async function deleteShoppingExpense(actionId: string) {
+async function deleteShoppingExpense(actionId: string, organizationId: string) {
   const supabase = supabaseAdmin();
   const result = await supabase
     .from("expenses")
     .delete()
+    .eq("organization_id", organizationId)
     .eq("source_action_id", actionId)
     .eq("origin", "automatica_da_rifornimento");
   if (result.error && !isMissingColumn(result.error)) {
@@ -326,7 +349,7 @@ async function deleteShoppingExpense(actionId: string) {
   }
 }
 
-async function applyShoppingRestock(actionId: string, details: string | null) {
+async function applyShoppingRestock(actionId: string, details: string | null, organizationId: string) {
   const names = parseShoppingDetails(details);
   if (names.length === 0) return;
 
@@ -334,7 +357,8 @@ async function applyShoppingRestock(actionId: string, details: string | null) {
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, threshold, max_qty, stock_status`);
+    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, threshold, max_qty, stock_status`)
+    .eq("organization_id", organizationId);
   if (error) throw new Error(error.message);
 
   const byName = new Map<string, Record<string, unknown>>();
@@ -383,6 +407,7 @@ async function applyShoppingRestock(actionId: string, details: string | null) {
     const { error: updateErr } = await supabase
       .from("products")
       .update({ stock_status: "PIENO" })
+      .eq("organization_id", organizationId)
       .in(schema.idColumn, fullStockIds);
     if (updateErr) throw new Error(updateErr.message);
   }
@@ -436,12 +461,16 @@ async function applyProductQuantityDelta(
   items: QuantityItem[],
   operation: "consume" | "add",
   options?: { capToMaxQty?: boolean },
+  organizationId?: string,
 ): Promise<Record<string, number>> {
   const supabase = supabaseAdmin();
+  const resolvedOrganizationId = await resolveOrganizationId(organizationId);
+  if (!resolvedOrganizationId) throw new Error("Unable to resolve organization");
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, max_qty`);
+    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, max_qty`)
+    .eq("organization_id", resolvedOrganizationId);
   if (error) throw new Error(error.message);
 
   const byName = new Map<string, ProductRow[]>();
@@ -519,51 +548,66 @@ function toLaundryCompletion(applied: Record<string, number>): LaundryCompletion
   };
 }
 
-async function saveActionDetails(actionId: string, details: StoredActionDetails): Promise<void> {
+async function saveActionDetails(actionId: string, details: StoredActionDetails, organizationId?: string): Promise<void> {
   const supabase = supabaseAdmin();
-  const { error } = await supabase
+  let query = supabase
     .from("actions")
     .update({ details: JSON.stringify(details) })
     .eq("id", actionId);
+  if (organizationId) query = query.eq("organization_id", organizationId);
+  const { error } = await query;
   if (error) throw new Error(error.message);
 }
 
-async function applyLinenConsumption(linen: LinenCompletion): Promise<LinenCompletion> {
-  const applied = await applyProductQuantityDelta(buildLinenQuantityItems(linen), "consume");
+async function applyLinenConsumption(linen: LinenCompletion, organizationId?: string): Promise<LinenCompletion> {
+  const applied = await applyProductQuantityDelta(buildLinenQuantityItems(linen), "consume", undefined, organizationId);
   return toLinenCompletion(applied);
 }
 
-async function restoreLinenConsumption(linen: LinenCompletion): Promise<void> {
-  await applyProductQuantityDelta(buildLinenQuantityItems(linen), "add");
+async function restoreLinenConsumption(linen: LinenCompletion, organizationId?: string): Promise<void> {
+  await applyProductQuantityDelta(buildLinenQuantityItems(linen), "add", undefined, organizationId);
 }
 
-export async function applyLinenConsumptionDelta(linen: LinenCompletion, direction: 1 | -1): Promise<void> {
+export async function applyLinenConsumptionDelta(
+  linen: LinenCompletion,
+  direction: 1 | -1,
+  organizationId?: string,
+): Promise<void> {
   if (direction === 1) {
-    await applyLinenConsumption(linen);
+    await applyLinenConsumption(linen, organizationId);
   } else {
-    await restoreLinenConsumption(linen);
+    await restoreLinenConsumption(linen, organizationId);
   }
-  await syncShoppingAction();
+  await syncShoppingAction(organizationId);
 }
 
-async function applyLaundryRestock(laundry: LaundryCompletion): Promise<LaundryCompletion> {
-  const applied = await applyProductQuantityDelta(buildLaundryQuantityItems(laundry), "add", { capToMaxQty: true });
+async function applyLaundryRestock(laundry: LaundryCompletion, organizationId?: string): Promise<LaundryCompletion> {
+  const applied = await applyProductQuantityDelta(
+    buildLaundryQuantityItems(laundry),
+    "add",
+    { capToMaxQty: true },
+    organizationId,
+  );
   return toLaundryCompletion(applied);
 }
 
-async function revertLaundryRestock(laundry: LaundryCompletion): Promise<void> {
-  await applyProductQuantityDelta(buildLaundryQuantityItems(laundry), "consume");
+async function revertLaundryRestock(laundry: LaundryCompletion, organizationId?: string): Promise<void> {
+  await applyProductQuantityDelta(buildLaundryQuantityItems(laundry), "consume", undefined, organizationId);
 }
 
 export async function applyActionStatusEffects(
   actionId: string,
   nextStatus: "DA_FARE" | "FATTO",
   completion?: CleaningCompletion,
+  organizationId?: string,
 ) {
   const supabase = supabaseAdmin();
+  const resolvedOrganizationId = await resolveOrganizationId(organizationId);
+  if (!resolvedOrganizationId) throw new Error("Unable to resolve organization");
   const { data: actionRow, error: actionErr } = await supabase
     .from("actions")
     .select("id, action_type, action_date, details")
+    .eq("organization_id", resolvedOrganizationId)
     .eq("id", actionId)
     .maybeSingle();
   if (actionErr) throw new Error(actionErr.message);
@@ -577,10 +621,10 @@ export async function applyActionStatusEffects(
       const mode = completion?.mode ?? "SELF";
       const amount = Number(completion?.external_amount ?? 0);
       if (mode === "EXTERNAL" && Number.isFinite(amount) && amount > 0) {
-        await upsertCleaningExpense(actionId, String(actionRow.action_date), amount, completion?.note);
+        await upsertCleaningExpense(actionId, String(actionRow.action_date), amount, resolvedOrganizationId, completion?.note);
       }
     } else {
-      await deleteCleaningExpense(actionId);
+      await deleteCleaningExpense(actionId, resolvedOrganizationId);
     }
   }
 
@@ -589,21 +633,21 @@ export async function applyActionStatusEffects(
       const laundry = completion?.laundry ?? parseLaundryDetails(actionRow.details);
       if (laundry) {
         storedDetails.laundry = laundry;
-        storedDetails.laundry_applied = await applyLaundryRestock(laundry);
-        await saveActionDetails(actionId, storedDetails);
+        storedDetails.laundry_applied = await applyLaundryRestock(laundry, resolvedOrganizationId);
+        await saveActionDetails(actionId, storedDetails, resolvedOrganizationId);
       }
       const laundryAmount = Number(completion?.amount ?? 0);
       if (Number.isFinite(laundryAmount) && laundryAmount > 0) {
-        await upsertLaundryExpense(actionId, String(actionRow.action_date), laundryAmount);
+        await upsertLaundryExpense(actionId, String(actionRow.action_date), laundryAmount, resolvedOrganizationId);
       }
     } else {
       const laundry = parseAppliedLaundryDetails(actionRow.details);
       if (laundry) {
-        await revertLaundryRestock(laundry);
+        await revertLaundryRestock(laundry, resolvedOrganizationId);
         storedDetails.laundry_applied = undefined;
-        await saveActionDetails(actionId, storedDetails);
+        await saveActionDetails(actionId, storedDetails, resolvedOrganizationId);
       }
-      await deleteLaundryExpense(actionId);
+      await deleteLaundryExpense(actionId, resolvedOrganizationId);
     }
   }
 
@@ -612,30 +656,30 @@ export async function applyActionStatusEffects(
       const linen = completion?.linen ?? parseLinenDetails(actionRow.details);
       if (linen) {
         storedDetails.linen = linen;
-        storedDetails.linen_applied = await applyLinenConsumption(linen);
-        await saveActionDetails(actionId, storedDetails);
+        storedDetails.linen_applied = await applyLinenConsumption(linen, resolvedOrganizationId);
+        await saveActionDetails(actionId, storedDetails, resolvedOrganizationId);
       }
     } else {
       const linen = parseAppliedLinenDetails(actionRow.details);
       if (linen) {
-        await restoreLinenConsumption(linen);
+        await restoreLinenConsumption(linen, resolvedOrganizationId);
         storedDetails.linen_applied = undefined;
-        await saveActionDetails(actionId, storedDetails);
+        await saveActionDetails(actionId, storedDetails, resolvedOrganizationId);
       }
     }
   }
 
   if (isShoppingAction(actionType)) {
     if (nextStatus === "FATTO") {
-      await applyShoppingRestock(actionId, String(actionRow.details ?? ""));
+      await applyShoppingRestock(actionId, String(actionRow.details ?? ""), resolvedOrganizationId);
       const amount = Number(completion?.amount ?? 0);
       if (Number.isFinite(amount) && amount > 0) {
-        await upsertShoppingExpense(actionId, String(actionRow.action_date), amount, completion?.note);
+        await upsertShoppingExpense(actionId, String(actionRow.action_date), amount, resolvedOrganizationId, completion?.note);
       }
     } else {
-      await deleteShoppingExpense(actionId);
+      await deleteShoppingExpense(actionId, resolvedOrganizationId);
     }
   }
 
-  await syncShoppingAction();
+  await syncShoppingAction(resolvedOrganizationId);
 }
