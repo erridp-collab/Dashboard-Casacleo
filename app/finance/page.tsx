@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardHeader } from "@/components/card";
+import { clientFetchJson } from "@/lib/http/clientFetch";
 import { KpiCard } from "@/components/kpi-card";
 import { KpiCardSkeleton } from "@/components/skeleton";
 import { monthLabel } from "@/lib/format";
+import { todayLocalIT } from "@/lib/localDate";
 import { ChartColumn, LineChartIcon, Plus, Trash2 } from "lucide-react";
 import type { MonthlyFinancePoint } from "@/types/db";
 
@@ -37,8 +39,7 @@ const EXPENSE_CATEGORIES = [
 ];
 
 function currentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return todayLocalIT().slice(0, 7);
 }
 
 export default function FinancePage() {
@@ -47,31 +48,43 @@ export default function FinancePage() {
   const [data, setData] = useState<FinanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
 
   // New expense form state
   const [showForm, setShowForm] = useState(false);
-  const [formDate, setFormDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [formDate, setFormDate] = useState(() => todayLocalIT());
   const [formAmount, setFormAmount] = useState("");
   const [formCategory, setFormCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [formDescription, setFormDescription] = useState("");
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  async function loadFinance() {
+  async function loadFinance(signal?: AbortSignal) {
+    const seq = ++requestSeqRef.current;
     setError("");
     setLoading(true);
-    const res = await fetch(`/api/finance?months=${months}&month=${selectedMonth}`);
-    const json = await res.json();
+    const result = await clientFetchJson<FinanceResponse>(`/api/finance?months=${months}&month=${selectedMonth}`, { signal });
+    if (seq !== requestSeqRef.current) return;
     setLoading(false);
-    if (!res.ok) return setError(json.error ?? "Errore finance");
-    setData(json);
+    if (!result.ok) {
+      if (!result.aborted) setError(result.error ?? "Errore finance");
+      return;
+    }
+    setData(result.data);
   }
 
   useEffect(() => {
     const t = setTimeout(() => {
-      void loadFinance();
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      void loadFinance(ctrl.signal);
     }, 0);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      abortRef.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [months, selectedMonth]);
 
@@ -84,7 +97,7 @@ export default function FinancePage() {
       return;
     }
     setFormSaving(true);
-    const res = await fetch("/api/finance", {
+    const result = await clientFetchJson<{ ok: boolean }>("/api/finance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -94,10 +107,9 @@ export default function FinancePage() {
         description: formDescription.trim() || formCategory,
       }),
     });
-    const json = await res.json();
     setFormSaving(false);
-    if (!res.ok) {
-      setFormError(json.error ?? "Errore salvataggio");
+    if (!result.ok) {
+      setFormError(result.error ?? "Errore salvataggio");
       return;
     }
     setFormAmount("");
@@ -108,8 +120,12 @@ export default function FinancePage() {
 
   async function deleteExpense(id: string) {
     if (!confirm("Eliminare questa spesa?")) return;
-    const res = await fetch(`/api/finance?id=${id}`, { method: "DELETE" });
-    if (res.ok) void loadFinance();
+    const result = await clientFetchJson<{ ok: boolean }>(`/api/finance?id=${id}`, { method: "DELETE" });
+    if (result.ok) {
+      void loadFinance();
+      return;
+    }
+    setError(result.error ?? "Errore eliminazione");
   }
 
   const rows =

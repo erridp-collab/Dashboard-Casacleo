@@ -267,7 +267,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
               onChange={(e) => setMaintenanceNote(e.target.value)}
             />
             {maintenanceNote.trim() ? (
-              <p className="mt-1 text-xs text-amber-600">Verra creata un'azione MANUTENZIONE con questa nota</p>
+              <p className="mt-1 text-xs text-amber-600">Verra creata un&apos;azione MANUTENZIONE con questa nota</p>
             ) : null}
           </div>
 

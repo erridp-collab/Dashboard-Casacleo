@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ShoppingCart } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
+import { clientFetchJson } from "@/lib/http/clientFetch";
 import { getRefillState, isMonitoredRefillProduct, isStatusManagedRefillProduct, type StockStatus } from "@/lib/refill";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
@@ -48,6 +49,22 @@ type CsvPreviewRow = {
   maxQtyNext: number | null;
   consumptionNow: number | null;
   consumptionNext: number | null;
+};
+
+type ProductApiRow = {
+  id: string;
+  name: string;
+  category?: string | null;
+  unit?: string | null;
+  quantity: number;
+  threshold?: number;
+  max_qty?: number | null;
+  consumption_per_checkout?: number | null;
+  stock_status?: StockStatus | null;
+};
+
+type ProductsResponse = {
+  products?: ProductApiRow[];
 };
 
 const STATUS_OPTIONS: Array<{ value: StockStatus; label: string; tone: string }> = [
@@ -123,46 +140,58 @@ export default function InventoryPage() {
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvColumns, setCsvColumns] = useState({ threshold: false, maxQty: false, consumption: false });
+  const productsAbortRef = useRef<AbortController | null>(null);
+  const productsRequestSeqRef = useRef(0);
 
-  async function loadProducts() {
+  async function loadProducts(signal?: AbortSignal) {
+    const seq = ++productsRequestSeqRef.current;
     setError("");
     setLoadingProducts(true);
-    const res = await fetch("/api/products");
-    const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "Errore caricamento");
-
-    const rows: ProductRow[] = (data.products ?? []).map((p: Record<string, unknown>) => {
-      const quantity = toNum(p.quantity ?? p.qty, 0);
-      const initialQuantityRaw = p.max_qty === null || p.max_qty === undefined ? quantity : toNum(p.max_qty, quantity);
-      const initialQuantity = initialQuantityRaw > 0 ? initialQuantityRaw : quantity;
-      const maxQtyRaw = p.max_qty === undefined ? p.maxQty : p.max_qty;
-      const maxQty = maxQtyRaw === null || maxQtyRaw === undefined ? null : toNum(maxQtyRaw, quantity);
-      const consumptionRaw = p.consumption_per_checkout ?? p.consumptionPerCheckout;
-      const consumptionPerCheckout = consumptionRaw === null || consumptionRaw === undefined ? null : toNum(consumptionRaw, 0);
-
-      return {
-        id: String(p.id ?? p.sku ?? ""),
-        name: String(p.name ?? "Prodotto"),
-        category: p.category === null || p.category === undefined ? null : String(p.category),
-        unit: p.unit === null || p.unit === undefined ? null : String(p.unit),
-        quantity,
-        threshold: toNum(p.threshold, 0),
-        initialQuantity,
-        maxQty,
-        consumptionPerCheckout,
-        stockStatus: p.stock_status === null || p.stock_status === undefined ? null : p.stock_status as StockStatus,
-      };
-    });
-
-    setProducts(rows);
-    setLoadingProducts(false);
-    setDrafts((prev) => {
-      const next: Record<string, RestockDraft> = {};
-      for (const row of rows) {
-        next[row.id] = prev[row.id] ?? { addQty: "", amount: "" };
+    try {
+      const result = await clientFetchJson<ProductsResponse>("/api/products", { signal });
+      if (seq !== productsRequestSeqRef.current) return;
+      if (!result.ok) {
+        if (!result.aborted) setError(result.error ?? "Errore caricamento");
+        return;
       }
-      return next;
-    });
+
+      const rows: ProductRow[] = (result.data.products ?? []).map((p) => {
+        const quantity = toNum(p.quantity, 0);
+        const initialQuantityRaw = p.max_qty === null || p.max_qty === undefined ? quantity : toNum(p.max_qty, quantity);
+        const initialQuantity = initialQuantityRaw > 0 ? initialQuantityRaw : quantity;
+        const maxQty = p.max_qty === null || p.max_qty === undefined ? null : toNum(p.max_qty, quantity);
+        const consumptionPerCheckout = p.consumption_per_checkout === null || p.consumption_per_checkout === undefined
+          ? null
+          : toNum(p.consumption_per_checkout, 0);
+
+        return {
+          id: String(p.id),
+          name: String(p.name ?? "Prodotto"),
+          category: p.category === null || p.category === undefined ? null : String(p.category),
+          unit: p.unit === null || p.unit === undefined ? null : String(p.unit),
+          quantity,
+          threshold: toNum(p.threshold, 0),
+          initialQuantity,
+          maxQty,
+          consumptionPerCheckout,
+          stockStatus: p.stock_status === null || p.stock_status === undefined ? null : p.stock_status,
+        };
+      });
+
+      setProducts(rows);
+      setDrafts((prev) => {
+        const next: Record<string, RestockDraft> = {};
+        for (const row of rows) {
+          next[row.id] = prev[row.id] ?? { addQty: "", amount: "" };
+        }
+        return next;
+      });
+    } catch (e: unknown) {
+      console.error("Failed to load products", e);
+      setError("Errore caricamento");
+    } finally {
+      setLoadingProducts(false);
+    }
   }
 
   async function restockProduct(id: string) {
@@ -182,7 +211,7 @@ export default function InventoryPage() {
     setLoading(true);
     setError("");
     setSuccess("");
-    const res = await fetch("/api/products/restock", {
+    const result = await clientFetchJson<{ ok?: boolean; quantity?: number }>("/api/products/restock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -191,10 +220,9 @@ export default function InventoryPage() {
         amount,
       }),
     });
-    const data = await res.json();
     setLoading(false);
-    if (!res.ok) {
-      const msg = data.error ?? "Errore rifornimento";
+    if (!result.ok) {
+      const msg = result.error ?? "Errore rifornimento";
       setError(msg);
       toast(msg, "error");
       return;
@@ -210,15 +238,14 @@ export default function InventoryPage() {
     setSavingStatusId(id);
     setError("");
     setSuccess("");
-    const res = await fetch("/api/products/stock-status", {
+    const result = await clientFetchJson<{ ok?: boolean }>("/api/products/stock-status", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ updates: [{ id, stock_status: stockStatus }] }),
     });
-    const data = await res.json();
     setSavingStatusId("");
-    if (!res.ok) {
-      const msg = data.error ?? "Errore aggiornamento stato";
+    if (!result.ok) {
+      const msg = result.error ?? "Errore aggiornamento stato";
       setError(msg);
       toast(msg, "error");
       return;
@@ -230,9 +257,15 @@ export default function InventoryPage() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      void loadProducts();
+      productsAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      productsAbortRef.current = ctrl;
+      void loadProducts(ctrl.signal);
     }, 0);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      productsAbortRef.current?.abort();
+    };
   }, []);
 
   const visibleStatusProducts = useMemo(() => {
@@ -454,15 +487,14 @@ export default function InventoryPage() {
       return payload;
     });
 
-    const res = await fetch("/api/products/bulk", {
+    const result = await clientFetchJson<{ ok?: boolean; updated?: number }>("/api/products/bulk", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ updates }),
     });
-    const data = await res.json();
     setCsvLoading(false);
-    if (!res.ok) {
-      const msg = data.error ?? "Errore import CSV";
+    if (!result.ok) {
+      const msg = result.error ?? "Errore import CSV";
       setError(msg);
       toast(msg, "error");
       return;

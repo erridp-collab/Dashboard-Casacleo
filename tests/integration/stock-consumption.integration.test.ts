@@ -40,7 +40,7 @@ async function snapshotLinenProducts(
   return result;
 }
 
-describe("stock consumption — integration", () => {
+describe("stock consumption - integration", () => {
   const supabase = supabaseTest();
   const base = today();
   let beforeSnapshots: ProductSnapshot[] = [];
@@ -60,14 +60,13 @@ describe("stock consumption — integration", () => {
     }
   });
 
-  it("decrementa le quantità biancheria al checkout per 2 ospiti", async () => {
+  it("decrementa le quantita biancheria al checkout per 2 ospiti", async () => {
     const checkIn = addDays(base, 0);
     const checkOut = addDays(base, 3);
     const guests = 2;
 
-    // Verify we have linen products to test with
     if (beforeSnapshots.length === 0) {
-      console.warn("Nessun prodotto biancheria trovato nel DB — test saltato");
+      console.warn("Nessun prodotto biancheria trovato nel DB - test saltato");
       return;
     }
 
@@ -85,12 +84,11 @@ describe("stock consumption — integration", () => {
         expect(after.qty).toBeLessThanOrEqual(before.qty);
         const actualConsumed = before.qty - after.qty;
         expect(actualConsumed).toBeGreaterThanOrEqual(0);
-        // Allow for consumption_per_checkout additions (we check direction, not exact value)
       }
     }
   });
 
-  it("decrementa più biancheria per 4 ospiti rispetto a 2", async () => {
+  it("decrementa piu biancheria per 4 ospiti rispetto a 2", async () => {
     const checkIn = addDays(base, 0);
     const checkOut = addDays(base, 3);
 
@@ -106,44 +104,45 @@ describe("stock consumption — integration", () => {
     }
   });
 
-  it("ripristina le quantità dopo undo (direction=-1)", async () => {
+  it("ripristina le quantita dopo undo (direction=-1)", async () => {
     if (beforeSnapshots.length === 0) {
-      console.warn("Nessun prodotto biancheria trovato nel DB — test saltato");
+      console.warn("Nessun prodotto biancheria trovato nel DB - test saltato");
       return;
+    }
+
+    const schema = await resolveProductSchema(supabase);
+    for (const snap of beforeSnapshots) {
+      await supabase
+        .from("products")
+        .update({ [schema.quantityColumn]: 10 })
+        .eq(schema.idColumn, snap.id);
     }
 
     const checkIn = addDays(base, 0);
     const checkOut = addDays(base, 3);
     const guests = 2;
 
-    // Consume
     await applyBookingConsumptionDelta(checkIn, checkOut, guests, 1);
-    // Restore
     await applyBookingConsumptionDelta(checkIn, checkOut, guests, -1);
 
     const afterSnapshots = await snapshotLinenProducts(supabase);
 
     for (const after of afterSnapshots) {
-      const before = beforeSnapshots.find((b) => b.id === after.id);
-      if (!before) continue;
-      // After consume + restore, qty should be back to original (within floating point)
-      expect(Math.abs(after.qty - before.qty)).toBeLessThan(0.01);
+      expect(Math.abs(after.qty - 10)).toBeLessThan(0.01);
     }
   });
 
   it("non modifica prodotti con consumption_per_checkout=0 o assente", async () => {
     if (beforeSnapshots.length === 0) {
-      console.warn("Nessun prodotto biancheria trovato nel DB — test saltato");
+      console.warn("Nessun prodotto biancheria trovato nel DB - test saltato");
       return;
     }
 
-    // A 1-night, 1-guest booking produces 0 sets for 1 guest ceiling = 1 set
     const checkIn = addDays(base, 0);
     const checkOut = addDays(base, 1);
     const guests = 1;
 
     const consumptionMap = getBookingConsumptionMap(checkIn, checkOut, guests);
-    // setCount = ceil(1/2) = 1, so towels = 2, sets = 1
     expect(consumptionMap.get("asciugamani bidet")).toBe(2);
     expect(consumptionMap.get("set letto estivo")).toBe(1);
   });

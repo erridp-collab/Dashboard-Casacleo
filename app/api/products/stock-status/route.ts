@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { errJson, okJson } from "@/lib/http/apiResponse";
 import { resolveProductSchema } from "@/lib/products-schema";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
@@ -13,27 +13,27 @@ export async function PATCH(req: Request) {
     const updates = body.updates ?? [];
 
     if (!Array.isArray(updates) || updates.length === 0) {
-      return NextResponse.json({ error: "Missing updates[]" }, { status: 400 });
+      return errJson("Missing updates[]", 400);
     }
 
     const supabase = supabaseAdmin();
     const schema = await resolveProductSchema(supabase);
     for (const item of updates) {
       if (!item.id || !["PIENO", "A_META", "TERMINATO"].includes(item.stock_status)) {
-        return NextResponse.json({ error: `Valore non valido per ${item.id}` }, { status: 400 });
+        return errJson(`Valore non valido per ${item.id}`, 400);
       }
       const { error } = await supabase
         .from("products")
         .update({ stock_status: item.stock_status })
         .eq(schema.idColumn, item.id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      if (error) return errJson(error.message, 400);
     }
 
     await syncShoppingAction();
 
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return okJson({ ok: true });
   } catch (e: unknown) {
     console.error("[PATCH /api/products/stock-status]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }

@@ -1,14 +1,16 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarRange, CheckCheck, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
 import { CleaningModal } from "@/components/cleaning-modal";
+import { clientFetchJson } from "@/lib/http/clientFetch";
+import { todayLocalIT } from "@/lib/localDate";
 import { toast } from "@/components/toast";
-import type { Action } from "@/types/db";
+import type { Action, Booking } from "@/types/db";
 
 function groupByDate(actions: Action[]) {
   return actions.reduce<Record<string, Action[]>>((acc, action) => {
@@ -55,6 +57,14 @@ type LaundryDraft = {
 type ParsedActionDetails = {
   linen?: Partial<Record<keyof LinenDraft, number | null>>;
   laundry?: Partial<Record<keyof LaundryDraft, number | null>>;
+};
+
+type ActionsResponse = {
+  actions?: Action[];
+};
+
+type BookingResponse = {
+  booking?: Booking;
 };
 
 type QuantityField<T extends string> = {
@@ -281,7 +291,7 @@ function ActionModalShell({
 }
 
 export default function ActionsPage() {
-  const [monthCursor, setMonthCursor] = useState(monthStartKey(new Date()));
+  const [monthCursor, setMonthCursor] = useState(() => `${todayLocalIT().slice(0, 7)}-01`);
   const { from, to, label: monthLabel } = useMemo(() => monthRange(monthCursor), [monthCursor]);
   const [actions, setActions] = useState<Action[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
@@ -304,13 +314,25 @@ export default function ActionsPage() {
   const [fromDraft, setFromDraft] = useState(from);
   const [toDraft, setToDraft] = useState(to);
   const [error, setError] = useState("");
+  const actionsAbortRef = useRef<AbortController | null>(null);
 
   const loadActions = useCallback(async () => {
     setError("");
-    const res = await fetch(`/api/actions?from=${from}&to=${to}`);
-    const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "Errore");
-    setActions(data.actions ?? []);
+    actionsAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    actionsAbortRef.current = ctrl;
+
+    try {
+      const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${from}&to=${to}`, { signal: ctrl.signal });
+      if (!result.ok) {
+        if (!result.aborted) setError(result.error ?? "Errore");
+        return;
+      }
+      setActions(result.data.actions ?? []);
+    } catch (e: unknown) {
+      console.error("Actions load failed", e);
+      setError("Errore caricamento");
+    }
   }, [from, to]);
 
   async function openLinenModal(action: Action) {
@@ -324,14 +346,13 @@ export default function ActionsPage() {
 
     setLinenLoading(true);
     try {
-      const res = await fetch(`/api/bookings/${action.booking_id}`);
-      const data = await res.json();
-      if (!res.ok) {
-        setLinenError(data.error ?? "Errore caricamento booking");
+      const result = await clientFetchJson<BookingResponse>(`/api/bookings/${action.booking_id}`);
+      if (!result.ok) {
+        setLinenError(result.error ?? "Errore caricamento booking");
         setLinenDraft(fillLinenDraft(buildLinenSuggestion(2), existing));
         return;
       }
-      const guests = Number(data.booking?.guests ?? 2);
+      const guests = Number(result.data.booking?.guests ?? 2);
       setLinenDraft(fillLinenDraft(buildLinenSuggestion(guests), existing));
     } catch (e: unknown) {
       setLinenError(String((e as Error)?.message ?? e));
@@ -368,7 +389,7 @@ export default function ActionsPage() {
       return;
     }
 
-    const res = await fetch("/api/actions", {
+    const result = await clientFetchJson<{ ok?: boolean }>("/api/actions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -380,10 +401,9 @@ export default function ActionsPage() {
         },
       }),
     });
-    const data = await res.json();
     setLinenLoading(false);
-    if (!res.ok) {
-      setLinenError(data.error ?? "Errore aggiornamento biancheria");
+    if (!result.ok) {
+      setLinenError(result.error ?? "Errore aggiornamento biancheria");
       return;
     }
 
@@ -420,7 +440,7 @@ export default function ActionsPage() {
       return;
     }
 
-    const res = await fetch("/api/actions", {
+    const result = await clientFetchJson<{ ok?: boolean }>("/api/actions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -433,10 +453,9 @@ export default function ActionsPage() {
         },
       }),
     });
-    const data = await res.json();
     setLaundryLoading(false);
-    if (!res.ok) {
-      setLaundryError(data.error ?? "Errore aggiornamento lavatrici");
+    if (!result.ok) {
+      setLaundryError(result.error ?? "Errore aggiornamento lavatrici");
       return;
     }
 
@@ -457,15 +476,14 @@ export default function ActionsPage() {
     setSpesaError("");
     const completion: Record<string, unknown> = { mode: "SPESA" };
     if (amount != null) completion.amount = amount;
-    const res = await fetch("/api/actions", {
+    const result = await clientFetchJson<{ ok?: boolean }>("/api/actions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: spesaAction.id, status: "FATTO", completion }),
     });
-    const data = await res.json();
     setSpesaSaving(false);
-    if (!res.ok) {
-      setSpesaError(data.error ?? "Errore salvataggio spesa");
+    if (!result.ok) {
+      setSpesaError(result.error ?? "Errore salvataggio spesa");
       return;
     }
     setActions((prev) => prev.map((x) => (x.id === spesaAction.id ? { ...x, status: "FATTO" } : x)));
@@ -499,25 +517,23 @@ export default function ActionsPage() {
       return;
     }
 
-    const res = await fetch("/api/actions", {
+    const result = await clientFetchJson<{ ok?: boolean }>("/api/actions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "Errore update");
+    if (!result.ok) return setError(result.error ?? "Errore update");
     setActions((prev) => prev.map((x) => (x.id === action.id ? { ...x, status: next } : x)));
     toast(next === "FATTO" ? "Azione completata!" : "Azione segnata da fare", "success");
   }
 
   async function markDayDone(actionDate: string) {
-    const res = await fetch("/api/actions", {
+    const result = await clientFetchJson<{ ok?: boolean }>("/api/actions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date: actionDate, status: "FATTO", onlyPending: true }),
     });
-    const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "Errore mark all");
+    if (!result.ok) return setError(result.error ?? "Errore mark all");
     setActions((prev) => prev.map((x) => (x.action_date === actionDate ? { ...x, status: "FATTO" } : x)));
     toast("Tutte le azioni del giorno segnate come fatte!");
   }
@@ -526,7 +542,10 @@ export default function ActionsPage() {
     const t = setTimeout(() => {
       void loadActions();
     }, 0);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      actionsAbortRef.current?.abort();
+    };
   }, [loadActions]);
 
   const visibleActions = useMemo(
@@ -628,10 +647,9 @@ export default function ActionsPage() {
                   setMonthCursor(fromDraft.slice(0, 8) + "01");
                   void (async () => {
                     setError("");
-                    const res = await fetch(`/api/actions?from=${fromDraft}&to=${toDraft}`);
-                    const data = await res.json();
-                    if (!res.ok) return setError(data.error ?? "Errore");
-                    setActions(data.actions ?? []);
+                    const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${fromDraft}&to=${toDraft}`);
+                    if (!result.ok) return setError(result.error ?? "Errore");
+                    setActions(result.data.actions ?? []);
                   })();
                 }}
               >

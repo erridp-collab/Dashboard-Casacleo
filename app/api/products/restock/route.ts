@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
+import { errJson, okJson } from "@/lib/http/apiResponse";
+import { applyProductQuantityDeltas } from "@/lib/product-quantity";
 import { resolveProductSchema } from "@/lib/products-schema";
+import { todayLocalIT } from "@/lib/localDate";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 
@@ -21,12 +23,12 @@ export async function POST(req: Request) {
     const addQuantity = toNumber(body.add_quantity, NaN);
     const amount = body.amount === null || body.amount === undefined ? null : toNumber(body.amount, NaN);
 
-    if (!body.id) return NextResponse.json({ error: "Missing product id" }, { status: 400 });
+    if (!body.id) return errJson("Missing product id", 400);
     if (!Number.isFinite(addQuantity) || addQuantity <= 0) {
-      return NextResponse.json({ error: "Quantita rifornimento non valida" }, { status: 400 });
+      return errJson("Quantita rifornimento non valida", 400);
     }
     if (amount !== null && (!Number.isFinite(amount) || amount <= 0)) {
-      return NextResponse.json({ error: "Importo rifornimento non valido" }, { status: 400 });
+      return errJson("Importo rifornimento non valido", 400);
     }
 
     const supabase = supabaseAdmin();
@@ -36,29 +38,34 @@ export async function POST(req: Request) {
       .select(`${schema.idColumn}, ${schema.quantityColumn}, name, category`)
       .eq(schema.idColumn, body.id)
       .maybeSingle();
-    if (findErr) return NextResponse.json({ error: findErr.message }, { status: 400 });
-    if (!row) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    if (findErr) return errJson(findErr.message, 400);
+    if (!row) return errJson("Product not found", 404);
 
     const currentQty = toNumber((row as Record<string, unknown>)[schema.quantityColumn], 0);
-    const nextQty = Number((currentQty + addQuantity).toFixed(2));
+    const [result] = await applyProductQuantityDeltas(
+      supabase,
+      schema,
+      [{ id: body.id, currentQty, delta: addQuantity }],
+      { floorAtZero: true },
+    );
+    const nextQty = result?.nextQty ?? Number((currentQty + addQuantity).toFixed(2));
 
     const rowData = row as Record<string, unknown>;
     const isCleaningProduct = typeof rowData.category === "string" && rowData.category.toLowerCase().includes("pulizia");
-    const updatePayload: Record<string, unknown> = { [schema.quantityColumn]: nextQty };
-    if (isCleaningProduct) updatePayload.stock_status = "PIENO";
-
-    const { error: updateErr } = await supabase
-      .from("products")
-      .update(updatePayload)
-      .eq(schema.idColumn, body.id);
-    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 400 });
+    if (isCleaningProduct) {
+      const { error: updateErr } = await supabase
+        .from("products")
+        .update({ stock_status: "PIENO" })
+        .eq(schema.idColumn, body.id);
+      if (updateErr) return errJson(updateErr.message, 400);
+    }
 
     if (amount !== null) {
       const description = body.note?.trim()
         ? `Rifornimento ${(row as Record<string, unknown>).name ?? ""} - ${body.note.trim()}`
         : `Rifornimento ${(row as Record<string, unknown>).name ?? ""}`;
 
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayLocalIT();
       let expenseInsert = await supabase.from("expenses").insert({
         expense_date: today,
         amount,
@@ -88,15 +95,15 @@ export async function POST(req: Request) {
       }
 
       if (expenseInsert.error) {
-        return NextResponse.json({ error: expenseInsert.error.message }, { status: 400 });
+        return errJson(expenseInsert.error.message, 400);
       }
     }
 
     await syncShoppingAction();
 
-    return NextResponse.json({ ok: true, quantity: nextQty }, { status: 200 });
+    return okJson({ ok: true, quantity: nextQty });
   } catch (e: unknown) {
     console.error("[POST /api/products/restock]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }

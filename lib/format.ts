@@ -1,5 +1,7 @@
+import { formatLocalDateIT } from "@/lib/localDate";
+
 export function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return formatLocalDateIT(d);
 }
 
 export function monthKey(date: Date): string {

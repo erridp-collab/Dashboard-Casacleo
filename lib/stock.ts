@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
+import { applyProductQuantityDeltas } from "@/lib/product-quantity";
 import { isQuantityManagedRefillProduct, type StockStatus } from "@/lib/refill";
+import { parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
 
 type StockProduct = {
   id: string;
@@ -27,9 +29,9 @@ function toFixedNumber(value: unknown, fallback = 0): number {
 }
 
 function bookingDays(checkIn: string, checkOut: string): number {
-  const start = new Date(checkIn);
-  const end = new Date(checkOut);
-  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return 0;
+  const start = parseLocalDateIT(checkIn);
+  const end = parseLocalDateIT(checkOut);
+  if (!start || !end) return 0;
   const diffMs = end.getTime() - start.getTime();
   if (diffMs <= 0) return 0;
   return Math.ceil(diffMs / (24 * 60 * 60 * 1000));
@@ -227,7 +229,7 @@ export async function syncShoppingAction(): Promise<void> {
     return;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalIT();
   const details = shoppingDetails(lowStock);
   await upsertShoppingAction(existingIds, today, details);
 }
@@ -252,7 +254,7 @@ export async function applyBookingConsumptionDelta(
   if (error) throw new Error(error.message);
 
   // Build all updates first, then fire them in parallel.
-  const updates: Array<{ id: string; nextQty: number }> = [];
+  const deltas: Array<{ id: string; currentQty: number; delta: number }> = [];
   for (const raw of data ?? []) {
     const row = raw as Record<string, unknown>;
     const rawName = String(row.name ?? "");
@@ -269,21 +271,16 @@ export async function applyBookingConsumptionDelta(
     if (!productId) continue;
 
     const currentQty = getProductQuantity(row, schema);
-    const nextQty = Number((currentQty - consume * direction).toFixed(2));
-    updates.push({ id: productId, nextQty });
+    deltas.push({
+      id: productId,
+      currentQty,
+      delta: Number((-consume * direction).toFixed(2)),
+    });
   }
 
-  await Promise.all(
-    updates.map(({ id, nextQty }) =>
-      supabase
-        .from("products")
-        .update({ [schema.quantityColumn]: nextQty })
-        .eq(schema.idColumn, id)
-        .then(({ error: updateErr }) => {
-          if (updateErr) throw new Error(updateErr.message);
-        }),
-    ),
-  );
+  await applyProductQuantityDeltas(supabase, schema, deltas, {
+    floorAtZero: true,
+  });
 
   await syncShoppingAction();
 }

@@ -1,5 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getChecklistTemplate } from "@/lib/checklist-templates";
+import { parseLocalDateIT } from "@/lib/localDate";
+import { syncShoppingAction } from "@/lib/stock";
 
 type BookingRow = {
   id: string;
@@ -16,11 +18,13 @@ type DesiredAction = {
 };
 
 const MANAGED_ACTION_TYPES = ["PULIZIA", "PREPARA_LETTO", "BIANCHERIA", "LAVATRICI", "MANUT_3", "MANUT_4", "MANUTENZIONE"];
+const ASYNC_RESYNC_RETRIES = 2;
+const ASYNC_RESYNC_RETRY_DELAY_MS = 250;
 
 function daysBetween(fromDate: string, toDate: string): number {
-  const from = new Date(fromDate);
-  const to = new Date(toDate);
-  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return 0;
+  const from = parseLocalDateIT(fromDate);
+  const to = parseLocalDateIT(toDate);
+  if (!from || !to) return 0;
   return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
 }
 
@@ -205,4 +209,38 @@ export async function syncBookingAutomations(): Promise<void> {
     if (refreshErr) throw new Error(refreshErr.message);
     await Promise.all((refreshed ?? []).map((row) => ensureChecklist(String(row.id), String(row.action_type))));
   }
+}
+
+export async function resyncBookingDomainState(): Promise<void> {
+  await syncBookingAutomations();
+  await syncShoppingAction();
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+export function scheduleBookingDomainResync(source: string, metadata?: Record<string, string>): void {
+  void (async () => {
+    for (let attempt = 1; attempt <= ASYNC_RESYNC_RETRIES; attempt += 1) {
+      try {
+        await resyncBookingDomainState();
+        console.info("[booking-resync] completed", { source, attempt, ...(metadata ?? {}) });
+        return;
+      } catch (error) {
+        const isLastAttempt = attempt === ASYNC_RESYNC_RETRIES;
+        console.error("[booking-resync] failed", {
+          source,
+          attempt,
+          willRetry: !isLastAttempt,
+          ...(metadata ?? {}),
+          error,
+        });
+        if (isLastAttempt) return;
+        await wait(ASYNC_RESYNC_RETRY_DELAY_MS * attempt);
+      }
+    }
+  })();
 }

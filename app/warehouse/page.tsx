@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardHeader } from "@/components/card";
+import { clientFetchJson } from "@/lib/http/clientFetch";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
 
 type StockStatus = "PIENO" | "A_META" | "TERMINATO";
@@ -12,6 +13,10 @@ type ProductRow = {
   category: string | null;
   unit: string | null;
   stock_status: StockStatus | null;
+};
+
+type ProductsResponse = {
+  products?: Array<Record<string, unknown>>;
 };
 
 const STATUS_CYCLE: StockStatus[] = ["PIENO", "A_META", "TERMINATO"];
@@ -29,17 +34,20 @@ export default function WarehousePage() {
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const productsAbortRef = useRef<AbortController | null>(null);
 
-  async function loadProducts() {
+  async function loadProducts(signal?: AbortSignal) {
     setLoading(true);
     setError("");
-    const res = await fetch("/api/products");
-    const data = await res.json();
+    const result = await clientFetchJson<ProductsResponse>("/api/products", { signal });
     setLoading(false);
-    if (!res.ok) { setError(data.error ?? "Errore caricamento prodotti"); return; }
+    if (!result.ok) {
+      if (!result.aborted) setError(result.error ?? "Errore caricamento prodotti");
+      return;
+    }
 
-    const normalized: ProductRow[] = (data.products ?? []).map((p: Record<string, unknown>) => ({
-      id: String(p.id ?? p.sku ?? ""),
+    const normalized: ProductRow[] = (result.data.products ?? []).map((p) => ({
+      id: String(p.id ?? ""),
       name: String(p.name ?? "Prodotto"),
       category: p.category == null ? null : String(p.category),
       unit: p.unit == null ? null : String(p.unit),
@@ -51,7 +59,18 @@ export default function WarehousePage() {
     setRows(normalized);
   }
 
-  useEffect(() => { void loadProducts(); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      productsAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      productsAbortRef.current = ctrl;
+      void loadProducts(ctrl.signal);
+    }, 0);
+    return () => {
+      clearTimeout(t);
+      productsAbortRef.current?.abort();
+    };
+  }, []);
 
   async function cycleStockStatus(id: string) {
     setRows((prev) =>

@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as dotenv from "node:process";
+import { addDaysLocalIT, todayLocalIT } from "@/lib/localDate";
 
 // Load .env.local manually since vitest doesn't load it by default
 function loadEnv(): void {
@@ -30,12 +30,10 @@ export function supabaseTest() {
 
 /** Formats today as YYYY-MM-DD */
 export function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIT();
 }
 
 /** Adds `days` to `date` (YYYY-MM-DD) */
 export function addDays(date: string, days: number): string {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return addDaysLocalIT(date, days);
 }

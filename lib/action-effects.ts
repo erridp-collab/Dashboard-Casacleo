@@ -1,4 +1,5 @@
 import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
+import { applyProductQuantityDeltas } from "@/lib/product-quantity";
 import { syncShoppingAction } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -342,6 +343,14 @@ async function applyShoppingRestock(actionId: string, details: string | null) {
     byName.set(normalizeName(String(row.name ?? "")), row);
   }
 
+  const deltas: Array<{
+    id: string;
+    currentQty: number;
+    delta: number;
+    maxQty: number | null;
+  }> = [];
+  const fullStockIds: string[] = [];
+
   for (const name of names) {
     const row = byName.get(normalizeName(name));
     if (!row) continue;
@@ -349,11 +358,32 @@ async function applyShoppingRestock(actionId: string, details: string | null) {
     if (!id) continue;
     const threshold = Number(row.threshold);
     const maxQty = Number(row.max_qty);
-    const nextQty = Number.isFinite(maxQty) && maxQty > 0 ? maxQty : Number.isFinite(threshold) ? Math.max(1, threshold + 1) : 1;
+    const currentQty = getProductQuantity(row, schema);
+    const targetQty = Number.isFinite(maxQty) && maxQty > 0
+      ? maxQty
+      : Number.isFinite(threshold)
+        ? Math.max(1, threshold + 1)
+        : 1;
+
+    deltas.push({
+      id,
+      currentQty,
+      delta: Number((targetQty - currentQty).toFixed(2)),
+      maxQty: Number.isFinite(maxQty) ? maxQty : null,
+    });
+    fullStockIds.push(id);
+  }
+
+  await applyProductQuantityDeltas(supabase, schema, deltas, {
+    capToMaxQty: true,
+    floorAtZero: true,
+  });
+
+  if (fullStockIds.length > 0) {
     const { error: updateErr } = await supabase
       .from("products")
-      .update({ [schema.quantityColumn]: nextQty, stock_status: "PIENO" })
-      .eq(schema.idColumn, id);
+      .update({ stock_status: "PIENO" })
+      .in(schema.idColumn, fullStockIds);
     if (updateErr) throw new Error(updateErr.message);
   }
 }
@@ -426,8 +456,8 @@ async function applyProductQuantityDelta(
     }
   }
 
-  const applied: Record<string, number> = {};
-  const updates: Array<{ id: string; nextQty: number }> = [];
+  const keyById = new Map<string, string>();
+  const deltas: Array<{ id: string; currentQty: number; delta: number; maxQty: number | null }> = [];
 
   for (const item of items) {
     if (item.qty <= 0) continue;
@@ -438,38 +468,27 @@ async function applyProductQuantityDelta(
     if (!id) continue;
 
     const currentQty = getProductQuantity(row, schema);
-    let nextQty = currentQty;
-
-    if (operation === "consume") {
-      nextQty = roundQty(Math.max(0, currentQty - item.qty));
-    } else {
-      const rawTarget = currentQty + item.qty;
-      const maxQty = Number(row.max_qty);
-      nextQty = roundQty(
-        options?.capToMaxQty && Number.isFinite(maxQty) && maxQty > 0
-          ? Math.min(maxQty, rawTarget)
-          : rawTarget,
-      );
-    }
-
-    const appliedQty = roundQty(Math.abs(nextQty - currentQty));
-    if (appliedQty <= 0) continue;
-
-    updates.push({ id, nextQty });
-    applied[item.key] = appliedQty;
+    keyById.set(id, item.key);
+    deltas.push({
+      id,
+      currentQty,
+      delta: roundQty(operation === "consume" ? -item.qty : item.qty),
+      maxQty: Number.isFinite(Number(row.max_qty)) ? Number(row.max_qty) : null,
+    });
   }
 
-  await Promise.all(
-    updates.map(({ id, nextQty }) =>
-      supabase
-        .from("products")
-        .update({ [schema.quantityColumn]: nextQty })
-        .eq(schema.idColumn, id)
-        .then(({ error: updateErr }) => {
-          if (updateErr) throw new Error(updateErr.message);
-        }),
-    ),
-  );
+  const results = await applyProductQuantityDeltas(supabase, schema, deltas, {
+    capToMaxQty: options?.capToMaxQty,
+    floorAtZero: operation === "consume",
+  });
+
+  const applied: Record<string, number> = {};
+  for (const result of results) {
+    const key = keyById.get(result.id);
+    const appliedQty = roundQty(Math.abs(result.appliedDelta));
+    if (!key || appliedQty <= 0) continue;
+    applied[key] = appliedQty;
+  }
 
   return applied;
 }
@@ -547,7 +566,8 @@ export async function applyActionStatusEffects(
     .select("id, action_type, action_date, details")
     .eq("id", actionId)
     .maybeSingle();
-  if (actionErr || !actionRow) return;
+  if (actionErr) throw new Error(actionErr.message);
+  if (!actionRow) throw new Error("Action not found");
 
   const actionType = String(actionRow.action_type ?? "");
   const storedDetails = parseActionDetails(actionRow.details);

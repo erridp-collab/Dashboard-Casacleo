@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { clientFetchJson } from "@/lib/http/clientFetch";
 import type { Action, Booking } from "@/types/db";
 import { ACTION_COLORS, getActionCategory } from "@/lib/actionMeta";
+import { formatLocalDateIT, todayLocalIT } from "@/lib/localDate";
 
 type CalendarEvent = {
   id: string;
@@ -13,6 +15,14 @@ type CalendarEvent = {
   start: string;
   end?: string;
   color: string;
+};
+
+type BookingsResponse = {
+  bookings?: Booking[];
+};
+
+type ActionsResponse = {
+  actions?: Action[];
 };
 
 function getActionInitial(actionType: string): string {
@@ -29,42 +39,58 @@ export default function CalendarClient() {
   const [actions, setActions] = useState<Action[]>([]);
   const [error, setError] = useState("");
   const rangeRef = useRef<{ from: string; to: string }>({ from: "", to: "" });
+  const requestSeqRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   async function loadData(nextFrom: string, nextTo: string) {
     setError("");
-    const [bookingsRes, actionsRes] = await Promise.all([
-      fetch("/api/bookings"),
-      fetch(`/api/actions?from=${nextFrom}&to=${nextTo}`),
-    ]);
+    const seq = ++requestSeqRef.current;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
 
-    const bookingsData = await bookingsRes.json();
-    const actionsData = await actionsRes.json();
+    try {
+      const [bookingsRes, actionsRes] = await Promise.all([
+        clientFetchJson<BookingsResponse>("/api/bookings", { signal: ctrl.signal }),
+        clientFetchJson<ActionsResponse>(`/api/actions?from=${nextFrom}&to=${nextTo}`, { signal: ctrl.signal }),
+      ]);
 
-    if (!bookingsRes.ok) {
-      setError(bookingsData.error ?? "Errore bookings");
-      return;
+      if (seq !== requestSeqRef.current) return;
+
+      if (!bookingsRes.ok) {
+        if (bookingsRes.aborted) return;
+        setError(bookingsRes.error || "Errore bookings");
+        return;
+      }
+      if (!actionsRes.ok) {
+        if (actionsRes.aborted) return;
+        setError(actionsRes.error || "Errore actions");
+        return;
+      }
+
+      const filteredBookings = (bookingsRes.data.bookings ?? []).filter(
+        (b: Booking) => b.check_in <= nextTo && b.check_out >= nextFrom,
+      );
+      setBookings(filteredBookings);
+      setActions(actionsRes.data.actions ?? []);
+    } catch (e: unknown) {
+      console.error("Calendar load failed", e);
+      setError("Errore caricamento");
     }
-    if (!actionsRes.ok) {
-      setError(actionsData.error ?? "Errore actions");
-      return;
-    }
-
-    const filteredBookings = (bookingsData.bookings ?? []).filter(
-      (b: Booking) => b.check_in <= nextTo && b.check_out >= nextFrom,
-    );
-    setBookings(filteredBookings);
-    setActions(actionsData.actions ?? []);
   }
 
   useEffect(() => {
     const t = setTimeout(() => {
       const now = new Date();
-      const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-      const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const first = formatLocalDateIT(new Date(now.getFullYear(), now.getMonth(), 1));
+      const last = formatLocalDateIT(new Date(now.getFullYear(), now.getMonth() + 1, 0));
       rangeRef.current = { from: first, to: last };
       void loadData(first, last);
     }, 0);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      abortRef.current?.abort();
+    };
   }, []);
 
   const events = useMemo<CalendarEvent[]>(() => {
@@ -107,7 +133,7 @@ export default function CalendarClient() {
       <FullCalendar
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
-        initialDate={new Date().toISOString().slice(0, 10)}
+        initialDate={todayLocalIT()}
         events={events}
         headerToolbar={{
           left: "prev,next today",
@@ -125,7 +151,7 @@ export default function CalendarClient() {
         eventClassNames={() => ["calendar-event"]}
         datesSet={(info) => {
           const nextFrom = info.startStr.slice(0, 10);
-          const nextTo = new Date(info.end.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          const nextTo = formatLocalDateIT(new Date(info.end.getTime() - 24 * 60 * 60 * 1000));
           if (nextFrom !== rangeRef.current.from || nextTo !== rangeRef.current.to) {
             rangeRef.current = { from: nextFrom, to: nextTo };
             void loadData(nextFrom, nextTo);

@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CalendarClient from "@/app/calendar/calendar-client";
 import { Card, CardHeader } from "@/components/card";
+import { clientFetchJson } from "@/lib/http/clientFetch";
 import { KpiCard } from "@/components/kpi-card";
 import { KpiCardSkeleton } from "@/components/skeleton";
 import type { Action, Booking } from "@/types/db";
+import { todayLocalIT } from "@/lib/localDate";
+
+type BookingsResponse = {
+  bookings?: Booking[];
+};
+
+type ActionsResponse = {
+  actions?: Action[];
+};
 
 export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -13,33 +23,51 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isClient, setIsClient] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  async function loadData() {
+  async function loadData(signal?: AbortSignal) {
     setError("");
     setLoading(true);
-    const today = new Date().toISOString().slice(0, 10);
-    const [bookingsRes, actionsRes] = await Promise.all([
-      fetch("/api/bookings"),
-      fetch(`/api/actions?from=${today}&to=${today}`),
-    ]);
+    try {
+      const today = todayLocalIT();
+      const [bookingsRes, actionsRes] = await Promise.all([
+        clientFetchJson<BookingsResponse>("/api/bookings", { signal }),
+        clientFetchJson<ActionsResponse>(`/api/actions?from=${today}&to=${today}`, { signal }),
+      ]);
 
-    const bookingsData = await bookingsRes.json();
-    const actionsData = await actionsRes.json();
+      if (!bookingsRes.ok) {
+        if (bookingsRes.aborted) return;
+        setError(bookingsRes.error || "Errore bookings");
+        return;
+      }
+      if (!actionsRes.ok) {
+        if (actionsRes.aborted) return;
+        setError(actionsRes.error || "Errore actions");
+        return;
+      }
 
-    setLoading(false);
-    if (!bookingsRes.ok) return setError(bookingsData.error ?? "Errore bookings");
-    if (!actionsRes.ok) return setError(actionsData.error ?? "Errore actions");
-
-    setBookings(bookingsData.bookings ?? []);
-    setActions(actionsData.actions ?? []);
+      setBookings(bookingsRes.data.bookings ?? []);
+      setActions(actionsRes.data.actions ?? []);
+    } catch (e: unknown) {
+      console.error("Dashboard load failed", e);
+      setError("Errore caricamento");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     setIsClient(true);
     const t = setTimeout(() => {
-      void loadData();
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      void loadData(ctrl.signal);
     }, 0);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      abortRef.current?.abort();
+    };
   }, []);
 
   const openActions = useMemo(() => actions.filter((a) => a.status === "DA_FARE").length, [actions]);

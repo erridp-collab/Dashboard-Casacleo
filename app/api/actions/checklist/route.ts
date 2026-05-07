@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { applyActionStatusEffects } from "@/lib/action-effects";
+import { errJson, okJson } from "@/lib/http/apiResponse";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type PatchChecklistPayload = {
@@ -11,7 +11,7 @@ export async function PATCH(req: Request) {
   try {
     const body = (await req.json()) as PatchChecklistPayload;
     if (!body.id || typeof body.done !== "boolean") {
-      return NextResponse.json({ error: "Missing id/done" }, { status: 400 });
+      return errJson("Missing id/done", 400);
     }
 
     const supabase = supabaseAdmin();
@@ -20,21 +20,21 @@ export async function PATCH(req: Request) {
       .select("id, action_id")
       .eq("id", body.id)
       .maybeSingle();
-    if (findErr) return NextResponse.json({ error: findErr.message }, { status: 400 });
-    if (!itemRow) return NextResponse.json({ error: "Checklist item not found" }, { status: 404 });
+    if (findErr) return errJson(findErr.message, 400);
+    if (!itemRow) return errJson("Checklist item not found", 404);
 
     const { error } = await supabase
       .from("action_checklist")
       .update({ done: body.done })
       .eq("id", body.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return errJson(error.message, 400);
 
     const { data: rows, error: rowsErr } = await supabase
       .from("action_checklist")
       .select("done")
       .eq("action_id", itemRow.action_id);
-    if (rowsErr) return NextResponse.json({ error: rowsErr.message }, { status: 400 });
+    if (rowsErr) return errJson(rowsErr.message, 400);
 
     const allDone = (rows ?? []).length > 0 && (rows ?? []).every((row) => Boolean(row.done));
     const nextStatus = allDone ? "FATTO" : "DA_FARE";
@@ -43,16 +43,13 @@ export async function PATCH(req: Request) {
       .from("actions")
       .update({ status: nextStatus })
       .eq("id", itemRow.action_id);
-    if (actionErr) return NextResponse.json({ error: actionErr.message }, { status: 400 });
+    if (actionErr) return errJson(actionErr.message, 400);
 
     await applyActionStatusEffects(String(itemRow.action_id), nextStatus);
 
-    return NextResponse.json(
-      { ok: true, action_id: String(itemRow.action_id), next_status: nextStatus },
-      { status: 200 },
-    );
+    return okJson({ ok: true, action_id: String(itemRow.action_id), next_status: nextStatus });
   } catch (e: unknown) {
     console.error("[PATCH /api/actions/checklist]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }

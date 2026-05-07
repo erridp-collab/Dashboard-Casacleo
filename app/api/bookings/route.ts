@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { syncBookingAutomations } from "@/lib/booking-automation";
+import { errJson, okJson } from "@/lib/http/apiResponse";
+import { scheduleBookingDomainResync } from "@/lib/booking-automation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type CreateBookingPayload = {
@@ -68,7 +68,7 @@ export async function GET() {
       error = retry.error;
     }
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return errJson(error.message, 400);
 
     const bookings = data ?? [];
     const bookingIds = bookings.map((row) => String(row.id)).filter(Boolean);
@@ -80,7 +80,7 @@ export async function GET() {
         .select("booking_id, action_type, status")
         .in("booking_id", bookingIds);
 
-      if (actionsErr) return NextResponse.json({ error: actionsErr.message }, { status: 400 });
+      if (actionsErr) return errJson(actionsErr.message, 400);
 
       for (const row of actionsData ?? []) {
         const bookingId = row.booking_id ? String(row.booking_id) : "";
@@ -91,15 +91,15 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
+    return okJson({
       bookings: bookings.map((row) => ({
         ...row,
         cleaning_status: cleaningStatusByBookingId.get(String(row.id)) ?? null,
       })),
-    }, { status: 200 });
+    });
   } catch (e: unknown) {
     console.error("[GET /api/bookings]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }
 
@@ -111,27 +111,24 @@ export async function POST(req: Request) {
     const parsedAmount = toAmount(total_amount);
 
     if (!check_in || !check_out || !parsedGuests) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return errJson("Missing required fields", 400);
     }
     if (!isValidIsoDate(check_in) || !isValidIsoDate(check_out)) {
-      return NextResponse.json({ error: "Formato data non valido (YYYY-MM-DD)" }, { status: 400 });
+      return errJson("Formato data non valido (YYYY-MM-DD)", 400);
     }
     if (check_in >= check_out) {
-      return NextResponse.json({ error: "Check-out deve essere successivo al check-in" }, { status: 400 });
+      return errJson("Check-out deve essere successivo al check-in", 400);
     }
     if (parsedGuests <= 0) {
-      return NextResponse.json({ error: "Numero ospiti non valido" }, { status: 400 });
+      return errJson("Numero ospiti non valido", 400);
     }
     if (total_amount !== undefined && total_amount !== null && parsedAmount === null) {
-      return NextResponse.json({ error: "Importo non valido" }, { status: 400 });
+      return errJson("Importo non valido", 400);
     }
 
     const conflict = await hasDateConflict(check_in, check_out);
     if (conflict) {
-      return NextResponse.json(
-        { error: "Esiste gia una prenotazione nello stesso giorno o in sovrapposizione" },
-        { status: 409 },
-      );
+      return errJson("Esiste gia una prenotazione nello stesso giorno o in sovrapposizione", 409);
     }
 
     const payload = {
@@ -153,10 +150,7 @@ export async function POST(req: Request) {
     // Backward-compatible fallback when total_amount is not present in older schemas.
     if (isMissingTotalAmountError(error)) {
       if (parsedAmount !== null) {
-        return NextResponse.json(
-          { error: "La colonna bookings.total_amount non esiste nel database. Aggiungila per salvare l'importo." },
-          { status: 400 },
-        );
+        return errJson("La colonna bookings.total_amount non esiste nel database. Aggiungila per salvare l'importo.", 400);
       }
       const legacyPayload: Record<string, unknown> = { ...payload };
       delete legacyPayload.total_amount;
@@ -169,20 +163,21 @@ export async function POST(req: Request) {
       error = retry.error;
     }
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return errJson(error.message, 400);
 
     const bookingId = data?.id ?? null;
     if (!bookingId) {
-      return NextResponse.json({ error: "Creazione prenotazione fallita" }, { status: 400 });
+      return errJson("Creazione prenotazione fallita", 400);
     }
 
-    // Fire-and-forget: run in background, don't block the response.
-    void syncBookingAutomations()
-      .catch((err: unknown) => console.error("Booking post-create sync failed", err));
+    scheduleBookingDomainResync("bookings.create", { bookingId: String(bookingId) });
 
-    return NextResponse.json({ booking_id: bookingId }, { status: 200 });
+    return okJson({
+      booking_id: bookingId,
+      sync: { mode: "eventual", status: "scheduled" },
+    });
   } catch (e: unknown) {
     console.error("[POST /api/bookings]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }

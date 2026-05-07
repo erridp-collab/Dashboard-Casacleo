@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-import { syncBookingAutomations } from "@/lib/booking-automation";
-import { syncShoppingAction } from "@/lib/stock";
+import { errJson, okJson } from "@/lib/http/apiResponse";
+import { scheduleBookingDomainResync } from "@/lib/booking-automation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type UpdateBookingPayload = {
@@ -114,9 +113,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    if (!id) return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
+    if (!id) return errJson("Missing booking id", 400);
     if (!UUID_LIKE.test(id)) {
-      return NextResponse.json({ error: "Invalid booking id format" }, { status: 400 });
+      return errJson("Invalid booking id format", 400);
     }
 
     const supabase = supabaseAdmin();
@@ -136,12 +135,12 @@ export async function GET(
       error = retry.error;
     }
 
-    if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
-    if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-    return NextResponse.json({ booking: data }, { status: 200 });
+    if (error) return errJson(formatDbError(error), 400);
+    if (!data) return errJson("Booking not found", 404);
+    return okJson({ booking: data });
   } catch (e: unknown) {
     console.error("[GET /api/bookings/[id]]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }
 
@@ -151,9 +150,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    if (!id) return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
+    if (!id) return errJson("Missing booking id", 400);
     if (!UUID_LIKE.test(id)) {
-      return NextResponse.json({ error: "Invalid booking id format" }, { status: 400 });
+      return errJson("Invalid booking id format", 400);
     }
 
     const body = (await req.json()) as UpdateBookingPayload;
@@ -164,7 +163,7 @@ export async function PATCH(
     if (body.total_amount !== undefined) {
       const amount = toAmount(body.total_amount);
       if (body.total_amount !== null && body.total_amount !== "" && amount === null) {
-        return NextResponse.json({ error: "Importo non valido" }, { status: 400 });
+        return errJson("Importo non valido", 400);
       }
       updates.total_amount = amount;
     }
@@ -175,7 +174,7 @@ export async function PATCH(
     if (body.notes !== undefined) updates.notes = body.notes;
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+      return errJson("No updates provided", 400);
     }
 
     // Fetch current booking first — need it to resolve final check_in/out/guests.
@@ -185,21 +184,21 @@ export async function PATCH(
       .eq("id", id)
       .maybeSingle();
 
-    if (currentErr) return NextResponse.json({ error: formatDbError(currentErr) }, { status: 400 });
-    if (!current) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    if (currentErr) return errJson(formatDbError(currentErr), 400);
+    if (!current) return errJson("Booking not found", 404);
 
     const nextCheckIn = String(body.check_in ?? current.check_in);
     const nextCheckOut = String(body.check_out ?? current.check_out);
     const nextGuests = Number(body.guests ?? current.guests);
 
     if (!isValidIsoDate(nextCheckIn) || !isValidIsoDate(nextCheckOut)) {
-      return NextResponse.json({ error: "Formato data non valido (YYYY-MM-DD)" }, { status: 400 });
+      return errJson("Formato data non valido (YYYY-MM-DD)", 400);
     }
     if (nextCheckIn >= nextCheckOut) {
-      return NextResponse.json({ error: "Check-out deve essere successivo al check-in" }, { status: 400 });
+      return errJson("Check-out deve essere successivo al check-in", 400);
     }
     if (!Number.isFinite(nextGuests) || nextGuests <= 0) {
-      return NextResponse.json({ error: "Numero ospiti non valido" }, { status: 400 });
+      return errJson("Numero ospiti non valido", 400);
     }
 
     // Half-open interval [check_in, check_out) — allows same-day turnover.
@@ -211,12 +210,9 @@ export async function PATCH(
       .gt("check_out", nextCheckIn)
       .limit(1);
 
-    if (conflictErr) return NextResponse.json({ error: formatDbError(conflictErr) }, { status: 400 });
+    if (conflictErr) return errJson(formatDbError(conflictErr), 400);
     if ((conflictRows ?? []).length > 0) {
-      return NextResponse.json(
-        { error: "Esiste gia una prenotazione nello stesso giorno o in sovrapposizione" },
-        { status: 409 },
-      );
+      return errJson("Esiste gia una prenotazione nello stesso giorno o in sovrapposizione", 409);
     }
 
     let { data, error } = await supabase
@@ -229,10 +225,7 @@ export async function PATCH(
     // Backward-compatible fallback when total_amount is not present in older schemas.
     if (isMissingTotalAmountError(error)) {
       if (updates.total_amount !== undefined && updates.total_amount !== null) {
-        return NextResponse.json(
-          { error: "La colonna bookings.total_amount non esiste nel database. Aggiungila per salvare l'importo." },
-          { status: 400 },
-        );
+        return errJson("La colonna bookings.total_amount non esiste nel database. Aggiungila per salvare l'importo.", 400);
       }
       const retryUpdates = { ...updates };
       delete retryUpdates.total_amount;
@@ -247,17 +240,18 @@ export async function PATCH(
       error = retry.error;
     }
 
-    if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
-    if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    if (error) return errJson(formatDbError(error), 400);
+    if (!data) return errJson("Booking not found", 404);
 
-    // Fire-and-forget: run in background, don't block the response.
-    void syncBookingAutomations()
-      .catch((err: unknown) => console.error("Booking update automation sync failed", err));
+    scheduleBookingDomainResync("bookings.update", { bookingId: id });
 
-    return NextResponse.json({ booking: data }, { status: 200 });
+    return okJson({
+      booking: data,
+      sync: { mode: "eventual", status: "scheduled" },
+    });
   } catch (e: unknown) {
     console.error("[PATCH /api/bookings/[id]]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }
 
@@ -267,9 +261,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    if (!id) return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
+    if (!id) return errJson("Missing booking id", 400);
     if (!UUID_LIKE.test(id)) {
-      return NextResponse.json({ error: "Invalid booking id format" }, { status: 400 });
+      return errJson("Invalid booking id format", 400);
     }
 
     const supabase = supabaseAdmin();
@@ -278,15 +272,15 @@ export async function DELETE(
       .select("id, check_in, check_out, guests")
       .eq("id", id)
       .maybeSingle();
-    if (bookingFindErr) return NextResponse.json({ error: formatDbError(bookingFindErr) }, { status: 400 });
-    if (!bookingRow) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    if (bookingFindErr) return errJson(formatDbError(bookingFindErr), 400);
+    if (!bookingRow) return errJson("Booking not found", 404);
 
     const { data: actionRows, error: actionErr } = await supabase
       .from("actions")
       .select("id, action_type, status, details")
       .eq("booking_id", id);
 
-    if (actionErr) return NextResponse.json({ error: formatDbError(actionErr) }, { status: 400 });
+    if (actionErr) return errJson(formatDbError(actionErr), 400);
 
     const linenActions = (actionRows ?? []).filter((row) => {
       const type = String(row.action_type ?? "").toUpperCase();
@@ -302,10 +296,7 @@ export async function DELETE(
           actionId: String(row.id ?? ""),
           error: parsed.error,
         });
-        return NextResponse.json(
-          { error: "Dettagli biancheria non validi: impossibile eliminare la prenotazione in sicurezza" },
-          { status: 409 },
-        );
+        return errJson("Dettagli biancheria non validi: impossibile eliminare la prenotazione in sicurezza", 409);
       }
       if (parsed.linen) {
         accumulateLinenRestore(linenRestoreTotals, parsed.linen);
@@ -316,17 +307,16 @@ export async function DELETE(
       p_booking_id: id,
       p_linen_restore: linenRestoreTotals,
     });
-    if (error) return NextResponse.json({ error: formatDbError(error) }, { status: 400 });
+    if (error) return errJson(formatDbError(error), 400);
 
-    // Fire-and-forget: run in background, don't block the response.
-    void syncShoppingAction()
-      .catch((err: unknown) => console.error("Booking delete shopping sync failed", err));
-    void syncBookingAutomations()
-      .catch((err: unknown) => console.error("Booking delete automation sync failed", err));
+    scheduleBookingDomainResync("bookings.delete", { bookingId: id });
 
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return okJson({
+      ok: true,
+      sync: { mode: "eventual", status: "scheduled" },
+    });
   } catch (e: unknown) {
     console.error("[DELETE /api/bookings/[id]]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }

@@ -1,13 +1,15 @@
 ﻿"use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
+import { clientFetchJson } from "@/lib/http/clientFetch";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
 import { CalendarDays, ChevronDown, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
+import { addDaysLocalIT, todayLocalIT } from "@/lib/localDate";
 
 type BookingForm = {
   check_in: string;
@@ -18,13 +20,19 @@ type BookingForm = {
   total_amount: string;
 };
 
+type BookingsResponse = {
+  bookings?: Booking[];
+};
+
+type ActionsResponse = {
+  actions?: Action[];
+};
+
 function buildInitialForm(): BookingForm {
-  const today = new Date();
-  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-  const toIso = (d: Date) => d.toISOString().slice(0, 10);
+  const today = todayLocalIT();
   return {
-    check_in: toIso(today),
-    check_out: toIso(tomorrow),
+    check_in: today,
+    check_out: addDaysLocalIT(today, 1),
     guests: 2,
     channel: "airbnb",
     notes: "",
@@ -51,17 +59,21 @@ export default function BookingsPage() {
   const [showForm, setShowForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [error, setError] = useState("");
+  const bookingsAbortRef = useRef<AbortController | null>(null);
+  const bookingsRequestSeqRef = useRef(0);
 
-  async function loadBookings() {
+  async function loadBookings(signal?: AbortSignal) {
+    const seq = ++bookingsRequestSeqRef.current;
+    setError("");
     setLoadingBookings(true);
-    const res = await fetch("/api/bookings");
-    const data = await res.json();
+    const result = await clientFetchJson<BookingsResponse>("/api/bookings", { signal });
+    if (seq !== bookingsRequestSeqRef.current) return;
     setLoadingBookings(false);
-    if (!res.ok) {
-      setError(data.error ?? "Errore caricamento prenotazioni");
+    if (!result.ok) {
+      if (!result.aborted) setError(result.error ?? "Errore caricamento prenotazioni");
       return;
     }
-    const rows = data.bookings ?? [];
+    const rows = result.data.bookings ?? [];
     setBookings(rows);
     setAmountDraftById(
       Object.fromEntries(
@@ -78,7 +90,7 @@ export default function BookingsPage() {
       return;
     }
     setLoading(true);
-    const res = await fetch("/api/bookings", {
+    const result = await clientFetchJson<{ booking_id?: string }>("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -86,10 +98,9 @@ export default function BookingsPage() {
         total_amount: parsedAmount,
       }),
     });
-    const data = await res.json();
     setLoading(false);
-    if (!res.ok) {
-      const msg = data.error ?? "Errore creazione";
+    if (!result.ok) {
+      const msg = result.error ?? "Errore creazione";
       setError(msg);
       toast(msg, "error");
       return;
@@ -109,7 +120,7 @@ export default function BookingsPage() {
       setError("Importo non valido");
       return;
     }
-    const res = await fetch(`/api/bookings/${id}`, {
+    const result = await clientFetchJson<{ booking?: Booking }>(`/api/bookings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -121,9 +132,8 @@ export default function BookingsPage() {
         total_amount: parsedAmount,
       }),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      const msg = data.error ?? "Errore update";
+    if (!result.ok) {
+      const msg = result.error ?? "Errore update";
       setError(msg);
       toast(msg, "error");
       return;
@@ -143,10 +153,9 @@ export default function BookingsPage() {
 
   async function deleteBooking(id: string) {
     if (!confirm("Eliminare prenotazione e azioni collegate?")) return;
-    const res = await fetch(`/api/bookings/${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) {
-      const msg = data.error ?? "Errore delete";
+    const result = await clientFetchJson<{ ok?: boolean }>(`/api/bookings/${id}`, { method: "DELETE" });
+    if (!result.ok) {
+      const msg = result.error ?? "Errore delete";
       setError(msg);
       toast(msg, "error");
       return;
@@ -163,17 +172,25 @@ export default function BookingsPage() {
     setExpandedBookingId(next);
     if (!next || bookingActions[id]) return;
 
-    const res = await fetch(`/api/actions?bookingId=${id}`);
-    const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "Errore azioni collegate");
-    setBookingActions((prev) => ({ ...prev, [id]: data.actions ?? [] }));
+    const result = await clientFetchJson<ActionsResponse>(`/api/actions?bookingId=${id}`);
+    if (!result.ok) {
+      setError(result.error ?? "Errore azioni collegate");
+      return;
+    }
+    setBookingActions((prev) => ({ ...prev, [id]: result.data.actions ?? [] }));
   }
 
   useEffect(() => {
     const t = setTimeout(() => {
-      void loadBookings();
+      bookingsAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      bookingsAbortRef.current = ctrl;
+      void loadBookings(ctrl.signal);
     }, 0);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      bookingsAbortRef.current?.abort();
+    };
   }, []);
 
   const visibleBookings = useMemo(

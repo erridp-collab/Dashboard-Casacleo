@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
 import { monthKey, toNumber } from "@/lib/format";
+import { errJson, okJson } from "@/lib/http/apiResponse";
+import { formatLocalDateIT } from "@/lib/localDate";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type FinanceEntry = {
@@ -62,13 +63,13 @@ export async function GET(req: Request) {
         supabase
           .from("bookings")
           .select("*")
-          .gte("check_out", start.toISOString().slice(0, 10))
-          .lte("check_in", end.toISOString().slice(0, 10)),
+          .gte("check_out", formatLocalDateIT(start))
+          .lte("check_in", formatLocalDateIT(end)),
         supabase
           .from("expenses")
           .select("*")
-          .gte("expense_date", start.toISOString().slice(0, 10))
-          .lte("expense_date", end.toISOString().slice(0, 10)),
+          .gte("expense_date", formatLocalDateIT(start))
+          .lte("expense_date", formatLocalDateIT(end)),
       ]);
 
     let expenses = expensesRes.data;
@@ -78,14 +79,14 @@ export async function GET(req: Request) {
       const retry = await supabase
         .from("expenses")
         .select("*")
-        .gte("date", start.toISOString().slice(0, 10))
-        .lte("date", end.toISOString().slice(0, 10));
+        .gte("date", formatLocalDateIT(start))
+        .lte("date", formatLocalDateIT(end));
       expenses = retry.data;
       expensesErr = retry.error;
     }
 
-    if (bookingsErr) return NextResponse.json({ error: bookingsErr.message }, { status: 400 });
-    if (expensesErr) return NextResponse.json({ error: expensesErr.message }, { status: 400 });
+    if (bookingsErr) return errJson(bookingsErr.message, 400);
+    if (expensesErr) return errJson(expensesErr.message, 400);
 
     const monthPoints: Record<string, { revenue: number; expenses: number; occupiedDays: number; daysInMonth: number }> = {};
 
@@ -180,7 +181,7 @@ export async function GET(req: Request) {
       return a.date > b.date ? -1 : 1;
     });
 
-    return NextResponse.json(
+    return okJson(
       {
         selectedMonth,
         monthly,
@@ -191,11 +192,10 @@ export async function GET(req: Request) {
           netProfit: Number(totals.netProfit.toFixed(2)),
         },
       },
-      { status: 200 },
     );
   } catch (e: unknown) {
     console.error("[GET /api/finance]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }
 
@@ -208,10 +208,10 @@ export async function POST(req: Request) {
     const description = String(body.description ?? category);
 
     if (!expense_date || !/^\d{4}-\d{2}-\d{2}$/.test(expense_date)) {
-      return NextResponse.json({ error: "Data non valida (YYYY-MM-DD)" }, { status: 400 });
+      return errJson("Data non valida (YYYY-MM-DD)", 400);
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: "Importo non valido" }, { status: 400 });
+      return errJson("Importo non valido", 400);
     }
 
     const supabase = supabaseAdmin();
@@ -231,11 +231,11 @@ export async function POST(req: Request) {
       }
     }
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ ok: true }, { status: 200 });
+    if (error) return errJson(error.message, 400);
+    return okJson({ ok: true });
   } catch (e: unknown) {
     console.error("[POST /api/finance]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }
 
@@ -243,20 +243,18 @@ export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    if (!id) return errJson("Missing id", 400);
 
     const supabase = supabaseAdmin();
-    let { error } = await supabase.from("expenses").delete().eq("id", id).eq("origin", "manuale");
+    const result = await supabase.from("expenses").delete().eq("id", id).eq("origin", "manuale");
+    const { error } = result;
     if (error && String(error.code) === "42703" && String(error.message).includes("origin")) {
-      return NextResponse.json(
-        { error: "La colonna expenses.origin non esiste nel database. Applica la migration prima di eliminare spese manuali in sicurezza." },
-        { status: 409 },
-      );
+      return errJson("La colonna expenses.origin non esiste nel database. Applica la migration prima di eliminare spese manuali in sicurezza.", 409);
     }
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ ok: true }, { status: 200 });
+    if (error) return errJson(error.message, 400);
+    return okJson({ ok: true });
   } catch (e: unknown) {
     console.error("[DELETE /api/finance]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }

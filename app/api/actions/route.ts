@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { applyActionStatusEffects, type CleaningCompletion } from "@/lib/action-effects";
+import { errJson, okJson } from "@/lib/http/apiResponse";
 import { syncShoppingAction } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { ActionStatus } from "@/types/db";
@@ -20,8 +20,9 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as PostActionPayload;
     if (!body.action_type || !body.action_date) {
-      return NextResponse.json({ error: "Missing action_type or action_date" }, { status: 400 });
+      return errJson("Missing action_type or action_date", 400);
     }
+
     const supabase = supabaseAdmin();
     const { data, error } = await supabase
       .from("actions")
@@ -34,11 +35,12 @@ export async function POST(req: Request) {
       })
       .select("id")
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ ok: true, id: data?.id }, { status: 201 });
+
+    if (error) return errJson(error.message, 400);
+    return okJson({ ok: true, id: data?.id }, 201);
   } catch (e: unknown) {
     console.error("[POST /api/actions]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }
 
@@ -79,11 +81,12 @@ export async function GET(req: Request) {
       data = (retry.data ?? []).map((row) => ({ ...row, amount: null }));
       error = retry.error;
     }
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ actions: data ?? [] }, { status: 200 });
+
+    if (error) return errJson(error.message, 400);
+    return okJson({ actions: data ?? [] });
   } catch (e: unknown) {
     console.error("[GET /api/actions]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }
 
@@ -94,7 +97,7 @@ export async function PATCH(req: Request) {
 
     if ("id" in body) {
       if (!body.id || !body.status) {
-        return NextResponse.json({ error: "Missing id/status" }, { status: 400 });
+        return errJson("Missing id/status", 400);
       }
 
       const patch: Record<string, unknown> = { status: body.status };
@@ -109,7 +112,8 @@ export async function PATCH(req: Request) {
           .select("id, action_type")
           .eq("id", body.id)
           .maybeSingle();
-        if (actionErr) return NextResponse.json({ error: actionErr.message }, { status: 400 });
+        if (actionErr) return errJson(actionErr.message, 400);
+
         const actionType = String(actionRow?.action_type ?? "").toUpperCase();
         if (actionRow && actionType.includes("BIANCHERIA") && body.completion?.linen) {
           patch.details = JSON.stringify({ linen: body.completion.linen });
@@ -120,24 +124,22 @@ export async function PATCH(req: Request) {
       }
 
       const { error } = await supabase.from("actions").update(patch).eq("id", body.id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      if (error) return errJson(error.message, 400);
 
-      // Fire-and-forget side effects (expenses, stock) — never crash the response.
+      // Action status is immediate; inventory and expense side effects are enforced
+      // synchronously so the caller gets a deterministic success/failure signal.
       try {
         await applyActionStatusEffects(body.id, body.status, body.completion);
       } catch (sideEffectErr: unknown) {
         console.error("applyActionStatusEffects failed", sideEffectErr);
-        return NextResponse.json(
-          { error: "Stato azione aggiornato ma effetti collaterali falliti. Verificare inventario e spese." },
-          { status: 500 },
-        );
+        return errJson("Stato azione aggiornato ma effetti collaterali falliti. Verificare inventario e spese.", 500);
       }
 
-      return NextResponse.json({ ok: true }, { status: 200 });
+      return okJson({ ok: true });
     }
 
     if (!body.date) {
-      return NextResponse.json({ error: "Missing date" }, { status: 400 });
+      return errJson("Missing date", 400);
     }
 
     let updateQuery = supabase
@@ -150,11 +152,11 @@ export async function PATCH(req: Request) {
     }
 
     const { error } = await updateQuery;
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return errJson(error.message, 400);
 
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return okJson({ ok: true });
   } catch (e: unknown) {
     console.error("[PATCH /api/actions]", e);
-    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
+    return errJson("Errore interno del server", 500);
   }
 }
