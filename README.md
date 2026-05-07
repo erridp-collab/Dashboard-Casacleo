@@ -56,6 +56,46 @@ Note:
 - `SUPABASE_SERVICE_ROLE_KEY` e server-side only e non deve mai finire nel browser
 - `SUPABASE_DB_PASSWORD` serve al CLI Supabase per `migration list` e `db push`
 - `AUTH_SECRET` e consigliata; se manca, il sistema usa `APP_PASSWORD` come fallback per firmare e verificare il cookie
+- per separare gli ambienti senza rischi, il repo usa anche:
+  - `.env.local.production-current` come snapshot dell'ambiente remoto attuale
+  - `.env.local.supabase-local` come file dedicato al futuro ambiente locale
+  - Next.js non carica automaticamente questi due file: quando vuoi cambiare ambiente, copi i valori scelti dentro `.env.local`
+
+### Supabase locale
+
+Per sviluppare senza toccare il progetto remoto in produzione:
+
+1. installa e avvia Docker Desktop
+2. inizializza il progetto Supabase locale:
+
+```bash
+npx supabase init
+```
+
+3. avvia lo stack locale:
+
+```bash
+npx supabase start
+```
+
+4. applica tutte le migration del repo al database locale:
+
+```bash
+npx supabase db reset
+```
+
+5. recupera URL e chiavi locali:
+
+```bash
+npx supabase status
+```
+
+6. copia i valori dentro `.env.local`, partendo dal template `.env.local.supabase-local`
+
+Nota:
+
+- in questo momento il repo e gia pronto lato CLI (`supabase/config.toml` esiste)
+- finche Docker non e disponibile sulla macchina, `supabase start` non puo partire
 
 ### Avvio
 
