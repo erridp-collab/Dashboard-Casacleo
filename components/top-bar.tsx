@@ -21,7 +21,7 @@ export function TopBar() {
       <div className="mx-auto flex w-full max-w-[1200px] items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2 rounded-xl px-2 py-1 text-zinc-900 hover:bg-zinc-100">
           <BookOpen className="h-4 w-4 text-blue-600" />
-          <span className="text-sm font-semibold">Airbnb Manager</span>
+          <span className="text-sm font-semibold">Alva Host Manager</span>
         </Link>
 
         {/* Desktop nav — hidden on mobile */}

@@ -17,7 +17,7 @@ export function Sidebar() {
   return (
     <aside className="w-full border-b border-slate-200 bg-white px-3 py-2 lg:h-screen lg:w-64 lg:border-b-0 lg:border-r lg:px-4 lg:py-6">
       <div className="mb-4 hidden text-sm font-semibold uppercase tracking-wider text-slate-500 lg:block">
-        Airbnb Manager
+        Alva Host Manager
       </div>
       <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-x-visible">
         {NAV_ITEMS.map((item) => {

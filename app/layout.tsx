@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Airbnb Property Manager",
+  title: "Alva Host Manager",
   description: "Operational manager for bookings, actions, stock, and finance",
 };
 

@@ -1,4 +1,4 @@
-# Airbnb Manager
+# Alva Host Manager
 
 Gestionale operativo per una proprieta in affitto breve. L'app tiene insieme prenotazioni, azioni operative, inventario, biancheria e finanze con una UI pensata per uso quotidiano.
 
@@ -7,10 +7,12 @@ Questa README e pensata come file di ripartenza: descrive lo stato reale del pro
 ## Stato attuale
 
 - `npm test` passa
-- `npm run build` passa
+- `npm run lint` passa
+- `npx tsc --noEmit` passa
 - le migration Supabase presenti nel repo sono state applicate anche al database remoto
 - l'autenticazione e attiva tramite `proxy.ts`
 - le prenotazioni con pulizia gia completata vengono nascoste di default nella pagina bookings
+- gli aggiornamenti stock concorrenti usano un percorso atomico via RPC SQL, con fallback compatibile lato codice
 
 ## Stack
 
@@ -44,6 +46,7 @@ Crea `.env.local` nella root:
 ```env
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_DB_PASSWORD=
 APP_PASSWORD=
 AUTH_SECRET=
 ```
@@ -51,6 +54,7 @@ AUTH_SECRET=
 Note:
 
 - `SUPABASE_SERVICE_ROLE_KEY` e server-side only e non deve mai finire nel browser
+- `SUPABASE_DB_PASSWORD` serve al CLI Supabase per `migration list` e `db push`
 - `AUTH_SECRET` e consigliata; se manca, il sistema usa `APP_PASSWORD` come fallback per firmare e verificare il cookie
 
 ### Avvio
@@ -62,8 +66,9 @@ npm run dev
 ### Verifica locale
 
 ```bash
+npx tsc --noEmit
+npm run lint
 npm test
-npm run build
 ```
 
 ## Architettura rapida
@@ -119,12 +124,22 @@ Nota:
 - la generazione/sync delle azioni automatiche vive in [lib/booking-automation.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/booking-automation.ts:1)
 - la pagina bookings nasconde di default le prenotazioni la cui azione `PULIZIA` collegata e gia `FATTO`
 - nella UI esiste un toggle `Mostra completate`
+- le sync eventuali di dominio sono rese esplicite e passano da retry/logging coerente
+- esiste un endpoint manuale di re-sync: [app/api/bookings/resync/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/resync/route.ts:1)
 
 ### Completamento azioni
 
 - il cambio stato azioni passa da [app/api/actions/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/actions/route.ts:1)
 - gli effetti collaterali stanno in [lib/action-effects.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/action-effects.ts:1)
 - ora `applyActionStatusEffects()` non e piu fire-and-forget: se fallisce, la route fallisce
+- gli errori API sono stati uniformati con shape minima `{ error: string }`
+
+### Date e fetch client
+
+- la semantica data e centralizzata in [lib/localDate.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/localDate.ts:1)
+- `YYYY-MM-DD` viene trattato come giorno locale Italia, non come giorno UTC
+- il fetch client condiviso vive in [lib/http/clientFetch.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/http/clientFetch.ts:1)
+- dashboard, calendario, bookings, actions, finance, inventory e warehouse usano handling coerente per errori rete, JSON invalido e abort/race
 
 ### Booking delete atomico
 
@@ -148,11 +163,15 @@ Migration presenti:
 - `20260408173000_split_bed_sets_into_summer_and_winter.sql`
 - `20260427193000_add_delete_booking_atomic_function.sql`
 - `20260427200000_add_auth_rate_limits.sql`
+- `20260427213000_fix_delete_booking_atomic_linen_alias_resolution.sql`
+- `20260507123000_add_apply_product_quantity_deltas_atomic.sql`
 
-Le ultime due sono importanti per lo stato corrente del codice:
+Le ultime migration importanti per lo stato corrente del codice sono:
 
 - `add_delete_booking_atomic_function`
 - `add_auth_rate_limits`
+- `fix_delete_booking_atomic_linen_alias_resolution`
+- `add_apply_product_quantity_deltas_atomic`
 
 ### Comandi Supabase utili
 
@@ -180,7 +199,7 @@ In piu punti del codice sono ancora presenti fallback per schemi DB non perfetta
 
 ### Fire-and-forget ancora presenti
 
-Le sync secondarie come `syncBookingAutomations()` o `syncShoppingAction()` sono ancora usate in alcuni punti come operazioni non bloccanti. E una scelta consapevole per non rallentare la UI, ma significa che parte della consistenza e eventuale, non immediatamente transazionale.
+Le sync secondarie come `scheduleBookingDomainResync()` restano eventuali in alcuni flussi bookings. E una scelta consapevole per non rallentare la UI, ma ora e esplicita, tracciata e recuperabile con endpoint di re-sync manuale.
 
 ## Cosa e stato sistemato di recente
 
@@ -194,24 +213,27 @@ Le sync secondarie come `syncBookingAutomations()` o `syncShoppingAction()` sono
 - rate limiting login supportato da tabella DB
 - confronto password timing-safe
 - migration Supabase applicate anche al database remoto
+- utility data Italia centralizzata e testata
+- client fetch condiviso con abort/race handling
+- error shape API uniformato
+- stock atomico introdotto con RPC SQL e verifica integration
+- test auth/date/stock aggiunti
 
 ## Cose ancora aperte davvero
 
-Queste sono le due aree che vale la pena tenere a mente per il prossimo giro:
+Le aree che restano sensate per un prossimo giro sono:
 
-1. [lib/action-effects.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/action-effects.ts:1)
-   Aggiornamenti stock ancora basati in alcuni casi su pattern `read -> compute -> write`, quindi con rischio di race condition se arrivano richieste concorrenti.
-
-2. Hardening CSRF sulle route `POST`, `PATCH`, `DELETE`
-   Non e prioritario per l'uso attuale interno e fidato, ma resta un tema aperto se l'app diventera piu esposta.
+1. hardening CSRF sulle route `POST`, `PATCH`, `DELETE`
+2. ulteriore rimozione dei fallback retrocompat nel DB solo dopo decisione esplicita di stabilizzare definitivamente lo schema
+3. eventuali nuove funzionalita operative senza riaprire la logica di dominio gia stabilizzata
 
 ## Priorita pratica per la prossima sessione
 
 Se si riparte da qui, l'ordine consigliato e:
 
 1. nuove funzionalita operative, se servono al flusso quotidiano
-2. solo se necessario, affrontare la concorrenza stock in `lib/action-effects.ts`
-3. lasciare CSRF e altri affinamenti di sicurezza a un secondo momento
+2. pulizia finale dei fallback DB solo con schema concordato
+3. affinamenti di sicurezza come CSRF in un secondo momento
 
 ## File chiave da aprire subito
 
@@ -226,4 +248,4 @@ Se si riparte da qui, l'ordine consigliato e:
 
 ## Nota finale
 
-Questo progetto oggi e in uno stato sensibilmente piu solido di prima, senza essere stato appesantito da hardening non utile al contesto reale. La prossima volta possiamo usare questa README come base e andare subito sul prossimo lavoro, senza dover ricostruire da zero cosa e gia stato sistemato.
+Questo progetto oggi e in uno stato sensibilmente piu solido di prima: auth enforcement verificato, contratti API piu coerenti, date stabili lato Italia, sync di dominio piu esplicite e stock concorrente coperto con percorso atomico su database. La prossima volta possiamo usare questa README come base e andare subito sul prossimo lavoro, senza dover ricostruire da zero cosa e gia stato sistemato.
