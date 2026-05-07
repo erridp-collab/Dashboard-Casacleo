@@ -97,6 +97,57 @@ Nota:
 - in questo momento il repo e gia pronto lato CLI (`supabase/config.toml` esiste)
 - finche Docker non e disponibile sulla macchina, `supabase start` non puo partire
 
+### Stato corrente setup locale (2026-05-07)
+
+Stato reale dell'ultima sessione sulla separazione ambienti:
+
+- Docker CLI installato e visibile: `docker --version` restituisce `Docker version 29.4.2`
+- Supabase CLI ok nel repo: `npx.cmd supabase --version` restituisce `2.95.5`
+- blocco attuale: Docker engine / Docker Desktop non raggiungibile dal terminale
+- errore visto con `docker info`:
+
+```text
+permission denied while trying to connect to the docker API at npipe:////./pipe/docker_engine
+```
+
+- su questa macchina PowerShell blocca `npx.ps1`, quindi i comandi Supabase vanno lanciati con `npx.cmd ...` e non con `npx ...`
+- in `supabase/config.toml` il seed automatico e attivo (`./seed.sql`), ma al momento il file `supabase/seed.sql` non risulta ancora presente nel repo
+
+### Da dove riprendere
+
+Ordine consigliato per la prossima sessione:
+
+1. aprire o riavviare Docker Desktop e aspettare che il motore Docker sia realmente `running`
+2. verificare da terminale:
+
+```bash
+docker info
+```
+
+3. quando `docker info` funziona, avviare Supabase locale:
+
+```bash
+npx.cmd supabase start
+```
+
+4. verificare credenziali e porte locali:
+
+```bash
+npx.cmd supabase status
+```
+
+5. solo dopo, copiare i valori locali dentro `.env.local` partendo da `.env.local.supabase-local`
+6. infine verificare se serve creare `supabase/seed.sql` oppure disattivare temporaneamente il seed prima di usare:
+
+```bash
+npx.cmd supabase db reset
+```
+
+Nota pratica:
+
+- finche `docker info` fallisce, non ha senso proseguire con `supabase start`
+- la multi-tenancy va ripresa solo dopo che il flusso `Docker -> Supabase locale -> .env.local` e stabile
+
 ### Avvio
 
 ```bash
