@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getProductId, getProductQuantity, resolveProductSchema } from "@/lib/products-schema";
 import { applyProductQuantityDeltas } from "@/lib/product-quantity";
+import { resolveOrganizationId } from "@/lib/organizationContext";
 import { isQuantityManagedRefillProduct, type StockStatus } from "@/lib/refill";
 import { parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
 
@@ -99,6 +100,7 @@ async function upsertShoppingAction(
   existingIds: string[],
   today: string,
   details: string,
+  organizationId: string,
 ): Promise<void> {
   const supabase = supabaseAdmin();
 
@@ -106,6 +108,7 @@ async function upsertShoppingAction(
     const payloadVariants: Record<string, unknown>[] = [
       {
         booking_id: null,
+        organization_id: organizationId,
         action_date: today,
         action_type: "SPESA",
         status: "DA_FARE",
@@ -114,6 +117,7 @@ async function upsertShoppingAction(
       },
       {
         booking_id: null,
+        organization_id: organizationId,
         action_date: today,
         action_type: "SPESA",
         status: "DA_FARE",
@@ -153,6 +157,7 @@ async function upsertShoppingAction(
     const updateErr = await supabase
       .from("actions")
       .update(payload)
+      .eq("organization_id", organizationId)
       .eq("id", primaryId);
     if (!updateErr.error) {
       updated = true;
@@ -168,13 +173,16 @@ async function upsertShoppingAction(
   }
 }
 
-export async function syncShoppingAction(): Promise<void> {
+export async function syncShoppingAction(organizationId?: string): Promise<void> {
   const supabase = supabaseAdmin();
+  const resolvedOrganizationId = await resolveOrganizationId(organizationId);
+  if (!resolvedOrganizationId) throw new Error("Unable to resolve organization");
   const schema = await resolveProductSchema(supabase);
 
   const { data, error } = await supabase
     .from("products")
     .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, threshold, unit, stock_status`)
+    .eq("organization_id", resolvedOrganizationId)
     .order("name", { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -200,6 +208,7 @@ export async function syncShoppingAction(): Promise<void> {
   let { data: existing, error: existingErr } = await supabase
     .from("actions")
     .select("id")
+    .eq("organization_id", resolvedOrganizationId)
     .eq("action_type", "SPESA")
     .eq("status", "DA_FARE")
     .is("booking_id", null)
@@ -210,6 +219,7 @@ export async function syncShoppingAction(): Promise<void> {
     const retry = await supabase
       .from("actions")
       .select("id")
+      .eq("organization_id", resolvedOrganizationId)
       .eq("action_type", "SPESA")
       .eq("status", "DA_FARE")
       .is("booking_id", null);
@@ -223,7 +233,7 @@ export async function syncShoppingAction(): Promise<void> {
 
   if (lowStock.length === 0) {
     if (existingIds.length > 0) {
-      const { error: deleteErr } = await supabase.from("actions").delete().in("id", existingIds);
+      const { error: deleteErr } = await supabase.from("actions").delete().eq("organization_id", resolvedOrganizationId).in("id", existingIds);
       if (deleteErr) throw new Error(deleteErr.message);
     }
     return;
@@ -231,7 +241,7 @@ export async function syncShoppingAction(): Promise<void> {
 
   const today = todayLocalIT();
   const details = shoppingDetails(lowStock);
-  await upsertShoppingAction(existingIds, today, details);
+  await upsertShoppingAction(existingIds, today, details, resolvedOrganizationId);
 }
 
 export async function applyBookingConsumptions(checkIn: string, checkOut: string, guests: number): Promise<void> {
@@ -243,14 +253,18 @@ export async function applyBookingConsumptionDelta(
   checkOut: string,
   guests: number,
   direction: 1 | -1,
+  organizationId?: string,
 ): Promise<void> {
   const consumptionByName = getBookingConsumptionMap(checkIn, checkOut, guests);
 
   const supabase = supabaseAdmin();
+  const resolvedOrganizationId = await resolveOrganizationId(organizationId);
+  if (!resolvedOrganizationId) throw new Error("Unable to resolve organization");
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, consumption_per_checkout`);
+    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, consumption_per_checkout`)
+    .eq("organization_id", resolvedOrganizationId);
   if (error) throw new Error(error.message);
 
   // Build all updates first, then fire them in parallel.
@@ -282,5 +296,5 @@ export async function applyBookingConsumptionDelta(
     floorAtZero: true,
   });
 
-  await syncShoppingAction();
+  await syncShoppingAction(resolvedOrganizationId);
 }

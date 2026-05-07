@@ -1,6 +1,6 @@
 import { applyActionStatusEffects, type CleaningCompletion } from "@/lib/action-effects";
 import { errJson, okJson } from "@/lib/http/apiResponse";
-import { syncShoppingAction } from "@/lib/stock";
+import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { ActionStatus } from "@/types/db";
 
@@ -18,6 +18,10 @@ type PostActionPayload = {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const body = (await req.json()) as PostActionPayload;
     if (!body.action_type || !body.action_date) {
       return errJson("Missing action_type or action_date", 400);
@@ -27,6 +31,7 @@ export async function POST(req: Request) {
     const { data, error } = await supabase
       .from("actions")
       .insert({
+        organization_id: organizationId,
         action_type: body.action_type,
         action_date: body.action_date,
         details: body.details ?? null,
@@ -46,21 +51,20 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const { searchParams } = new URL(req.url);
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const bookingId = searchParams.get("bookingId");
 
-    try {
-      await syncShoppingAction();
-    } catch (syncErr: unknown) {
-      console.error("Non-blocking shopping sync failed in actions GET", syncErr);
-    }
-
     const supabase = supabaseAdmin();
     let q = supabase
       .from("actions")
       .select("id, booking_id, action_date, action_type, status, details, amount")
+      .eq("organization_id", organizationId)
       .order("action_date", { ascending: true });
 
     if (from) q = q.gte("action_date", from);
@@ -73,12 +77,13 @@ export async function GET(req: Request) {
       let retryQ = supabase
         .from("actions")
         .select("id, booking_id, action_date, action_type, status, details")
+        .eq("organization_id", organizationId)
         .order("action_date", { ascending: true });
       if (from) retryQ = retryQ.gte("action_date", from);
       if (to) retryQ = retryQ.lte("action_date", to);
       if (bookingId) retryQ = retryQ.eq("booking_id", bookingId);
       const retry = await retryQ;
-      data = (retry.data ?? []).map((row) => ({ ...row, amount: null }));
+      data = (retry.data ?? []).map((row: Record<string, unknown>) => ({ ...row, amount: null })) as typeof data;
       error = retry.error;
     }
 
@@ -92,6 +97,10 @@ export async function GET(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
     const body = (await req.json()) as PatchActionPayload;
     const supabase = supabaseAdmin();
 
@@ -110,6 +119,7 @@ export async function PATCH(req: Request) {
         const { data: actionRow, error: actionErr } = await supabase
           .from("actions")
           .select("id, action_type")
+          .eq("organization_id", organizationId)
           .eq("id", body.id)
           .maybeSingle();
         if (actionErr) return errJson(actionErr.message, 400);
@@ -123,17 +133,16 @@ export async function PATCH(req: Request) {
         }
       }
 
-      const { error } = await supabase.from("actions").update(patch).eq("id", body.id);
-      if (error) return errJson(error.message, 400);
-
-      // Action status is immediate; inventory and expense side effects are enforced
-      // synchronously so the caller gets a deterministic success/failure signal.
+      // Side effects PRIMA dell'update DB: se falliscono, l'action non viene modificata.
       try {
-        await applyActionStatusEffects(body.id, body.status, body.completion);
+        await applyActionStatusEffects(body.id, body.status, body.completion, organizationId);
       } catch (sideEffectErr: unknown) {
         console.error("applyActionStatusEffects failed", sideEffectErr);
-        return errJson("Stato azione aggiornato ma effetti collaterali falliti. Verificare inventario e spese.", 500);
+        return errJson("Effetti collaterali falliti (inventario/spese). Stato azione non modificato.", 500);
       }
+
+      const { error } = await supabase.from("actions").update(patch).eq("organization_id", organizationId).eq("id", body.id);
+      if (error) return errJson(error.message, 400);
 
       return okJson({ ok: true });
     }
@@ -145,6 +154,7 @@ export async function PATCH(req: Request) {
     let updateQuery = supabase
       .from("actions")
       .update({ status: body.status ?? "FATTO" })
+      .eq("organization_id", organizationId)
       .eq("action_date", body.date);
 
     if (body.onlyPending !== false) {
