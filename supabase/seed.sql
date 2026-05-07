@@ -1,0 +1,2 @@
+-- Intentionally left minimal for local development bootstrap.
+-- Add seed data here only when we explicitly decide to populate the local DB.
