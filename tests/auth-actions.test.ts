@@ -5,14 +5,18 @@ const {
   mockCookies,
   mockRedirect,
   mockSupabaseAuthClient,
+  mockClearActiveOrganizationCookie,
   mockClearAuthCookies,
+  mockWriteActiveOrganizationCookie,
   mockWriteSessionCookies,
 } = vi.hoisted(() => ({
   mockHeaders: vi.fn(),
   mockCookies: vi.fn(),
   mockRedirect: vi.fn(),
   mockSupabaseAuthClient: vi.fn(),
+  mockClearActiveOrganizationCookie: vi.fn(),
   mockClearAuthCookies: vi.fn(),
+  mockWriteActiveOrganizationCookie: vi.fn(),
   mockWriteSessionCookies: vi.fn(),
 }));
 
@@ -34,14 +38,16 @@ vi.mock("@/lib/organizationContext", () => ({
 }));
 
 vi.mock("@/lib/supabaseAuth", () => ({
+  clearActiveOrganizationCookie: mockClearActiveOrganizationCookie,
   clearAuthCookies: mockClearAuthCookies,
   supabaseAuthClient: mockSupabaseAuthClient,
-  writeActiveOrganizationCookie: vi.fn(),
+  writeActiveOrganizationCookie: mockWriteActiveOrganizationCookie,
   writeSessionCookies: mockWriteSessionCookies,
 }));
 
 import {
   forgotPasswordAction,
+  loginAction,
   logoutAction,
   requestAccessAction,
   resetPasswordAction,
@@ -120,6 +126,66 @@ describe("auth actions", () => {
       expect(resetPasswordForEmail).toHaveBeenCalledWith("test@example.com", {
         redirectTo: "http://localhost:3000/reset-password",
       });
+    });
+  });
+
+  describe("loginAction", () => {
+    it("allows a platform admin without organization membership", async () => {
+      const maybeSingle = vi.fn().mockResolvedValue({
+        data: null,
+        error: null,
+      });
+      const limit = vi.fn().mockReturnValue({ maybeSingle });
+      const order = vi.fn().mockReturnValue({ limit });
+      const eq = vi.fn().mockReturnValue({ order });
+      const select = vi.fn().mockReturnValue({ eq });
+      const deleteEq = vi.fn().mockResolvedValue({ error: null });
+      const deleteFn = vi.fn().mockReturnValue({ eq: deleteEq });
+      const rpc = vi.fn().mockResolvedValue({
+        data: { blocked: false, attempt_count: 1 },
+        error: null,
+      });
+      const from = vi.fn((table: string) => {
+        if (table === "user_roles") {
+          return { select };
+        }
+        if (table === "auth_rate_limits") {
+          return { delete: deleteFn };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      });
+      const supabaseAdminModule = await import("@/lib/supabaseAdmin");
+      vi.mocked(supabaseAdminModule.supabaseAdmin).mockReturnValue({ from, rpc } as never);
+
+      mockSupabaseAuthClient.mockReturnValue({
+        auth: {
+          signInWithPassword: vi.fn().mockResolvedValue({
+            error: null,
+            data: {
+              user: {
+                id: "admin-1",
+                app_metadata: { is_platform_admin: true },
+              },
+              session: {
+                access_token: "access",
+                refresh_token: "refresh",
+                expires_at: Math.floor(Date.now() / 1000) + 3600,
+              },
+            },
+          }),
+        },
+      });
+
+      const formData = addPublicFormProtection(new FormData());
+      formData.set("email", "erri.dp@gmail.com");
+      formData.set("password", "password123");
+
+      await loginAction(null, formData);
+
+      expect(mockWriteSessionCookies).toHaveBeenCalledTimes(1);
+      expect(mockClearActiveOrganizationCookie).toHaveBeenCalledTimes(1);
+      expect(mockWriteActiveOrganizationCookie).not.toHaveBeenCalled();
+      expect(mockRedirect).toHaveBeenCalledWith("/platform");
     });
   });
 

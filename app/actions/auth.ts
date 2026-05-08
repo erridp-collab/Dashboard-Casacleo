@@ -3,9 +3,16 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { validatePublicFormProtection } from "@/lib/formProtection";
+import { isPlatformAdminClaims } from "@/lib/platformAdmin";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { clearAuthCookies, supabaseAuthClient, writeActiveOrganizationCookie, writeSessionCookies } from "@/lib/supabaseAuth";
+import {
+  clearActiveOrganizationCookie,
+  clearAuthCookies,
+  supabaseAuthClient,
+  writeActiveOrganizationCookie,
+  writeSessionCookies,
+} from "@/lib/supabaseAuth";
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000; // 15 minuti
@@ -157,17 +164,23 @@ export async function loginAction(prevState: AuthActionState, formData: FormData
   }
 
   const organizationId = await findUserPrimaryOrganization(signIn.data.user.id);
+  const isPlatformAdmin = isPlatformAdminClaims(signIn.data.user.app_metadata);
 
-  if (!organizationId) {
+  if (!organizationId && !isPlatformAdmin) {
     return { error: "Nessuna organizzazione associata a questo account" };
   }
 
   await resetRateLimit(ip);
   const cookieStore = await cookies();
   writeSessionCookies(cookieStore, signIn.data.session);
-  writeActiveOrganizationCookie(cookieStore, organizationId);
 
-  redirect("/");
+  if (organizationId) {
+    writeActiveOrganizationCookie(cookieStore, organizationId);
+  } else {
+    clearActiveOrganizationCookie(cookieStore);
+  }
+
+  redirect(isPlatformAdmin && !organizationId ? "/platform" : "/");
 }
 
 export async function requestAccessAction(prevState: AuthActionState, formData: FormData) {

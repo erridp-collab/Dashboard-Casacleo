@@ -103,6 +103,10 @@ export function writeActiveOrganizationCookie(cookiesStore: CookieWriter, organi
   cookiesStore.set(ACTIVE_ORG_COOKIE, organizationId, cookieOptions(60 * 60 * 24 * 30));
 }
 
+export function clearActiveOrganizationCookie(cookiesStore: CookieRemover): void {
+  cookiesStore.delete(ACTIVE_ORG_COOKIE);
+}
+
 export function clearAuthCookies(cookiesStore: CookieRemover): void {
   cookiesStore.delete(AUTH_ACCESS_COOKIE);
   cookiesStore.delete(AUTH_REFRESH_COOKIE);
