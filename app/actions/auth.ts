@@ -2,6 +2,8 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { validatePublicFormProtection } from "@/lib/formProtection";
+import { getSiteUrl } from "@/lib/siteUrl";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { clearAuthCookies, supabaseAuthClient, writeActiveOrganizationCookie, writeSessionCookies } from "@/lib/supabaseAuth";
 
@@ -13,21 +15,6 @@ const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
 type RateLimitResult = { blocked: boolean; remaining: number };
 type AuthActionState = { error?: string; success?: boolean } | null;
-
-function slugify(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-}
-
-function randomSuffix(): string {
-  return Math.random().toString(36).slice(2, 8);
-}
 
 async function findUserPrimaryOrganization(userId: string): Promise<string | null> {
   const supabase = supabaseAdmin();
@@ -41,10 +28,6 @@ async function findUserPrimaryOrganization(userId: string): Promise<string | nul
 
   if (error) throw new Error(error.message);
   return data?.organization_id ? String(data.organization_id) : null;
-}
-
-function trimTrailingSlash(value: string): string {
-  return value.replace(/\/+$/, "");
 }
 
 function isAuthorizedOrigin(headersList: Awaited<ReturnType<typeof headers>>): boolean {
@@ -64,75 +47,6 @@ function isAuthorizedOrigin(headersList: Awaited<ReturnType<typeof headers>>): b
     return false;
   }
 }
-
-function getSiteUrl(headersList: Awaited<ReturnType<typeof headers>>): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configured) {
-    return trimTrailingSlash(configured);
-  }
-
-  const origin = headersList.get("origin")?.trim();
-  if (origin) {
-    return trimTrailingSlash(origin);
-  }
-
-  const host =
-    headersList.get("x-forwarded-host")?.trim() ??
-    headersList.get("host")?.trim() ??
-    "";
-
-  if (!host) return "";
-
-  const proto =
-    headersList.get("x-forwarded-proto")?.trim() ??
-    (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
-
-  return `${proto}://${host}`;
-}
-
-async function createOrganizationForUser(userId: string, organizationName: string): Promise<string> {
-  const supabase = supabaseAdmin();
-  const baseSlug = slugify(organizationName) || "workspace";
-
-  let organizationId = "";
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const slug = attempt === 0 ? baseSlug : `${baseSlug}-${randomSuffix()}`;
-    const insert = await supabase
-      .from("organizations")
-      .insert({
-        name: organizationName.trim(),
-        slug,
-      })
-      .select("id")
-      .single();
-
-    if (!insert.error && insert.data?.id) {
-      organizationId = String(insert.data.id);
-      break;
-    }
-
-    if (insert.error && String(insert.error.code) !== "23505") {
-      throw new Error(insert.error.message);
-    }
-  }
-
-  if (!organizationId) {
-    throw new Error("Unable to create organization");
-  }
-
-  const membership = await supabase.from("user_roles").insert({
-    organization_id: organizationId,
-    user_id: userId,
-    role: "owner",
-  });
-
-  if (membership.error) {
-    throw new Error(membership.error.message);
-  }
-
-  return organizationId;
-}
-
 function getClientIp(headersList: Awaited<ReturnType<typeof headers>>): string {
   return (
     headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -215,6 +129,12 @@ async function resetRateLimit(ip: string): Promise<void> {
 }
 
 export async function loginAction(prevState: AuthActionState, formData: FormData) {
+  const protection = validatePublicFormProtection(formData);
+  if (!protection.ok) {
+    console.warn("[loginAction] blocked public form submission", protection.reason);
+    return { error: "Credenziali non valide" };
+  }
+
   const headersList = await headers();
   const ip = getClientIp(headersList);
   const { blocked } = await checkRateLimit(ip);
@@ -250,65 +170,76 @@ export async function loginAction(prevState: AuthActionState, formData: FormData
   redirect("/");
 }
 
-export async function signupAction(prevState: AuthActionState, formData: FormData) {
+export async function requestAccessAction(prevState: AuthActionState, formData: FormData) {
+  const protection = validatePublicFormProtection(formData);
+  if (!protection.ok) {
+    console.warn("[requestAccessAction] blocked public form submission", protection.reason);
+    return { error: "Richiesta non completata. Verifica i dati e riprova." };
+  }
+
   const organizationName = formData.get("organization_name")?.toString().trim() ?? "";
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? "";
-  const password = formData.get("password")?.toString() ?? "";
   const fullName = formData.get("full_name")?.toString().trim() ?? "";
 
   if (!organizationName || organizationName.length < 3) {
     return { error: "Il nome dell'organizzazione deve avere almeno 3 caratteri" };
   }
 
-  if (!email || !password) {
-    return { error: "Organizzazione, email e password sono obbligatorie" };
+  if (!email) {
+    return { error: "Email obbligatoria" };
   }
 
-  if (password.length < 8) {
-    return { error: "La password deve avere almeno 8 caratteri" };
-  }
-
-  const authClient = supabaseAuthClient();
-  const signUp = await authClient.auth.signUp({
-    email,
-    password,
-    options: {
-      data: fullName ? { full_name: fullName } : undefined,
-    },
-  });
-
-  if (signUp.error) {
-    console.error("Signup error", signUp.error);
-    return { error: "Registrazione non completata. Verifica i dati e riprova." };
-  }
-
-  if (!signUp.data.user?.id) {
-    return { error: "Registrazione non completata" };
-  }
-
-  let organizationId: string;
   try {
-    organizationId = await createOrganizationForUser(signUp.data.user.id, organizationName);
+    const supabase = supabaseAdmin();
+    const { data: existing, error: existingError } = await supabase
+      .from("signup_requests")
+      .select("id")
+      .eq("email", email)
+      .eq("status", "pending")
+      .limit(1)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("Request access lookup failed", existingError);
+      return { error: "Richiesta non completata. Verifica i dati e riprova." };
+    }
+
+    if (existing?.id) {
+      return { success: true };
+    }
+
+    const { error } = await supabase.from("signup_requests").insert({
+      email,
+      full_name: fullName || null,
+      organization_name: organizationName,
+      status: "pending",
+    });
+
+    if (error) {
+      if (String(error.code) === "23505") {
+        return { success: true };
+      }
+      console.error("Request access insert failed", error);
+      return { error: "Richiesta non completata. Verifica i dati e riprova." };
+    }
   } catch (error) {
-    console.error("Organization bootstrap failed", error);
-    return { error: "Utente creato ma provisioning organizzazione fallito" };
+    console.error("Request access failed", error);
+    return { error: "Richiesta non completata. Verifica i dati e riprova." };
   }
 
-  if (!signUp.data.session) {
-    return { error: "Utente creato. Completa il login per continuare." };
-  }
-
-  const cookieStore = await cookies();
-  writeSessionCookies(cookieStore, signUp.data.session);
-  writeActiveOrganizationCookie(cookieStore, organizationId);
-
-  redirect("/");
+  return { success: true };
 }
 
 export async function forgotPasswordAction(
   prevState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  const protection = validatePublicFormProtection(formData);
+  if (!protection.ok) {
+    console.warn("[forgotPasswordAction] blocked public form submission", protection.reason);
+    return { success: true };
+  }
+
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? "";
 
   if (!email) {

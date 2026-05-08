@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { PublicFormProtectionFields } from "@/components/public-form-protection-fields";
 import { Mail } from "lucide-react";
 import { forgotPasswordAction } from "@/app/actions/auth";
 
 export default function ForgotPasswordPage() {
   const [state, formAction, isPending] = useActionState(forgotPasswordAction, null);
+  const [renderedAt] = useState(() => String(Date.now()));
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12 sm:px-6 lg:px-8">
@@ -31,7 +33,8 @@ export default function ForgotPasswordPage() {
             </p>
           </div>
         ) : (
-          <form className="mt-8 space-y-6" action={formAction}>
+          <form className="relative mt-8 space-y-6" action={formAction}>
+            <PublicFormProtectionFields renderedAt={renderedAt} />
             <div className="space-y-1">
               <label htmlFor="email" className="block text-sm font-medium text-zinc-700">
                 Email

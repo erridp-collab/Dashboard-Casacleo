@@ -59,4 +59,44 @@ describe("proxy auth enforcement", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
   });
+
+  it("redirects non platform-admin users away from /platform", async () => {
+    const authModule = await import("@/lib/supabaseAuth");
+    vi.spyOn(authModule, "verifySessionTokens").mockResolvedValue({
+      user: { id: "user-1", email: "test@example.com", app_metadata: {} } as never,
+      session: null,
+      refreshed: false,
+    });
+
+    const { proxy } = await import("../proxy");
+    const request = new NextRequest("http://localhost/platform", {
+      headers: { cookie: "sb-access-token=test-token; sb-refresh-token=refresh-token" },
+    });
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/");
+  });
+
+  it("allows platform-admin users to access /platform", async () => {
+    const authModule = await import("@/lib/supabaseAuth");
+    vi.spyOn(authModule, "verifySessionTokens").mockResolvedValue({
+      user: {
+        id: "user-1",
+        email: "test@example.com",
+        app_metadata: { is_platform_admin: true },
+      } as never,
+      session: null,
+      refreshed: false,
+    });
+
+    const { proxy } = await import("../proxy");
+    const request = new NextRequest("http://localhost/platform", {
+      headers: { cookie: "sb-access-token=test-token; sb-refresh-token=refresh-token" },
+    });
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
 });

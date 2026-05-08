@@ -1,4 +1,5 @@
 import { findPrimaryOrganizationForUser, isOnboardingComplete } from "@/lib/organizationContext";
+import { isPlatformAdminClaims } from "@/lib/platformAdmin";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
@@ -17,9 +18,11 @@ export async function proxy(request: NextRequest) {
   const isLoginPage = request.nextUrl.pathname.startsWith("/login");
   const isSignupPage = request.nextUrl.pathname.startsWith("/signup");
   const isOnboardingPage = request.nextUrl.pathname.startsWith("/onboarding");
+  const isPlatformPage = request.nextUrl.pathname.startsWith("/platform");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
   const isPublicPage = PUBLIC_PATH_PREFIXES.some((prefix) => request.nextUrl.pathname.startsWith(prefix));
   const isAuthenticated = Boolean(verified.user);
+  const isPlatformAdmin = isPlatformAdminClaims(verified.user?.app_metadata);
   const response = NextResponse.next();
 
   if (verified.refreshed && verified.session) {
@@ -43,6 +46,13 @@ export async function proxy(request: NextRequest) {
 
   if (isAuthenticated && (isLoginPage || isSignupPage)) {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (isAuthenticated && isPlatformPage) {
+    if (!isPlatformAdmin) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+    return response;
   }
 
   if (isAuthenticated && !isApiRoute && !isPublicPage && !isOnboardingPage && verified.user) {

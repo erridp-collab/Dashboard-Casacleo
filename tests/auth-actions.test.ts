@@ -43,9 +43,19 @@ vi.mock("@/lib/supabaseAuth", () => ({
 import {
   forgotPasswordAction,
   logoutAction,
+  requestAccessAction,
   resetPasswordAction,
-  signupAction,
 } from "@/app/actions/auth";
+import {
+  PUBLIC_FORM_HONEYPOT_FIELD,
+  PUBLIC_FORM_TIMESTAMP_FIELD,
+} from "@/lib/formProtection";
+
+function addPublicFormProtection(formData: FormData) {
+  formData.set(PUBLIC_FORM_HONEYPOT_FIELD, "");
+  formData.set(PUBLIC_FORM_TIMESTAMP_FIELD, String(Date.now() - 5000));
+  return formData;
+}
 
 describe("auth actions", () => {
   beforeEach(() => {
@@ -88,7 +98,7 @@ describe("auth actions", () => {
 
   describe("forgotPasswordAction", () => {
     it("returns an error if email is missing", async () => {
-      const formData = new FormData();
+      const formData = addPublicFormProtection(new FormData());
 
       await expect(forgotPasswordAction(null, formData)).resolves.toEqual({
         error: "Email obbligatoria",
@@ -103,7 +113,7 @@ describe("auth actions", () => {
         },
       });
 
-      const formData = new FormData();
+      const formData = addPublicFormProtection(new FormData());
       formData.set("email", "test@example.com");
 
       await expect(forgotPasswordAction(null, formData)).resolves.toEqual({ success: true });
@@ -115,7 +125,7 @@ describe("auth actions", () => {
 
   describe("resetPasswordAction", () => {
     it("returns an error if password is too short", async () => {
-      const formData = new FormData();
+      const formData = addPublicFormProtection(new FormData());
       formData.set("password", "short");
       formData.set("confirm_password", "short");
 
@@ -125,7 +135,7 @@ describe("auth actions", () => {
     });
 
     it("returns an error when passwords do not match", async () => {
-      const formData = new FormData();
+      const formData = addPublicFormProtection(new FormData());
       formData.set("password", "password123");
       formData.set("confirm_password", "different123");
 
@@ -135,7 +145,7 @@ describe("auth actions", () => {
     });
 
     it("returns success when passwords are valid", async () => {
-      const formData = new FormData();
+      const formData = addPublicFormProtection(new FormData());
       formData.set("password", "password123");
       formData.set("confirm_password", "password123");
 
@@ -143,15 +153,78 @@ describe("auth actions", () => {
     });
   });
 
-  describe("signupAction", () => {
+  describe("requestAccessAction", () => {
     it("returns an error if organization name is too short", async () => {
-      const formData = new FormData();
+      const formData = addPublicFormProtection(new FormData());
       formData.set("organization_name", "A");
       formData.set("email", "test@example.com");
-      formData.set("password", "password123");
 
-      await expect(signupAction(null, formData)).resolves.toEqual({
+      await expect(requestAccessAction(null, formData)).resolves.toEqual({
         error: expect.stringContaining("organizzazione"),
+      });
+    });
+
+    it("blocks request access when the honeypot is filled", async () => {
+      const formData = addPublicFormProtection(new FormData());
+      formData.set("organization_name", "Test Org");
+      formData.set("email", "test@example.com");
+      formData.set(PUBLIC_FORM_HONEYPOT_FIELD, "spam");
+
+      await expect(requestAccessAction(null, formData)).resolves.toEqual({
+        error: "Richiesta non completata. Verifica i dati e riprova.",
+      });
+    });
+
+    it("returns success when a pending request already exists", async () => {
+      const maybeSingle = vi.fn().mockResolvedValue({
+        data: { id: "request-1" },
+        error: null,
+      });
+      const limit = vi.fn().mockReturnValue({ maybeSingle });
+      const eqStatus = vi.fn().mockReturnValue({ limit });
+      const eqEmail = vi.fn().mockReturnValue({ eq: eqStatus });
+      const select = vi.fn().mockReturnValue({ eq: eqEmail });
+      const from = vi.fn().mockReturnValue({ select });
+      const supabase = { from };
+      const supabaseAdminModule = await import("@/lib/supabaseAdmin");
+      vi.mocked(supabaseAdminModule.supabaseAdmin).mockReturnValue(supabase as never);
+
+      const formData = addPublicFormProtection(new FormData());
+      formData.set("organization_name", "Test Org");
+      formData.set("email", "test@example.com");
+
+      await expect(requestAccessAction(null, formData)).resolves.toEqual({
+        success: true,
+      });
+    });
+
+    it("stores a new access request", async () => {
+      const insert = vi.fn().mockResolvedValue({ error: null });
+      const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      const limit = vi.fn().mockReturnValue({ maybeSingle });
+      const eqStatus = vi.fn().mockReturnValue({ limit });
+      const eqEmail = vi.fn().mockReturnValue({ eq: eqStatus });
+      const select = vi.fn().mockReturnValue({ eq: eqEmail });
+      const from = vi.fn((table: string) =>
+        table === "signup_requests" ? { select, insert } : { select, insert },
+      );
+      const supabase = { from };
+      const supabaseAdminModule = await import("@/lib/supabaseAdmin");
+      vi.mocked(supabaseAdminModule.supabaseAdmin).mockReturnValue(supabase as never);
+
+      const formData = addPublicFormProtection(new FormData());
+      formData.set("organization_name", "Test Org");
+      formData.set("full_name", "Mario Rossi");
+      formData.set("email", "test@example.com");
+
+      await expect(requestAccessAction(null, formData)).resolves.toEqual({
+        success: true,
+      });
+      expect(insert).toHaveBeenCalledWith({
+        email: "test@example.com",
+        full_name: "Mario Rossi",
+        organization_name: "Test Org",
+        status: "pending",
       });
     });
   });

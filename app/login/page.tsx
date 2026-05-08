@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
+import { PublicFormProtectionFields } from "@/components/public-form-protection-fields";
 import { Eye, EyeOff, LockKeyhole } from "lucide-react";
 import { loginAction } from "@/app/actions/auth";
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const [showPassword, setShowPassword] = useState(false);
+  const [renderedAt] = useState(() => String(Date.now()));
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12 sm:px-6 lg:px-8">
@@ -24,7 +26,8 @@ export default function LoginPage() {
           </p>
         </div>
         
-        <form className="mt-8 space-y-4" action={formAction}>
+        <form className="relative mt-8 space-y-4" action={formAction}>
+          <PublicFormProtectionFields renderedAt={renderedAt} />
           <div className="space-y-1">
             <label htmlFor="email" className="block text-sm font-medium text-zinc-700">
               Email
@@ -87,7 +90,7 @@ export default function LoginPage() {
           <p className="text-center text-sm text-zinc-600">
             Primo accesso?{" "}
             <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-700">
-              Crea il tuo workspace
+              Richiedi accesso
             </Link>
           </p>
         </form>
