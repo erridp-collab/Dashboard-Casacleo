@@ -76,7 +76,10 @@ export async function GET() {
       error = retry.error;
     }
 
-    if (error) return errJson(error.message, 400);
+    if (error) {
+      console.error("[GET /api/bookings] db error", error);
+      return errJson("Errore nel recupero delle prenotazioni", 400);
+    }
 
     const bookings = data ?? [];
     const bookingIds = bookings.map((row) => String(row.id)).filter(Boolean);
@@ -89,7 +92,10 @@ export async function GET() {
         .eq("organization_id", organizationId)
         .in("booking_id", bookingIds);
 
-      if (actionsErr) return errJson(actionsErr.message, 400);
+      if (actionsErr) {
+        console.error("[GET /api/bookings] actions db error", actionsErr);
+        return errJson("Errore nel recupero dello stato pulizie", 400);
+      }
 
       for (const row of actionsData ?? []) {
         const bookingId = row.booking_id ? String(row.booking_id) : "";
@@ -177,7 +183,13 @@ export async function POST(req: Request) {
       error = retry.error;
     }
 
-    if (error) return errJson(error.message, 400);
+    if (error) {
+      if (String(error.code) === "23P01" || String(error.code) === "23505") {
+        return errJson("Esiste gia una prenotazione nello stesso giorno o in sovrapposizione", 409);
+      }
+      console.error("[POST /api/bookings] db error", error);
+      return errJson("Errore nel salvataggio della prenotazione", 400);
+    }
 
     const bookingId = data?.id ?? null;
     if (!bookingId) {

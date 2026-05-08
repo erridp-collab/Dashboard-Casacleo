@@ -43,4 +43,20 @@ describe("proxy auth enforcement", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost/");
   });
+
+  it("allows unauthenticated access to /forgot-password", async () => {
+    const { proxy } = await import("../proxy");
+    const response = await proxy(new NextRequest("http://localhost/forgot-password"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("allows unauthenticated access to /reset-password", async () => {
+    const { proxy } = await import("../proxy");
+    const response = await proxy(new NextRequest("http://localhost/reset-password"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
 });

@@ -14,7 +14,12 @@ const NAV_ITEMS = [
 
 export function BottomNav() {
   const pathname = usePathname();
-  if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password")
+  ) {
     return null;
   }
 

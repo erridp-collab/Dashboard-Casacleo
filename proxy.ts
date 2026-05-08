@@ -9,7 +9,7 @@ import {
   writeSessionCookies,
 } from "@/lib/supabaseAuth";
 
-const PUBLIC_PATH_PREFIXES = ["/login", "/signup"];
+const PUBLIC_PATH_PREFIXES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 
 export async function proxy(request: NextRequest) {
   const tokens = readSessionTokens(request.cookies);

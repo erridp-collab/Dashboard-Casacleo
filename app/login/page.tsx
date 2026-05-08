@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { LockKeyhole } from "lucide-react";
+import { useActionState, useState } from "react";
+import { Eye, EyeOff, LockKeyhole } from "lucide-react";
 import { loginAction } from "@/app/actions/auth";
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12 sm:px-6 lg:px-8">
@@ -23,31 +24,50 @@ export default function LoginPage() {
           </p>
         </div>
         
-        <form className="mt-8 space-y-6" action={formAction}>
-          <div>
-            <label htmlFor="email" className="sr-only">Email</label>
+        <form className="mt-8 space-y-4" action={formAction}>
+          <div className="space-y-1">
+            <label htmlFor="email" className="block text-sm font-medium text-zinc-700">
+              Email
+            </label>
             <input
               id="email"
               name="email"
               type="email"
               autoComplete="email"
               required
-              className="relative block w-full appearance-none rounded-xl border border-zinc-300 px-3 py-3 text-zinc-900 placeholder-zinc-500 focus:z-10 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
-              placeholder="Email"
+              className="block w-full rounded-xl border border-zinc-300 px-3 py-3 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
+              placeholder="tu@esempio.com"
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="sr-only">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className="relative block w-full appearance-none rounded-xl border border-zinc-300 px-3 py-3 text-zinc-900 placeholder-zinc-500 focus:z-10 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
-              placeholder="Password"
-            />
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
+                Password
+              </label>
+              <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700">
+                Password dimenticata?
+              </Link>
+            </div>
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                className="block w-full rounded-xl border border-zinc-300 px-3 py-3 pr-11 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
+                placeholder="La tua password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {state?.error && (
@@ -56,15 +76,13 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="group relative flex w-full justify-center rounded-xl border border-transparent bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 disabled:opacity-50"
-            >
-              {isPending ? "Accesso..." : "Accedi"}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="group relative flex w-full justify-center rounded-xl border border-transparent bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {isPending ? "Accesso..." : "Accedi"}
+          </button>
 
           <p className="text-center text-sm text-zinc-600">
             Primo accesso?{" "}

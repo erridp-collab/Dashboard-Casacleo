@@ -93,8 +93,14 @@ export async function GET(req: Request) {
       expensesErr = retry.error;
     }
 
-    if (bookingsErr) return errJson(bookingsErr.message, 400);
-    if (expensesErr) return errJson(expensesErr.message, 400);
+    if (bookingsErr) {
+      console.error("[GET /api/finance] bookings db error", bookingsErr);
+      return errJson("Errore nel recupero dei dati finanziari", 400);
+    }
+    if (expensesErr) {
+      console.error("[GET /api/finance] expenses db error", expensesErr);
+      return errJson("Errore nel recupero dei dati finanziari", 400);
+    }
 
     const monthPoints: Record<string, { revenue: number; expenses: number; occupiedDays: number; daysInMonth: number }> = {};
 
@@ -243,7 +249,10 @@ export async function POST(req: Request) {
       }
     }
 
-    if (error) return errJson(error.message, 400);
+    if (error) {
+      console.error("[POST /api/finance] db error", error);
+      return errJson("Errore nel salvataggio della spesa", 400);
+    }
     return okJson({ ok: true });
   } catch (e: unknown) {
     console.error("[POST /api/finance]", e);
@@ -267,7 +276,10 @@ export async function DELETE(req: Request) {
     if (error && String(error.code) === "42703" && String(error.message).includes("origin")) {
       return errJson("La colonna expenses.origin non esiste nel database. Applica la migration prima di eliminare spese manuali in sicurezza.", 409);
     }
-    if (error) return errJson(error.message, 400);
+    if (error) {
+      console.error("[DELETE /api/finance] db error", error);
+      return errJson("Errore nell'eliminazione della spesa", 400);
+    }
     return okJson({ ok: true });
   } catch (e: unknown) {
     console.error("[DELETE /api/finance]", e);

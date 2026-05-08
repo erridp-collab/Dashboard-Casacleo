@@ -463,9 +463,10 @@ async function applyProductQuantityDelta(
   options?: { capToMaxQty?: boolean },
   organizationId?: string,
 ): Promise<Record<string, number>> {
+  const resolvedOrganizationId = organizationId ?? null;
+  if (!resolvedOrganizationId) throw new Error("organizationId is required");
+
   const supabase = supabaseAdmin();
-  const resolvedOrganizationId = await resolveOrganizationId(organizationId);
-  if (!resolvedOrganizationId) throw new Error("Unable to resolve organization");
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
@@ -548,14 +549,17 @@ function toLaundryCompletion(applied: Record<string, number>): LaundryCompletion
   };
 }
 
-async function saveActionDetails(actionId: string, details: StoredActionDetails, organizationId?: string): Promise<void> {
+async function saveActionDetails(
+  actionId: string,
+  details: StoredActionDetails,
+  organizationId: string,
+): Promise<void> {
   const supabase = supabaseAdmin();
-  let query = supabase
+  const { error } = await supabase
     .from("actions")
     .update({ details: JSON.stringify(details) })
-    .eq("id", actionId);
-  if (organizationId) query = query.eq("organization_id", organizationId);
-  const { error } = await query;
+    .eq("id", actionId)
+    .eq("organization_id", organizationId);
   if (error) throw new Error(error.message);
 }
 

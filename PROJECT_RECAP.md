@@ -37,6 +37,8 @@ Quello che esiste davvero oggi:
 
 - login email/password
 - signup con creazione workspace
+- forgot password
+- reset password
 - onboarding iniziale obbligatorio dopo login
 - dashboard operativa
 - bookings CRUD
@@ -90,7 +92,7 @@ Cartelle chiave:
 
 Flusso attuale per un nuovo tester:
 
-1. riceve direttamente il link dell’app
+1. riceve direttamente il link dell'app
 2. apre `/signup`
 3. crea account con email/password
 4. il sistema crea:
@@ -105,7 +107,7 @@ Flusso per utente esistente:
 
 1. apre `/login`
 2. login email/password
-3. il server risolve la membership e l’organizzazione attiva
+3. il server risolve la membership e l'organizzazione attiva
 4. se `onboarding_completed` non e true, redirect automatico a `/onboarding`
 5. altrimenti accesso normale alle aree protette
 
@@ -124,11 +126,13 @@ Nuovo modello:
 - verifica sessione in `proxy.ts`
 - refresh sessione server-side quando necessario
 - rate limiting login via tabella `auth_rate_limits` con fallback in-memory
+- reset password client-side via `supabaseBrowserClient()`
 
 File chiave:
 
 - `app/actions/auth.ts`
 - `lib/supabaseAuth.ts`
+- `lib/supabaseBrowser.ts`
 - `proxy.ts`
 
 ## Multi-Tenancy Model
@@ -158,19 +162,19 @@ Il database ha:
 Importante:
 
 - la struttura e multi-tenant
-- l’uso applicativo attuale e semplificato a un owner per workspace
-- il sistema e quindi SaaS-ready ma non ancora “SaaS-complete”
+- l'uso applicativo attuale e semplificato a un owner per workspace
+- il sistema e quindi SaaS-ready ma non ancora "SaaS-complete"
 
 ## Onboarding Model
 
-L’onboarding non e pubblico. E accessibile solo dopo autenticazione.
+L'onboarding non e pubblico. E accessibile solo dopo autenticazione.
 
 Stato onboarding:
 
 - memorizzato dentro `organizations.settings`
 - chiave principale: `onboarding_completed`
 
-Durante l’onboarding si configurano:
+Durante l'onboarding si configurano:
 
 - nome workspace
 - valuta
@@ -200,7 +204,7 @@ Regole:
 
 Nota importante per audit:
 
-- il proxy non deve essere considerato l’unico layer di sicurezza
+- il proxy non deve essere considerato l'unico layer di sicurezza
 - le API principali validano anche il contesto organizzativo lato server
 
 ## Organization Context Resolution
@@ -212,10 +216,10 @@ Il modulo si occupa di:
 - leggere cookie sessione
 - verificare utente
 - recuperare membership in `user_roles`
-- scegliere l’organizzazione attiva
+- scegliere l'organizzazione attiva
 - persistere `active-organization-id` in cookie
 - caricare il record organizzazione
-- determinare se l’onboarding e completato
+- determinare se l'onboarding e completato
 
 Questo e il pezzo centrale del nuovo modello applicativo.
 
@@ -320,15 +324,20 @@ Migration principali:
 - `20260507123000_add_apply_product_quantity_deltas_atomic.sql`
 - `20260507150000_add_multi_tenant_foundation.sql`
 - `20260507154000_fix_atomic_product_uuid_lookup.sql`
+- `20260508100000_fix_delete_booking_atomic_org_filter.sql`
+- `20260508120000_drop_create_booking_function.sql`
+- `20260508130000_add_booking_overlap_exclusion.sql`
 
-Le due migration SaaS cruciali sono:
+Le migration SaaS piu importanti oggi sono:
 
-- `add_multi_tenant_foundation`
-- `fix_atomic_product_uuid_lookup`
+- `20260507150000_add_multi_tenant_foundation.sql`
+- `20260507154000_fix_atomic_product_uuid_lookup.sql`
+- `20260508100000_fix_delete_booking_atomic_org_filter.sql`
+- `20260508130000_add_booking_overlap_exclusion.sql`
 
 ## Local Environment Reality
 
-L’ultima iterazione e stata verificata sul Supabase locale Docker.
+L'ultima iterazione e stata verificata sul Supabase locale Docker.
 
 Valori reali attesi:
 
@@ -348,13 +357,14 @@ npm test
 
 Nota audit molto importante:
 
-- l’ultimo lavoro SaaS e stato validato sul locale Docker
+- l'ultimo lavoro SaaS e stato validato sul locale Docker
 - non assumere che il progetto remoto hosted sia automaticamente allo stesso livello senza verifica esplicita
 
 ## Verification Status
 
-Alla fine dell’ultima sessione risultava tutto verde su locale:
+Alla fine dell'ultima sessione risultava tutto verde su locale:
 
+- `npx supabase db push --local`
 - `npx tsc --noEmit`
 - `npm run lint`
 - `npm test`
@@ -383,62 +393,71 @@ Scelte tecniche ancora transitorie:
 - uso di `service_role` nei moduli server-side, ma con filtro applicativo tenant
 - sync eventuali non sempre bloccanti
 
-## Audit 2026-05-07 — Risultati e Stato
+## Audit 2026-05-07 - Risultati e Stato
 
-Audit completo eseguito il 2026-05-07. Piano: `docs/superpowers/plans/2026-05-07-security-critical-fixes.md`.
+Audit completo eseguito il 2026-05-07.
 
-### Corretti (commit 925ff46)
+### Corretti
 
 | # | Problema | File |
 |---|----------|------|
-| ✅ | `supabaseAuthClient()` usava `service_role` per auth utente | `lib/supabaseAuth.ts` |
-| ✅ | Action update + side effects non atomici (stato inconsistente) | `app/api/actions/route.ts` |
-| ✅ | `loginAction` redirect fisso a `/onboarding` invece di `/` | `app/actions/auth.ts` |
-| ✅ | `upsertShoppingAction` update SPESA senza filtro `organization_id` | `lib/stock.ts` |
-| ✅ | `syncShoppingAction` eseguita ad ogni GET /api/actions | `app/api/actions/route.ts` |
-| ✅ | Race condition rate limiting (SELECT + UPDATE non atomici) | `app/actions/auth.ts` + migration |
+| yes | `supabaseAuthClient()` usava `service_role` per auth utente | `lib/supabaseAuth.ts` |
+| yes | Action update + side effects non atomici | `app/api/actions/route.ts` |
+| yes | `loginAction` redirect fisso a `/onboarding` invece di `/` | `app/actions/auth.ts` |
+| yes | `upsertShoppingAction` update SPESA senza filtro `organization_id` | `lib/stock.ts` |
+| yes | `syncShoppingAction` eseguita ad ogni GET `/api/actions` | `app/api/actions/route.ts` |
+| yes | Race condition rate limiting | `app/actions/auth.ts` + migration |
 
-### Backlog Tecnico — Da affrontare in ordine di priorità
+## Audit 2026-05-08 - Risultati e Stato
 
-**P1 — Prima dei primi tester**
+Audit completo eseguito il 2026-05-08 con 3 agenti indipendenti.
+I risultati sono stati consolidati direttamente in questo recap.
 
-- **CSRF su Server Actions (almeno logout)**: `logoutAction` non ha protezione CSRF esplicita. Next.js App Router aggiunge alcuni header check ma non equivale a CSRF token. Valutare `origin` check server-side.
-- **RLS bypassa `service_role` — documentazione e audit query**: Tutte le route usano `supabaseAdmin()` (service_role), che salta RLS. La sicurezza tenant è affidata al filtro `.eq("organization_id", organizationId)` in ogni query. Auditare che OGNI query lo abbia — anche quelle su `actions`, `action_checklist`, `expenses`. La RLS è protezione solo per connessioni dirette al DB.
-- **`resolveDefaultOrganizationId` come fallback globale**: `lib/organizationContext.ts:53` — ritorna la prima org in assoluto se un utente non ha membership. Va rimosso o trasformato in errore esplicito prima di avere più tenant reali.
+### Critical corretti
 
-**P2 — Robustezza pre-scale**
+| # | Problema | File |
+|---|----------|------|
+| yes C1 | fallback cross-tenant nel login rimosso | `app/actions/auth.ts` |
+| yes C2 | reset password senza token nel DOM | `app/reset-password/page.tsx`, `lib/supabaseBrowser.ts` |
+| yes C3 | `delete_booking_atomic` con filtro `organization_id` | migration `20260508100000`, `app/api/bookings/[id]/route.ts` |
+| yes C4 | security headers presenti | `next.config.ts` |
 
-- **FK mancante su `expenses.source_action_id`**: eliminando un'action, le spese collegate restano orfane. Aggiungere FK `references public.actions(id) on delete set null`.
-- **`PATCH /api/products` — loop non transazionale**: aggiorna ogni prodotto in query separate. Se fallisce a metà, i primi sono committed. Servono una RPC atomica o check pre-loop.
-- **Resync fire-and-forget senza recovery visibile**: `scheduleBookingDomainResync` in `lib/booking-automation.ts` — se fallisce dopo i 2 retry, l'errore va solo nei log. Considerare un campo `sync_status` su bookings o un sistema di notifica errore.
+### High/Medium corretti
 
-**P3 — Cleanup tecnico (quando si rimuovono le migration legacy)**
+| # | Finding | Severita | File |
+|---|---------|----------|------|
+| yes H2 | `saveActionDetails` richiede `organization_id` | `lib/action-effects.ts` |
+| yes M1 | `applyProductQuantityDelta` senza fallback DB implicito | `lib/action-effects.ts` |
+| yes H3 | signup non espone errori Supabase raw | `app/actions/auth.ts` |
+| yes M2 | errori DB non esposti raw nelle API principali | `app/api/bookings/route.ts`, `app/api/finance/route.ts` |
+| yes M3 | rimossa `create_booking()` SQL inutilizzata | migration `20260508120000` |
+| yes H1 | overlap concorrenti bloccati a livello DB | migration `20260508130000`, `app/api/bookings/route.ts` |
 
-- **Fallback schema legacy ancora attivi**: doppi tentativi di query in `bookings/route.ts`, `actions/route.ts`, `finance/route.ts`. Rimuoverli una volta verificato che tutti gli ambienti (incluso hosted) hanno le migration SaaS applicate.
-- **6 varianti checklist insert in `booking-automation.ts`**: `ensureChecklist` prova 6 combinazioni di colonne. Relitto legacy. Rimuovere appena schema stabilizzato.
-- **`create_booking()` SQL function**: nella migration `20260507150000` — contiene logica duplicata rispetto all'applicazione. Non risulta usata dalle route. Va rimossa o documentata.
-- **`toAmount`, `isValidIsoDate`, `isMissingColumn` duplicate**: estratte in modulo condiviso.
+### Postura di sicurezza attuale
 
-**P4 — UX / Frontend**
+- auth Supabase con verifica server-side dei JWT
+- `supabaseAuthClient()` usa anon key
+- session cookie httpOnly + sameSite lax
+- filtro `organization_id` applicativo su tutte le query sensibili
+- RLS presente ma secondaria rispetto ai filtri applicativi, dato l'uso di `service_role` lato server
+- rate limiting atomico via RPC `upsert_rate_limit`
+- `logoutAction` con origin check esplicito
+- reset password client-side via `supabaseBrowserClient()`
+- security headers in `next.config.ts`
+- constraint DB `bookings_no_overlap` per bloccare collisioni concorrenti sui booking
 
-- **Labels `sr-only` nel form login**: i placeholder sostituiscono le label visibili. Su campo compilato non c'è label visibile. Aggiungere label visibili.
-- **Password senza toggle visibilità**: input password senza eye icon, impatta mobile.
-- **Loading states nelle pagine dati**: nessun feedback visivo su bookings/actions/inventory durante fetch.
-- **Validazione UUID `bookingId` nei query params** di `GET /api/actions`.
-- **Lunghezza minima `organization_name`** in signup — attualmente 1 carattere è accettato.
+## Backlog Tecnico Residuo
 
-### Postura di sicurezza attuale (per audit futuri)
-
-- **Auth**: Supabase Auth con JWT verificato server-side. `supabaseAuthClient()` usa anon key (fix applicato). Session cookie httpOnly + sameSite lax.
-- **Tenant isolation**: filtro `organization_id` applicativo su ogni query. RLS presente ma bypassata da service_role server-side — è una difesa secondaria (per connessioni dirette al DB), non primaria.
-- **Rate limiting**: atomico via RPC `upsert_rate_limit` con fallback in-memory.
-- **CSRF**: non gestito esplicitamente — dipende dai check automatici Next.js App Router.
+- FK mancante su `expenses.source_action_id`
+- `PATCH /api/products` con loop non transazionale
+- fallback schema legacy ancora attivi in `bookings/route.ts`, `actions/route.ts`, `finance/route.ts`
+- 6 varianti checklist insert in `booking-automation.ts` ancora presenti come relitto legacy
+- test tenant isolation ancora mancanti
 
 ## What Is Not Done Yet
 
-Mancanze consapevoli (invariate):
+Mancanze consapevoli:
 
-- forgot password
 - invite collaborators
 - switch workspace
 - role-based permissions reali
@@ -448,17 +467,15 @@ Mancanze consapevoli (invariate):
 
 ## Suggested Next Steps
 
-Ordine consigliato post-audit:
+Stato attuale: il nucleo beta e stato stabilizzato e gli audit principali sono stati chiusi su locale.
 
-1. ✅ audit completo sicurezza + architettura
-2. ✅ fix dei findings critici P0/P1
-3. CSRF hardening (logout almeno)
-4. forgot password
-5. rifinitura onboarding/settings
-6. rimozione fallback legacy (dopo verifica ambiente hosted)
-7. inviti collaboratori
-8. eventuale scaffold billing
-9. Stripe reale solo dopo validazione beta
+Prossimi passi sensati:
+
+1. verificare che l'ambiente hosted abbia applicato anche le migration `20260508100000`, `20260508120000`, `20260508130000`
+2. aggiungere FK su `expenses.source_action_id`
+3. aggiungere test di tenant isolation end-to-end
+4. rimuovere i fallback schema legacy dopo verifica hosted
+5. aggiungere loading states ed error boundaries nelle aree dati principali
 
 ## Fast Re-Entry Files
 
@@ -467,8 +484,11 @@ Aprire subito questi file per riprendere:
 - `README.md`
 - `PROJECT_RECAP.md`
 - `app/actions/auth.ts`
+- `app/reset-password/page.tsx`
 - `proxy.ts`
+- `next.config.ts`
 - `lib/organizationContext.ts`
+- `lib/supabaseBrowser.ts`
 - `app/onboarding/page.tsx`
 - `app/api/bookings/route.ts`
 - `app/api/bookings/[id]/route.ts`
@@ -478,15 +498,20 @@ Aprire subito questi file per riprendere:
 - `lib/stock.ts`
 - `supabase/migrations/20260507150000_add_multi_tenant_foundation.sql`
 - `supabase/migrations/20260507154000_fix_atomic_product_uuid_lookup.sql`
+- `supabase/migrations/20260508100000_fix_delete_booking_atomic_org_filter.sql`
+- `supabase/migrations/20260508120000_drop_create_booking_function.sql`
+- `supabase/migrations/20260508130000_add_booking_overlap_exclusion.sql`
 
 ## Bottom Line
 
-Il progetto non e piu solo un tool interno: oggi ha una base SaaS reale, ma volutamente semplificata per beta privata.
+L'obiettivo attuale non e completare il SaaS, ma rendere distribuibile e sicuro quello che gia esiste.
 
-La fotografia corretta e:
+La base per farlo c'e gia:
 
-- SaaS foundation presente
-- owner-only beta attiva
-- onboarding interno presente
-- multi-tenancy a livello DB e API gia introdotta
-- prodotto ancora in fase di affinamento prima di ruoli, billing e scala piu ampia
+- auth Supabase funzionante
+- reset password funzionante senza token nel DOM
+- organization e multi-tenancy presenti a livello DB e API
+- onboarding protetto post-login
+- tutte le aree operative funzionanti
+
+Il passo successivo e consolidare hosted, chiudere il backlog tecnico residuo e poi validare la beta con tester reali prima di aggiungere feature enterprise.

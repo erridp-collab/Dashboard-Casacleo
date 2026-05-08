@@ -326,6 +326,7 @@ export async function DELETE(
 
     const { error } = await supabase.rpc("delete_booking_atomic", {
       p_booking_id: id,
+      p_organization_id: organizationId,
       p_linen_restore: linenRestoreTotals,
     });
     if (error) return errJson(formatDbError(error), 400);

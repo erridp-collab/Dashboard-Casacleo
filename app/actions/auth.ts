@@ -2,7 +2,6 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { resolveDefaultOrganizationId } from "@/lib/organizationContext";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { clearAuthCookies, supabaseAuthClient, writeActiveOrganizationCookie, writeSessionCookies } from "@/lib/supabaseAuth";
 
@@ -13,7 +12,7 @@ const WINDOW_MS = 15 * 60 * 1000; // 15 minuti
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
 type RateLimitResult = { blocked: boolean; remaining: number };
-type LoginActionState = { error?: string } | null;
+type AuthActionState = { error?: string; success?: boolean } | null;
 
 function slugify(value: string): string {
   return value
@@ -42,6 +41,53 @@ async function findUserPrimaryOrganization(userId: string): Promise<string | nul
 
   if (error) throw new Error(error.message);
   return data?.organization_id ? String(data.organization_id) : null;
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function isAuthorizedOrigin(headersList: Awaited<ReturnType<typeof headers>>): boolean {
+  const origin = headersList.get("origin")?.trim() ?? "";
+  if (!origin) return true;
+
+  const requestHost =
+    headersList.get("x-forwarded-host")?.trim() ??
+    headersList.get("host")?.trim() ??
+    "";
+
+  if (!requestHost) return false;
+
+  try {
+    return new URL(origin).host.toLowerCase() === requestHost.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+function getSiteUrl(headersList: Awaited<ReturnType<typeof headers>>): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configured) {
+    return trimTrailingSlash(configured);
+  }
+
+  const origin = headersList.get("origin")?.trim();
+  if (origin) {
+    return trimTrailingSlash(origin);
+  }
+
+  const host =
+    headersList.get("x-forwarded-host")?.trim() ??
+    headersList.get("host")?.trim() ??
+    "";
+
+  if (!host) return "";
+
+  const proto =
+    headersList.get("x-forwarded-proto")?.trim() ??
+    (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+
+  return `${proto}://${host}`;
 }
 
 async function createOrganizationForUser(userId: string, organizationName: string): Promise<string> {
@@ -168,7 +214,7 @@ async function resetRateLimit(ip: string): Promise<void> {
   }
 }
 
-export async function loginAction(prevState: LoginActionState, formData: FormData) {
+export async function loginAction(prevState: AuthActionState, formData: FormData) {
   const headersList = await headers();
   const ip = getClientIp(headersList);
   const { blocked } = await checkRateLimit(ip);
@@ -190,12 +236,10 @@ export async function loginAction(prevState: LoginActionState, formData: FormDat
     return { error: "Credenziali non valide" };
   }
 
-  const organizationId =
-    (await findUserPrimaryOrganization(signIn.data.user.id)) ??
-    (await resolveDefaultOrganizationId());
+  const organizationId = await findUserPrimaryOrganization(signIn.data.user.id);
 
   if (!organizationId) {
-    return { error: "Nessuna organizzazione associata a questo utente" };
+    return { error: "Nessuna organizzazione associata a questo account" };
   }
 
   await resetRateLimit(ip);
@@ -206,13 +250,17 @@ export async function loginAction(prevState: LoginActionState, formData: FormDat
   redirect("/");
 }
 
-export async function signupAction(prevState: LoginActionState, formData: FormData) {
+export async function signupAction(prevState: AuthActionState, formData: FormData) {
   const organizationName = formData.get("organization_name")?.toString().trim() ?? "";
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? "";
   const password = formData.get("password")?.toString() ?? "";
   const fullName = formData.get("full_name")?.toString().trim() ?? "";
 
-  if (!organizationName || !email || !password) {
+  if (!organizationName || organizationName.length < 3) {
+    return { error: "Il nome dell'organizzazione deve avere almeno 3 caratteri" };
+  }
+
+  if (!email || !password) {
     return { error: "Organizzazione, email e password sono obbligatorie" };
   }
 
@@ -230,7 +278,8 @@ export async function signupAction(prevState: LoginActionState, formData: FormDa
   });
 
   if (signUp.error) {
-    return { error: signUp.error.message };
+    console.error("Signup error", signUp.error);
+    return { error: "Registrazione non completata. Verifica i dati e riprova." };
   }
 
   if (!signUp.data.user?.id) {
@@ -256,7 +305,66 @@ export async function signupAction(prevState: LoginActionState, formData: FormDa
   redirect("/");
 }
 
-export async function logoutAction() {
+export async function forgotPasswordAction(
+  prevState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = formData.get("email")?.toString().trim().toLowerCase() ?? "";
+
+  if (!email) {
+    return { error: "Email obbligatoria" };
+  }
+
+  const headersList = await headers();
+  const siteUrl = getSiteUrl(headersList);
+
+  if (!siteUrl) {
+    return { error: "Configurazione reset password non disponibile" };
+  }
+
+  const authClient = supabaseAuthClient();
+  const { error } = await authClient.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/reset-password`,
+  });
+
+  if (error) {
+    console.error("Forgot password failed", error);
+    return { error: "Impossibile inviare il link di reset. Riprova." };
+  }
+
+  return { success: true };
+}
+
+export async function resetPasswordAction(
+  prevState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const password = formData.get("password")?.toString() ?? "";
+  const confirmPassword = formData.get("confirm_password")?.toString() ?? "";
+
+  if (password.length < 8) {
+    return { error: "La password deve avere almeno 8 caratteri" };
+  }
+
+  if (password !== confirmPassword) {
+    return { error: "Le password non coincidono" };
+  }
+
+  return { success: true };
+}
+
+export async function logoutAction(
+  prevState: AuthActionState | void,
+  formData: FormData,
+): Promise<AuthActionState | void> {
+  void prevState;
+  void formData;
+
+  const headersList = await headers();
+  if (!isAuthorizedOrigin(headersList)) {
+    return { error: "Richiesta non autorizzata" };
+  }
+
   const cookieStore = await cookies();
   clearAuthCookies(cookieStore);
   redirect("/login");
