@@ -45,7 +45,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && (isLoginPage || isSignupPage)) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL(isPlatformAdmin ? "/platform" : "/", request.url));
   }
 
   if (isAuthenticated && isPlatformPage) {
@@ -58,6 +58,10 @@ export async function proxy(request: NextRequest) {
   if (isAuthenticated && !isApiRoute && !isPublicPage && !isOnboardingPage && verified.user) {
     const activeOrganizationId = readActiveOrganizationId(request.cookies);
     const organization = await findPrimaryOrganizationForUser(verified.user.id, activeOrganizationId);
+
+    if (!organization && isPlatformAdmin) {
+      return NextResponse.redirect(new URL("/platform", request.url));
+    }
 
     if (organization && !isOnboardingComplete(organization.settings)) {
       return NextResponse.redirect(new URL("/onboarding", request.url));

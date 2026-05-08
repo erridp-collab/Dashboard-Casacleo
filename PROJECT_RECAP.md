@@ -114,6 +114,14 @@ Flusso attuale per un nuovo tester:
 9. completa i dati base del workspace
 10. poi usa la dashboard normalmente
 
+Flusso validato in locale:
+
+- richiesta accesso inviata da utente anonimo
+- approvazione eseguita da `platform admin`
+- reset password ricevuto via Mailpit locale
+- login riuscito
+- utente owner nuovo indirizzato prima a `/onboarding`
+
 Flusso per utente esistente:
 
 1. apre `/login`
@@ -131,6 +139,11 @@ Flusso platform admin:
    - richieste accesso
    - provisioning retry
    - account support
+
+Distinzione confermata:
+
+- `platform admin` puro senza membership org -> `/platform`
+- utente approvato con membership `owner` su workspace nuovo -> `/onboarding`
 
 ## Authentication Model
 
@@ -248,6 +261,13 @@ Supporto account disponibile da console:
 - resend reset link
 - disable account
 - reactivate account
+
+Stato operativo attuale:
+
+- primo `platform admin` configurato sia su hosted sia su locale
+- login `platform admin` senza membership org supportato lato server
+- ambiente locale completato con chiavi auth publishable/anon necessarie per login e reset
+- flusso end-to-end locale `request access -> approve -> reset -> login -> onboarding` verificato
 
 ## Route Protection
 
@@ -438,6 +458,10 @@ Alla fine dell'ultima sessione risultava tutto verde su locale:
 - `npx tsc --noEmit`
 - `npm run lint`
 - `npm test`
+- login locale verificato con account `platform admin`
+- Supabase locale Docker raggiungibile e funzionante
+- reset password locale verificato con redirect corretto a `/reset-password`
+- smoke test end-to-end locale verificato per utente approvato
 
 Suite rilevanti ora coperte:
 
@@ -550,15 +574,9 @@ Stato attuale: il nucleo beta e stato stabilizzato, gli audit principali sono st
 
 Prossimi passi immediati per ripartire bene:
 
-1. impostare il tuo utente con `app_metadata.is_platform_admin = true`
-2. verificare che l'ambiente hosted abbia applicato anche la migration `20260508140000_add_signup_requests.sql` oltre a `20260508100000`, `20260508120000`, `20260508130000`
-3. fare smoke test manuale del flusso:
-   - `/signup` invia richiesta
-   - `/platform/requests` approva
-   - mail reset/set password
-   - primo login
-   - `/onboarding`
-4. decidere come promuovere il primo account admin anche in produzione/staging e documentarlo
+1. verificare che l'ambiente hosted abbia applicato anche la migration `20260508140000_add_signup_requests.sql` oltre a `20260508100000`, `20260508120000`, `20260508130000`
+2. documentare in modo operativo la promozione di futuri `platform admin`
+3. decidere se introdurre una action esplicita di "riapertura" per richieste `rejected` invece di lasciarle terminali
 
 Prossimi passi tecnici dopo il setup admin:
 
@@ -610,9 +628,12 @@ La base per farlo c'e gia:
 - auth Supabase funzionante
 - request access con approvazione admin
 - console `/platform` per operazioni amministrative
+- primo `platform admin` gia configurato e accessibile in locale
 - reset password funzionante senza token nel DOM
 - organization e multi-tenancy presenti a livello DB e API
 - onboarding protetto post-login
 - tutte le aree operative funzionanti
 
-Il passo successivo piu concreto e impostare il tuo primo `platform admin`, validare il flusso completo richiesta -> approvazione -> onboarding su hosted e poi chiudere il backlog tecnico residuo prima di aprire la beta a tester reali.
+Il passo successivo piu concreto e validare tutto in locale il flusso richiesta -> approvazione -> onboarding, poi allineare hosted e chiudere il backlog tecnico residuo prima di aprire la beta a tester reali.
+
+Questo flusso locale ora risulta validato. Il passo successivo piu concreto e allineare hosted e poi chiudere il backlog tecnico residuo prima di aprire la beta a tester reali.
