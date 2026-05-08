@@ -557,6 +557,132 @@ I risultati sono stati consolidati direttamente in questo recap.
 - 6 varianti checklist insert in `booking-automation.ts` ancora presenti come relitto legacy
 - test tenant isolation ancora mancanti
 
+## Open Rollout Tracks
+
+Le due cose ancora aperte a livello prodotto/rollout non sono piu tanto di codice puro, ma di migrazione e operativita:
+
+1. migrare il sistema senza perdere i dati e la continuita dell'utente attivo
+2. definire il setup piu semplice possibile per nuovi utenti, supporto operativo e monitoraggio
+
+Questi due binari sono i prossimi da gestire.
+
+## Migration Plan For Current Active User
+
+Obiettivo:
+
+- portare l'utente gia attivo nel nuovo modello SaaS senza perdere dati, membership o continuita operativa
+
+Piano consigliato:
+
+1. fotografare lo stato attuale hosted prima di qualsiasi cutover
+   - backup database
+   - lista utenti Auth
+   - organizzazioni presenti
+   - membership `user_roles`
+   - stato `organizations.settings.onboarding_completed`
+2. identificare il workspace reale che rappresenta l'utente storico
+   - verificare se tutto il dato legacy e gia dentro una sola `organization`
+   - se esiste una `Legacy Workspace`, confermare se e quella giusta o se va rinominata
+3. collegare l'utente attivo a quel workspace nel nuovo modello
+   - utente Auth corretto
+   - membership `owner` in `user_roles`
+   - `active-organization-id` coerente
+4. verificare che tutti i dati storici puntino alla stessa `organization`
+   - bookings
+   - actions
+   - expenses
+   - products
+   - counters
+5. validare il flusso completo dell'utente storico
+   - login
+   - arrivo su dashboard oppure onboarding se necessario
+   - accesso a bookings/actions/finance/inventory
+6. fare il cutover hosted solo dopo prova locale o staging molto vicina al reale
+7. tenere una procedura di rollback semplice
+   - backup disponibile
+   - query per ricontrollare membership e org attiva
+
+Rischi principali da evitare:
+
+- utente Auth corretto ma senza `user_roles`
+- dati storici sparsi su piu `organization_id`
+- `active-organization-id` che punta a una org sbagliata
+- onboarding che ricompare per errore su un workspace gia configurato
+
+Definizione di done:
+
+- l'utente storico entra senza attrito
+- vede tutti i suoi dati precedenti
+- il workspace giusto e quello attivo
+- nessuna area operativa restituisce `Forbidden` o dati vuoti per mismatch tenant
+
+## Simple New User Setup And Monitoring Plan
+
+Obiettivo:
+
+- rendere il percorso del nuovo utente e il supporto admin il piu semplice possibile, con un minimo chiaro di monitoraggio
+
+Percorso semplice da mantenere:
+
+1. utente invia `Richiedi accesso`
+2. admin approva da `/platform/requests`
+3. utente riceve reset/set password
+4. primo login
+5. onboarding
+6. uso normale del workspace
+
+Setup minimo consigliato per nuovi utenti:
+
+- un solo `platform admin` operativo iniziale
+- approvazione manuale delle richieste
+- email reset native Supabase all'inizio
+- onboarding corto, senza campi extra
+- supporto account solo da `/platform/accounts`
+
+Monitoraggio minimo da impostare:
+
+1. richieste accesso
+   - quante `pending`
+   - quante `failed`
+   - tempo medio tra richiesta e approvazione
+2. auth/support
+   - reset password non riusciti
+   - login falliti anomali
+   - account disabilitati / riattivati
+3. provisioning
+   - richieste finite in `failed`
+   - creazione user/org/membership non completa
+4. runtime applicativo
+   - errori `401/403/500` sulle API principali
+   - errori `409` booking overlap
+5. smoke metrics prodotto
+   - nuovi utenti approvati
+   - onboarding completati
+   - workspace che entrano davvero in dashboard
+
+Strumenti minimi da usare:
+
+- log app/server
+- dashboard Supabase Auth
+- query su `signup_requests`
+- controllo manuale iniziale da `/platform`
+
+Runbook semplice per admin:
+
+1. controlla `/platform/requests`
+2. approva o rifiuta
+3. se `failed`, usa retry provisioning
+4. se l'utente non entra, usa `/platform/accounts`
+   - resend reset link
+   - disable/reactivate solo se serve
+5. se c'e un problema dati, controlla membership e `organization_id`
+
+Definizione di done:
+
+- un nuovo utente entra senza assistenza tecnica extra
+- l'admin riesce a gestire richieste e reset senza shell
+- gli errori principali sono visibili in modo semplice
+
 ## What Is Not Done Yet
 
 Mancanze consapevoli:
@@ -574,9 +700,11 @@ Stato attuale: il nucleo beta e stato stabilizzato, gli audit principali sono st
 
 Prossimi passi immediati per ripartire bene:
 
-1. verificare che l'ambiente hosted abbia applicato anche la migration `20260508140000_add_signup_requests.sql` oltre a `20260508100000`, `20260508120000`, `20260508130000`
-2. documentare in modo operativo la promozione di futuri `platform admin`
-3. decidere se introdurre una action esplicita di "riapertura" per richieste `rejected` invece di lasciarle terminali
+1. eseguire il `Migration Plan For Current Active User` su hosted con backup e verifica membership/dati
+2. impostare il `Simple New User Setup And Monitoring Plan` in versione minima operativa
+3. verificare che l'ambiente hosted abbia applicato anche la migration `20260508140000_add_signup_requests.sql` oltre a `20260508100000`, `20260508120000`, `20260508130000`
+4. documentare in modo operativo la promozione di futuri `platform admin`
+5. decidere se introdurre una action esplicita di "riapertura" per richieste `rejected` invece di lasciarle terminali
 
 Prossimi passi tecnici dopo il setup admin:
 
