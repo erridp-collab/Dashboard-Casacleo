@@ -102,6 +102,10 @@ export async function approveSignupRequestAction(formData: FormData): Promise<vo
     buildRequestsRedirect({ notice: "already-approved" });
   }
 
+  if (request.status === "rejected") {
+    buildRequestsRedirect({ error: "approval-not-allowed" });
+  }
+
   const headersList = await headers();
   const siteUrl = getSiteUrl(headersList);
 

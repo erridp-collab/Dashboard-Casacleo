@@ -241,4 +241,50 @@ describe("platform request actions", () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith("/platform/requests");
     expect(mockRedirect).toHaveBeenCalledWith("/platform/requests?notice=rejected");
   });
+
+  it("does not allow approving a rejected request", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: "request-3",
+        email: "owner@example.com",
+        full_name: "Mario Rossi",
+        organization_name: "Test Org",
+        status: "rejected",
+        notes: null,
+        auth_user_id: null,
+        organization_id: null,
+        reviewed_by: "admin-1",
+        reviewed_at: "2026-05-08T08:00:00.000Z",
+        created_at: "2026-05-08T08:00:00.000Z",
+        updated_at: "2026-05-08T08:00:00.000Z",
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const requestUpdate = vi.fn();
+
+    const from = vi.fn((table: string) => {
+      if (table === "signup_requests") {
+        return {
+          select,
+          update: requestUpdate,
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    const supabaseAdminModule = await import("@/lib/supabaseAdmin");
+    vi.mocked(supabaseAdminModule.supabaseAdmin).mockReturnValue({ from } as never);
+
+    const { approveSignupRequestAction } = await import("@/app/platform/actions");
+    const formData = new FormData();
+    formData.set("request_id", "request-3");
+
+    await expect(approveSignupRequestAction(formData)).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(requestUpdate).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+    expect(mockRedirect).toHaveBeenCalledWith("/platform/requests?error=approval-not-allowed");
+  });
 });

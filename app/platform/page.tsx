@@ -27,15 +27,23 @@ export default function PlatformPage() {
 
       <Card className="p-6">
         <CardHeader
-          title="Prossimo modulo"
-          subtitle="La prossima estensione di questa area e la gestione delle richieste accesso."
+          title="Moduli attivi"
+          subtitle="La console gestisce gia richieste accesso e supporto account."
         />
-        <Link
-          href="/platform/requests"
-          className="inline-flex rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          Apri richieste accesso
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/platform/requests"
+            className="inline-flex rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          >
+            Apri richieste accesso
+          </Link>
+          <Link
+            href="/platform/accounts"
+            className="inline-flex rounded-xl border border-zinc-300 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+          >
+            Apri supporto account
+          </Link>
+        </div>
       </Card>
     </div>
   );

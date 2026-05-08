@@ -98,6 +98,13 @@ function getBanner(searchParams: Record<string, string | string[] | undefined>) 
     };
   }
 
+  if (error === "approval-not-allowed") {
+    return {
+      tone: "error",
+      text: "Le richieste gia rifiutate non possono essere approvate direttamente. Serve una riapertura esplicita.",
+    };
+  }
+
   if (error === "rejection-not-allowed") {
     return {
       tone: "error",

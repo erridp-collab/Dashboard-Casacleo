@@ -29,6 +29,7 @@ L'app era nata come strumento single-tenant per uso interno. Ora e stata portata
 - auth applicativa migrata a Supabase Auth
 - scoping tenant applicato alle API principali
 - onboarding interno protetto post-login
+- accesso nuovi utenti gestito con richiesta approvata manualmente
 - modello di utilizzo attuale: un solo owner per workspace
 
 ## Product Scope Right Now
@@ -36,10 +37,13 @@ L'app era nata come strumento single-tenant per uso interno. Ora e stata portata
 Quello che esiste davvero oggi:
 
 - login email/password
-- signup con creazione workspace
+- richiesta accesso pubblica al posto del signup diretto
 - forgot password
 - reset password
 - onboarding iniziale obbligatorio dopo login
+- area `/platform` per admin piattaforma
+- approvazione/rifiuto richieste accesso
+- supporto account admin con resend reset / disable / reactivate
 - dashboard operativa
 - bookings CRUD
 - actions CRUD/parziale workflow
@@ -83,6 +87,7 @@ Cartelle chiave:
 - `app/api/` API interne
 - `app/actions/` server actions auth
 - `app/onboarding/` setup iniziale workspace
+- `app/platform/` console admin piattaforma
 - `components/` UI condivisa
 - `lib/` logica di dominio e integrazione DB
 - `supabase/migrations/` schema history
@@ -94,14 +99,20 @@ Flusso attuale per un nuovo tester:
 
 1. riceve direttamente il link dell'app
 2. apre `/signup`
-3. crea account con email/password
-4. il sistema crea:
+3. invia una richiesta accesso con:
+   - email
+   - nome opzionale
+   - nome organizzazione
+4. il sistema salva la richiesta in `signup_requests`
+5. un platform admin la approva o la rifiuta da `/platform/requests`
+6. in approvazione il sistema crea:
    - utente Supabase Auth
    - `organization`
    - membership `owner` in `user_roles`
-5. al primo accesso entra nel flusso `/onboarding`
-6. completa i dati base del workspace
-7. poi usa la dashboard normalmente
+7. l'utente riceve link reset/set password
+8. al primo accesso entra nel flusso `/onboarding`
+9. completa i dati base del workspace
+10. poi usa la dashboard normalmente
 
 Flusso per utente esistente:
 
@@ -110,6 +121,16 @@ Flusso per utente esistente:
 3. il server risolve la membership e l'organizzazione attiva
 4. se `onboarding_completed` non e true, redirect automatico a `/onboarding`
 5. altrimenti accesso normale alle aree protette
+
+Flusso platform admin:
+
+1. accede con normale sessione Supabase Auth
+2. deve avere `app_metadata.is_platform_admin = true`
+3. puo entrare in `/platform`
+4. da li gestisce:
+   - richieste accesso
+   - provisioning retry
+   - account support
 
 ## Authentication Model
 
@@ -121,18 +142,29 @@ Vecchio modello:
 Nuovo modello:
 
 - Supabase Auth
-- login/signup server-side
+- login server-side
+- request access server-side
 - cookie server-side per access/refresh token
 - verifica sessione in `proxy.ts`
 - refresh sessione server-side quando necessario
 - rate limiting login via tabella `auth_rate_limits` con fallback in-memory
 - reset password client-side via `supabaseBrowserClient()`
+- hardening form pubblici con honeypot + timing check
+
+Estensione piattaforma:
+
+- `platform admin` separato dal modello tenant
+- flag richiesto: `app_metadata.is_platform_admin = true`
+- guard dedicata in `lib/platformAdmin.ts`
+- area `/platform/*` non dipendente da `requireOrganizationContext()`
 
 File chiave:
 
 - `app/actions/auth.ts`
 - `lib/supabaseAuth.ts`
 - `lib/supabaseBrowser.ts`
+- `lib/platformAdmin.ts`
+- `lib/formProtection.ts`
 - `proxy.ts`
 
 ## Multi-Tenancy Model
@@ -188,6 +220,35 @@ File chiave:
 - `components/workspace-settings-form.tsx`
 - `lib/organizationContext.ts`
 
+## Platform Admin / Access Requests
+
+Nuovi pezzi introdotti:
+
+- tabella `signup_requests`
+- area `/platform`
+- pagina `/platform/requests`
+- pagina `/platform/accounts`
+
+Stati richiesta accesso:
+
+- `pending`
+- `approved`
+- `rejected`
+- `failed`
+
+Regole operative:
+
+- il pubblico non crea piu direttamente utenti Auth
+- l'approvazione crea account, workspace e membership `owner`
+- se il provisioning si interrompe, la richiesta va in `failed`
+- i retry sono idempotenti e riusano `auth_user_id` / `organization_id` se gia creati
+
+Supporto account disponibile da console:
+
+- resend reset link
+- disable account
+- reactivate account
+
 ## Route Protection
 
 La protezione attuale vive in `proxy.ts`.
@@ -199,13 +260,20 @@ Regole:
   - pagine protette -> redirect `/login`
 - con sessione:
   - `/login` e `/signup` -> redirect `/`
+  - `/platform/*` accessibili solo con `is_platform_admin = true`
 - con sessione ma onboarding incompleto:
   - redirect automatico verso `/onboarding`
+
+Eccezione importante:
+
+- un platform admin puo usare `/platform/*` anche se non ha contesto organizzativo attivo
+- la parte platform e separata dal routing tenant normale
 
 Nota importante per audit:
 
 - il proxy non deve essere considerato l'unico layer di sicurezza
 - le API principali validano anche il contesto organizzativo lato server
+- le action admin validano anche `requirePlatformAdmin()` lato server
 
 ## Organization Context Resolution
 
@@ -221,7 +289,7 @@ Il modulo si occupa di:
 - caricare il record organizzazione
 - determinare se l'onboarding e completato
 
-Questo e il pezzo centrale del nuovo modello applicativo.
+Questo e il pezzo centrale del nuovo modello applicativo tenant.
 
 ## API Surface
 
@@ -327,6 +395,7 @@ Migration principali:
 - `20260508100000_fix_delete_booking_atomic_org_filter.sql`
 - `20260508120000_drop_create_booking_function.sql`
 - `20260508130000_add_booking_overlap_exclusion.sql`
+- `20260508140000_add_signup_requests.sql`
 
 Le migration SaaS piu importanti oggi sono:
 
@@ -334,6 +403,7 @@ Le migration SaaS piu importanti oggi sono:
 - `20260507154000_fix_atomic_product_uuid_lookup.sql`
 - `20260508100000_fix_delete_booking_atomic_org_filter.sql`
 - `20260508130000_add_booking_overlap_exclusion.sql`
+- `20260508140000_add_signup_requests.sql`
 
 ## Local Environment Reality
 
@@ -369,12 +439,17 @@ Alla fine dell'ultima sessione risultava tutto verde su locale:
 - `npm run lint`
 - `npm test`
 
-Suite integration rilevanti:
+Suite rilevanti ora coperte:
 
 - booking automation
 - action effects
 - stock consumption
 - stock atomic
+- auth actions
+- public form protection
+- platform admin guard
+- platform request actions
+- platform account actions
 
 ## Known Design Choices
 
@@ -382,6 +457,8 @@ Scelte intenzionali attuali:
 
 - owner-only beta
 - onboarding minimo ma protetto
+- accesso nuovi utenti solo su approvazione
+- platform admin separato dal tenant model
 - niente billing operativo
 - niente ruoli multipli reali
 - niente landing pubblica
@@ -433,16 +510,18 @@ I risultati sono stati consolidati direttamente in questo recap.
 | yes M3 | rimossa `create_booking()` SQL inutilizzata | migration `20260508120000` |
 | yes H1 | overlap concorrenti bloccati a livello DB | migration `20260508130000`, `app/api/bookings/route.ts` |
 
-### Postura di sicurezza attuale
+## Postura di sicurezza attuale
 
 - auth Supabase con verifica server-side dei JWT
 - `supabaseAuthClient()` usa anon key
 - session cookie httpOnly + sameSite lax
+- platform admin separato via `app_metadata.is_platform_admin`
 - filtro `organization_id` applicativo su tutte le query sensibili
 - RLS presente ma secondaria rispetto ai filtri applicativi, dato l'uso di `service_role` lato server
 - rate limiting atomico via RPC `upsert_rate_limit`
 - `logoutAction` con origin check esplicito
 - reset password client-side via `supabaseBrowserClient()`
+- honeypot + timing check su `login`, `signup/request access`, `forgot password`
 - security headers in `next.config.ts`
 - constraint DB `bookings_no_overlap` per bloccare collisioni concorrenti sui booking
 
@@ -467,15 +546,27 @@ Mancanze consapevoli:
 
 ## Suggested Next Steps
 
-Stato attuale: il nucleo beta e stato stabilizzato e gli audit principali sono stati chiusi su locale.
+Stato attuale: il nucleo beta e stato stabilizzato, gli audit principali sono stati chiusi su locale e la distribuzione e ora impostata come beta privata con approvazione manuale accessi.
 
-Prossimi passi sensati:
+Prossimi passi immediati per ripartire bene:
 
-1. verificare che l'ambiente hosted abbia applicato anche le migration `20260508100000`, `20260508120000`, `20260508130000`
-2. aggiungere FK su `expenses.source_action_id`
-3. aggiungere test di tenant isolation end-to-end
-4. rimuovere i fallback schema legacy dopo verifica hosted
-5. aggiungere loading states ed error boundaries nelle aree dati principali
+1. impostare il tuo utente con `app_metadata.is_platform_admin = true`
+2. verificare che l'ambiente hosted abbia applicato anche la migration `20260508140000_add_signup_requests.sql` oltre a `20260508100000`, `20260508120000`, `20260508130000`
+3. fare smoke test manuale del flusso:
+   - `/signup` invia richiesta
+   - `/platform/requests` approva
+   - mail reset/set password
+   - primo login
+   - `/onboarding`
+4. decidere come promuovere il primo account admin anche in produzione/staging e documentarlo
+
+Prossimi passi tecnici dopo il setup admin:
+
+1. aggiungere FK su `expenses.source_action_id`
+2. aggiungere test di tenant isolation end-to-end
+3. rimuovere i fallback schema legacy dopo verifica hosted
+4. aggiungere loading states ed error boundaries nelle aree dati principali
+5. valutare invio email transazionale dedicato invece del solo reset link Supabase
 
 ## Fast Re-Entry Files
 
@@ -484,9 +575,16 @@ Aprire subito questi file per riprendere:
 - `README.md`
 - `PROJECT_RECAP.md`
 - `app/actions/auth.ts`
-- `app/reset-password/page.tsx`
 - `proxy.ts`
-- `next.config.ts`
+- `app/platform/layout.tsx`
+- `app/platform/requests/page.tsx`
+- `app/platform/accounts/page.tsx`
+- `app/platform/actions.ts`
+- `lib/platformAdmin.ts`
+- `lib/accountProvisioning.ts`
+- `lib/formProtection.ts`
+- `lib/siteUrl.ts`
+- `app/reset-password/page.tsx`
 - `lib/organizationContext.ts`
 - `lib/supabaseBrowser.ts`
 - `app/onboarding/page.tsx`
@@ -501,6 +599,7 @@ Aprire subito questi file per riprendere:
 - `supabase/migrations/20260508100000_fix_delete_booking_atomic_org_filter.sql`
 - `supabase/migrations/20260508120000_drop_create_booking_function.sql`
 - `supabase/migrations/20260508130000_add_booking_overlap_exclusion.sql`
+- `supabase/migrations/20260508140000_add_signup_requests.sql`
 
 ## Bottom Line
 
@@ -509,9 +608,11 @@ L'obiettivo attuale non e completare il SaaS, ma rendere distribuibile e sicuro 
 La base per farlo c'e gia:
 
 - auth Supabase funzionante
+- request access con approvazione admin
+- console `/platform` per operazioni amministrative
 - reset password funzionante senza token nel DOM
 - organization e multi-tenancy presenti a livello DB e API
 - onboarding protetto post-login
 - tutte le aree operative funzionanti
 
-Il passo successivo e consolidare hosted, chiudere il backlog tecnico residuo e poi validare la beta con tester reali prima di aggiungere feature enterprise.
+Il passo successivo piu concreto e impostare il tuo primo `platform admin`, validare il flusso completo richiesta -> approvazione -> onboarding su hosted e poi chiudere il backlog tecnico residuo prima di aprire la beta a tester reali.
