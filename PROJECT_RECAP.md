@@ -1,6 +1,7 @@
 # Project Recap
 
 Questo file serve come contesto di continuita per audit, handoff e ripartenza tecnica.
+E il documento principale da leggere prima di qualsiasi lavoro sul progetto.
 
 ## Audit Brief
 
@@ -10,8 +11,8 @@ Se devi fare un audit di questo progetto, considera questi vincoli reali:
 - la fase attuale e `owner-only`
 - non ci sono ancora ruoli multipli reali, billing reale o landing pubblica
 - il setup verificato degli ultimi lavori e il Supabase locale su Docker
-- non dare per scontato che il progetto hosted remoto abbia tutte le ultime migration SaaS se non viene verificato esplicitamente
-- la priorita attuale e rendere il prodotto usabile per primi clienti tester, non completare tutta la piattaforma enterprise
+- il database hosted e ancora legacy (pre-multi-tenancy) — vedi sezione "Stato Hosted"
+- la priorita attuale e rendere distribuibile e sicuro quello che gia esiste, non completare tutta la piattaforma enterprise
 
 ## Executive Summary
 
@@ -147,12 +148,12 @@ Distinzione confermata:
 
 ## Authentication Model
 
-Vecchio modello:
+Vecchio modello (ancora attivo su hosted):
 
 - password condivisa di squadra
 - cookie HMAC custom
 
-Nuovo modello:
+Nuovo modello (attivo su locale, da portare su hosted):
 
 - Supabase Auth
 - login server-side
@@ -412,6 +413,7 @@ Migration principali:
 - `20260507123000_add_apply_product_quantity_deltas_atomic.sql`
 - `20260507150000_add_multi_tenant_foundation.sql`
 - `20260507154000_fix_atomic_product_uuid_lookup.sql`
+- `20260507160000_add_upsert_rate_limit_atomic.sql`
 - `20260508100000_fix_delete_booking_atomic_org_filter.sql`
 - `20260508120000_drop_create_booking_function.sql`
 - `20260508130000_add_booking_overlap_exclusion.sql`
@@ -448,7 +450,7 @@ npm test
 Nota audit molto importante:
 
 - l'ultimo lavoro SaaS e stato validato sul locale Docker
-- non assumere che il progetto remoto hosted sia automaticamente allo stesso livello senza verifica esplicita
+- il database hosted e ancora pre-multi-tenancy (vedi sezione "Stato Hosted")
 
 ## Verification Status
 
@@ -549,78 +551,218 @@ I risultati sono stati consolidati direttamente in questo recap.
 - security headers in `next.config.ts`
 - constraint DB `bookings_no_overlap` per bloccare collisioni concorrenti sui booking
 
+---
+
+## Stato Hosted (verificato 2026-05-09)
+
+Questa sezione descrive lo stato reale del database in produzione (Vercel + Supabase hosted).
+
+### Delta rispetto al locale
+
+| | Hosted | Locale |
+|---|---|---|
+| Auth | HMAC custom (password condivisa) | Supabase Auth cookie server-side |
+| Multi-tenancy | NO | SI (organizations + user_roles) |
+| Platform admin UI | NO | SI (/platform) |
+| Onboarding | NO | SI (/onboarding) |
+| Request access | NO | SI (signup_requests) |
+| Migration applicate | 9 (fino a 20260507123000) | 17 (fino a 20260508140000) |
+
+Il codice sorgente e identico tra i due ambienti (stesso repo GitHub, stesso commit `6ceda53`).
+Il problema e esclusivamente il database hosted che e ancora pre-multi-tenancy.
+
+### Dati reali presenti nel database hosted
+
+- 14 bookings
+- 47 azioni
+- 10 spese
+- 29 prodotti
+- action_checklist e counters presenti
+
+Questi dati vanno preservati nel cutover.
+
+### Migration mancanti nel hosted
+
+Vanno applicate in questo ordine esatto:
+
+```
+20260507150000_add_multi_tenant_foundation.sql   <- CRITICA
+20260507154000_fix_atomic_product_uuid_lookup.sql
+20260507160000_add_upsert_rate_limit_atomic.sql
+20260508100000_fix_delete_booking_atomic_org_filter.sql
+20260508120000_drop_create_booking_function.sql
+20260508130000_add_booking_overlap_exclusion.sql
+20260508140000_add_signup_requests.sql
+```
+
+---
+
 ## Backlog Tecnico Residuo
 
-- FK mancante su `expenses.source_action_id`
-- `PATCH /api/products` con loop non transazionale
-- fallback schema legacy ancora attivi in `bookings/route.ts`, `actions/route.ts`, `finance/route.ts`
-- 6 varianti checklist insert in `booking-automation.ts` ancora presenti come relitto legacy
-- test tenant isolation ancora mancanti
+Cinque voci aperte. Vanno chiuse con rigore massimo — nessuna regressione.
 
-## Open Rollout Tracks
+### BT-1: FK mancante su `expenses.source_action_id`
 
-Le due cose ancora aperte a livello prodotto/rollout non sono piu tanto di codice puro, ma di migrazione e operativita:
+La colonna non ha FK verso `actions.id`. Se un'azione viene cancellata, le spese collegate restano orfane senza errore.
 
-1. migrare il sistema senza perdere i dati e la continuita dell'utente attivo
-2. definire il setup piu semplice possibile per nuovi utenti, supporto operativo e monitoraggio
+Fix: nuova migration con FK + `ON DELETE SET NULL`.
 
-Questi due binari sono i prossimi da gestire.
+Vincolo: verificare prima se esistono righe orfane nel database (bloccherebbero l'aggiunta del FK).
 
-## Migration Plan For Current Active User
+File: `supabase/migrations/` — nuova migration, nessuna modifica applicativa.
 
-Obiettivo:
+### BT-2: `PATCH /api/products` con loop non transazionale
 
-- portare l'utente gia attivo nel nuovo modello SaaS senza perdere dati, membership o continuita operativa
+Il bulk update dei prodotti usa un loop di UPDATE separati. Se uno fallisce a meta, il DB resta in stato parziale senza rollback.
 
-Piano consigliato:
+Fix: usare la RPC atomica `apply_product_quantity_deltas` gia esistente, oppure wrappare in transazione esplicita.
 
-1. fotografare lo stato attuale hosted prima di qualsiasi cutover
-   - backup database
-   - lista utenti Auth
-   - organizzazioni presenti
-   - membership `user_roles`
-   - stato `organizations.settings.onboarding_completed`
-2. identificare il workspace reale che rappresenta l'utente storico
-   - verificare se tutto il dato legacy e gia dentro una sola `organization`
-   - se esiste una `Legacy Workspace`, confermare se e quella giusta o se va rinominata
-3. collegare l'utente attivo a quel workspace nel nuovo modello
-   - utente Auth corretto
-   - membership `owner` in `user_roles`
-   - `active-organization-id` coerente
-4. verificare che tutti i dati storici puntino alla stessa `organization`
-   - bookings
-   - actions
-   - expenses
-   - products
-   - counters
-5. validare il flusso completo dell'utente storico
-   - login
-   - arrivo su dashboard oppure onboarding se necessario
-   - accesso a bookings/actions/finance/inventory
-6. fare il cutover hosted solo dopo prova locale o staging molto vicina al reale
-7. tenere una procedura di rollback semplice
-   - backup disponibile
-   - query per ricontrollare membership e org attiva
+Vincolo: non cambiare la firma dell'API — solo rendere l'operazione atomica lato server.
 
-Rischi principali da evitare:
+File: `app/api/products/route.ts`, `lib/product-quantity.ts`.
 
-- utente Auth corretto ma senza `user_roles`
-- dati storici sparsi su piu `organization_id`
-- `active-organization-id` che punta a una org sbagliata
-- onboarding che ricompare per errore su un workspace gia configurato
+### BT-3: Rimozione fallback schema legacy
 
-Definizione di done:
+Alcune route handler hanno fallback per lo schema legacy che ora sono codice morto.
 
-- l'utente storico entra senza attrito
-- vede tutti i suoi dati precedenti
-- il workspace giusto e quello attivo
-- nessuna area operativa restituisce `Forbidden` o dati vuoti per mismatch tenant
+ATTENZIONE: questa voce va eseguita SOLO dopo il cutover hosted. Finche il database hosted non e allineato, i fallback devono restare.
+
+File: `app/api/bookings/route.ts`, `app/api/actions/route.ts`, `app/api/finance/route.ts`.
+
+### BT-4: 6 varianti checklist insert in `booking-automation.ts`
+
+Codice relitto della migrazione da schema legacy. 6 varianti di logica insert per la checklist che ora possono essere consolidate in una sola path con `organization_id`.
+
+Vincolo: i test esistenti devono continuare a passare senza modifiche semantiche.
+
+File: `lib/booking-automation.ts`, `tests/booking-automation.test.ts`.
+
+### BT-5: Test di tenant isolation end-to-end
+
+Non esistono test che verificano che i dati di un tenant non siano visibili a un altro. E il gap piu critico per un sistema multi-tenant.
+
+Fix: integration test che creano due organizzazioni distinte e verificano che i dati non si incrocino. Copertura minima: bookings, actions, expenses, products.
+
+Vincolo: usare il database locale Docker, non mock.
+
+File: `tests/integration/` — nuovi file, `tests/integration/helpers.ts` — estensione.
+
+### Ordine di esecuzione consigliato
+
+```
+1. BT-5  Test tenant isolation       <- prima i test, cosi hai copertura
+2. BT-1  FK expenses.source_action_id
+3. BT-2  PATCH /api/products atomico
+4. BT-4  Cleanup checklist legacy
+5. Cutover database hosted           <- vedi sezione Piano di Cutover Hosted
+6. BT-3  Rimozione fallback legacy   <- solo dopo cutover hosted
+```
+
+Dopo ogni voce: `npm test` + `npx tsc --noEmit` + `npm run lint` devono passare tutti.
+
+---
+
+## Piano di Cutover Hosted
+
+Da eseguire dopo aver chiuso BT-1, BT-2, BT-4, BT-5.
+
+### Step 1 — Backup
+
+Esportare dump completo del database hosted prima di qualsiasi modifica.
+Salvare lista utenti Auth (anche se vuota, per conferma).
+
+### Step 2 — Leggere la migration critica
+
+Leggere il contenuto di `supabase/migrations/20260507150000_add_multi_tenant_foundation.sql` prima di applicarla.
+Verificare se aggiunge `organization_id NOT NULL` con o senza default.
+Se non ha default, le righe esistenti bloccheranno la migration — in quel caso applicarla in due fasi (aggiungere DEFAULT NULL, applicare, assegnare org_id, poi aggiungere NOT NULL con migration separata).
+
+### Step 3 — Applicare le 7 migration mancanti
+
+Eseguire in ordine dall'editor SQL Supabase hosted oppure via `npx supabase db push` puntando all'hosted.
+
+### Step 4 — Creare organizzazione legacy
+
+```sql
+INSERT INTO organizations (name, slug, currency_code, timezone, settings)
+VALUES ('Casa Cleo', 'casa-cleo', 'EUR', 'Europe/Rome', '{"onboarding_completed": true}')
+RETURNING id;
+```
+
+Annotare l'`id` restituito.
+
+### Step 5 — Assegnare organization_id ai dati esistenti
+
+```sql
+-- Sostituire <ORG_ID> con l'id del passo precedente
+UPDATE bookings SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
+UPDATE actions SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
+UPDATE action_checklist SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
+UPDATE expenses SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
+UPDATE products SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
+UPDATE counters SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
+```
+
+### Step 6 — Creare utente Supabase Auth
+
+Dalla dashboard Supabase hosted → Authentication → Users:
+- Creare nuovo utente con l'email dell'utente attivo
+- Impostare password
+- Annotare l'`auth_user_id`
+
+### Step 7 — Creare membership owner
+
+```sql
+INSERT INTO user_roles (organization_id, user_id, role)
+VALUES ('<ORG_ID>', '<AUTH_USER_ID>', 'owner');
+```
+
+### Step 8 — Configurare platform admin
+
+Dalla dashboard Supabase hosted → Authentication → Users → selezionare l'utente admin:
+- Aggiungere in `app_metadata`: `{"is_platform_admin": true}`
+
+### Step 9 — Verifica finale
+
+```sql
+-- Tutti devono essere 0
+SELECT
+  (SELECT COUNT(*) FROM bookings WHERE organization_id IS NULL) as bookings_senza_org,
+  (SELECT COUNT(*) FROM actions WHERE organization_id IS NULL) as actions_senza_org,
+  (SELECT COUNT(*) FROM expenses WHERE organization_id IS NULL) as expenses_senza_org,
+  (SELECT COUNT(*) FROM products WHERE organization_id IS NULL) as products_senza_org;
+
+-- Deve mostrare utente + ruolo + org
+SELECT u.email, r.role, o.name
+FROM user_roles r
+JOIN organizations o ON o.id = r.organization_id
+JOIN auth.users u ON u.id = r.user_id;
+```
+
+### Step 10 — Test end-to-end
+
+- Login con le nuove credenziali Supabase Auth
+- Verificare che la dashboard mostri tutti i dati storici (14 bookings, 47 azioni, 10 spese, 29 prodotti)
+- Verificare che bookings/actions/finance/inventory funzionino senza errori
+- Verificare che `/platform` sia accessibile con l'account admin
+
+### Rollback
+
+Se qualcosa va storto: ripristinare il dump del database dal Step 1.
+Il codice non va toccato — e gia compatibile con entrambi i modelli durante la transizione.
+
+### Definizione di done
+
+- L'utente storico entra senza attrito
+- Vede tutti i suoi dati precedenti
+- Nessuna area restituisce `Forbidden` o dati vuoti per mismatch tenant
+- `/platform` accessibile per l'admin
+
+---
 
 ## Simple New User Setup And Monitoring Plan
 
-Obiettivo:
-
-- rendere il percorso del nuovo utente e il supporto admin il piu semplice possibile, con un minimo chiaro di monitoraggio
+Obiettivo: rendere il percorso del nuovo utente e il supporto admin il piu semplice possibile.
 
 Percorso semplice da mantenere:
 
@@ -631,7 +773,7 @@ Percorso semplice da mantenere:
 5. onboarding
 6. uso normale del workspace
 
-Setup minimo consigliato per nuovi utenti:
+Setup minimo consigliato:
 
 - un solo `platform admin` operativo iniziale
 - approvazione manuale delle richieste
@@ -639,49 +781,23 @@ Setup minimo consigliato per nuovi utenti:
 - onboarding corto, senza campi extra
 - supporto account solo da `/platform/accounts`
 
-Monitoraggio minimo da impostare:
+Monitoraggio minimo:
 
-1. richieste accesso
-   - quante `pending`
-   - quante `failed`
-   - tempo medio tra richiesta e approvazione
-2. auth/support
-   - reset password non riusciti
-   - login falliti anomali
-   - account disabilitati / riattivati
-3. provisioning
-   - richieste finite in `failed`
-   - creazione user/org/membership non completa
-4. runtime applicativo
-   - errori `401/403/500` sulle API principali
-   - errori `409` booking overlap
-5. smoke metrics prodotto
-   - nuovi utenti approvati
-   - onboarding completati
-   - workspace che entrano davvero in dashboard
+1. richieste accesso: quante `pending`, quante `failed`, tempo medio approvazione
+2. auth/support: reset non riusciti, login falliti anomali, account disabilitati
+3. provisioning: richieste finite in `failed`, creazione incompleta
+4. runtime: errori `401/403/500` sulle API principali, errori `409` booking overlap
+5. smoke metrics: nuovi utenti approvati, onboarding completati
 
-Strumenti minimi da usare:
-
-- log app/server
-- dashboard Supabase Auth
-- query su `signup_requests`
-- controllo manuale iniziale da `/platform`
-
-Runbook semplice per admin:
+Runbook admin:
 
 1. controlla `/platform/requests`
 2. approva o rifiuta
 3. se `failed`, usa retry provisioning
-4. se l'utente non entra, usa `/platform/accounts`
-   - resend reset link
-   - disable/reactivate solo se serve
+4. se l'utente non entra, usa `/platform/accounts` — resend reset / disable / reactivate
 5. se c'e un problema dati, controlla membership e `organization_id`
 
-Definizione di done:
-
-- un nuovo utente entra senza assistenza tecnica extra
-- l'admin riesce a gestire richieste e reset senza shell
-- gli errori principali sono visibili in modo semplice
+---
 
 ## What Is Not Done Yet
 
@@ -694,31 +810,12 @@ Mancanze consapevoli:
 - customer portal
 - pagina marketing/public
 
-## Suggested Next Steps
-
-Stato attuale: il nucleo beta e stato stabilizzato, gli audit principali sono stati chiusi su locale e la distribuzione e ora impostata come beta privata con approvazione manuale accessi.
-
-Prossimi passi immediati per ripartire bene:
-
-1. eseguire il `Migration Plan For Current Active User` su hosted con backup e verifica membership/dati
-2. impostare il `Simple New User Setup And Monitoring Plan` in versione minima operativa
-3. verificare che l'ambiente hosted abbia applicato anche la migration `20260508140000_add_signup_requests.sql` oltre a `20260508100000`, `20260508120000`, `20260508130000`
-4. documentare in modo operativo la promozione di futuri `platform admin`
-5. decidere se introdurre una action esplicita di "riapertura" per richieste `rejected` invece di lasciarle terminali
-
-Prossimi passi tecnici dopo il setup admin:
-
-1. aggiungere FK su `expenses.source_action_id`
-2. aggiungere test di tenant isolation end-to-end
-3. rimuovere i fallback schema legacy dopo verifica hosted
-4. aggiungere loading states ed error boundaries nelle aree dati principali
-5. valutare invio email transazionale dedicato invece del solo reset link Supabase
+---
 
 ## Fast Re-Entry Files
 
 Aprire subito questi file per riprendere:
 
-- `README.md`
 - `PROJECT_RECAP.md`
 - `app/actions/auth.ts`
 - `proxy.ts`
@@ -740,28 +837,19 @@ Aprire subito questi file per riprendere:
 - `lib/booking-automation.ts`
 - `lib/action-effects.ts`
 - `lib/stock.ts`
+- `lib/product-quantity.ts`
 - `supabase/migrations/20260507150000_add_multi_tenant_foundation.sql`
-- `supabase/migrations/20260507154000_fix_atomic_product_uuid_lookup.sql`
-- `supabase/migrations/20260508100000_fix_delete_booking_atomic_org_filter.sql`
-- `supabase/migrations/20260508120000_drop_create_booking_function.sql`
-- `supabase/migrations/20260508130000_add_booking_overlap_exclusion.sql`
-- `supabase/migrations/20260508140000_add_signup_requests.sql`
+- `tests/integration/helpers.ts`
 
 ## Bottom Line
 
-L'obiettivo attuale non e completare il SaaS, ma rendere distribuibile e sicuro quello che gia esiste.
+Il codice locale e pulito, testato e pronto. Il problema e il database hosted ancora pre-multi-tenancy.
 
-La base per farlo c'e gia:
+Il percorso e chiaro:
 
-- auth Supabase funzionante
-- request access con approvazione admin
-- console `/platform` per operazioni amministrative
-- primo `platform admin` gia configurato e accessibile in locale
-- reset password funzionante senza token nel DOM
-- organization e multi-tenancy presenti a livello DB e API
-- onboarding protetto post-login
-- tutte le aree operative funzionanti
+1. chiudere il backlog tecnico nel codice (BT-1 → BT-5 nell'ordine indicato)
+2. eseguire il cutover del database hosted seguendo il piano di questa sezione
+3. rimuovere i fallback legacy (BT-3) dopo il cutover
+4. aprire la beta ai primi tester
 
-Il passo successivo piu concreto e validare tutto in locale il flusso richiesta -> approvazione -> onboarding, poi allineare hosted e chiudere il backlog tecnico residuo prima di aprire la beta a tester reali.
-
-Questo flusso locale ora risulta validato. Il passo successivo piu concreto e allineare hosted e poi chiudere il backlog tecnico residuo prima di aprire la beta a tester reali.
+La priorita assoluta e non rompere nulla di funzionante. Dopo ogni modifica: `npm test` + `npx tsc --noEmit` + `npm run lint`.
