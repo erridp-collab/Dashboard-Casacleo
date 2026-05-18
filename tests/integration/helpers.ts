@@ -37,3 +37,28 @@ export function today(): string {
 export function addDays(date: string, days: number): string {
   return addDaysLocalIT(date, days);
 }
+
+export type TestOrg = { id: string; slug: string };
+
+/** Creates a throwaway organization for isolation tests. */
+export async function createTestOrg(
+  supabase: ReturnType<typeof supabaseTest>,
+  suffix: string,
+): Promise<TestOrg> {
+  const slug = `test-org-${suffix}-${Date.now()}`;
+  const { data, error } = await supabase
+    .from("organizations")
+    .insert({ name: `Test Org ${suffix}`, slug, currency_code: "EUR", timezone: "Europe/Rome" })
+    .select("id, slug")
+    .single();
+  if (error) throw new Error(`createTestOrg: ${error.message}`);
+  return { id: String(data.id), slug: String(data.slug) };
+}
+
+/** Deletes an organization and all its cascaded data. */
+export async function cleanupOrg(
+  supabase: ReturnType<typeof supabaseTest>,
+  orgId: string,
+): Promise<void> {
+  await supabase.from("organizations").delete().eq("id", orgId);
+}
