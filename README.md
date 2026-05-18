@@ -1,19 +1,21 @@
 # Alva Host Manager
 
-Gestionale operativo per una proprieta in affitto breve. L'app tiene insieme prenotazioni, azioni operative, inventario, biancheria e finanze con una UI pensata per uso quotidiano.
+Gestionale operativo per una proprietà in affitto breve. Tiene insieme prenotazioni, azioni operative, inventario, biancheria e finanze con una UI pensata per uso quotidiano.
 
-Questa README e pensata come file di ripartenza: descrive lo stato reale del progetto dopo gli ultimi fix applicati a codice e database.
+Questo file è il punto di ripartenza: descrive lo stato reale dopo l'ultima sessione di lavoro.
 
-## Stato attuale
+---
 
-- `npm test` passa
-- `npm run lint` passa
+## Stato attuale (2026-05-18)
+
+- `npm test` passa (49 test unit ✅ — i test integration richiedono Docker attivo, vedi sezione)
 - `npx tsc --noEmit` passa
-- le migration Supabase presenti nel repo sono state applicate anche al database remoto
-- l'autenticazione applicativa usa Supabase Auth con cookie server-side verificati in `proxy.ts`
-- le prenotazioni con pulizia gia completata vengono nascoste di default nella pagina bookings
-- gli aggiornamenti stock concorrenti usano un percorso atomico via RPC SQL, con fallback compatibile lato codice
-- `.env.local` attivo punta al Supabase locale su Docker (`127.0.0.1`)
+- `npm run lint` passa
+- tutte 17 le migration sono applicate al DB locale Docker
+- il DB hosted è ancora pre-multi-tenancy (vedi sezione "Hosted vs Locale")
+- BT-5 completato: test di tenant isolation scritti in `tests/integration/tenant-isolation.integration.test.ts`
+
+---
 
 ## Stack
 
@@ -27,12 +29,14 @@ Questa README e pensata come file di ripartenza: descrive lo stato reale del pro
 | Charts | Recharts |
 | Calendar | FullCalendar |
 
+---
+
 ## Setup
 
 ### Prerequisiti
 
 - Node.js 18+
-- progetto Supabase attivo
+- Docker Desktop attivo
 
 ### Installazione
 
@@ -42,127 +46,77 @@ npm install
 
 ### Variabili d'ambiente
 
-Crea `.env.local` nella root:
+`.env.local` attualmente punta al Supabase locale Docker:
 
 ```env
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
-SUPABASE_DB_PASSWORD=
-APP_PASSWORD=
-AUTH_SECRET=
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
 ```
 
-Note:
+Per puntare al progetto hosted, sostituire con i valori da `.env.local.production-current`.
 
-- `SUPABASE_SERVICE_ROLE_KEY` e server-side only e non deve mai finire nel browser
-- `SUPABASE_DB_PASSWORD` serve al CLI Supabase per `migration list` e `db push`
-- `AUTH_SECRET` e consigliata; se manca, il sistema usa `APP_PASSWORD` come fallback per firmare e verificare il cookie
-- per separare gli ambienti senza rischi, il repo usa anche:
-  - `.env.local.production-current` come snapshot dell'ambiente remoto attuale
-  - `.env.local.supabase-local` come file dedicato al futuro ambiente locale
-  - Next.js non carica automaticamente questi due file: quando vuoi cambiare ambiente, copi i valori scelti dentro `.env.local`
+---
 
-### Supabase locale
+## Avvio Supabase locale (Docker)
 
-Per sviluppare senza toccare il progetto remoto in produzione:
+### Problema noto su Windows
 
-1. installa e avvia Docker Desktop
-2. inizializza il progetto Supabase locale:
+Su Windows, `npx.cmd supabase start` fallisce perché `supabase_storage` e `supabase_studio` non raggiungono lo stato healthy. Il CLI esegue stop automatico. I container core (DB, Auth, Kong, REST) partono però correttamente — basta salvarli prima che il CLI li fermi.
 
-```bash
-npx supabase init
-```
+### Procedura corretta su Windows
 
-3. avvia lo stack locale:
-
-```bash
-npx supabase start
-```
-
-4. applica tutte le migration del repo al database locale:
-
-```bash
-npx supabase db reset
-```
-
-5. recupera URL e chiavi locali:
-
-```bash
-npx supabase status
-```
-
-6. copia i valori dentro `.env.local`, partendo dal template `.env.local.supabase-local`
-
-Nota:
-
-- in questo momento il repo e gia pronto lato CLI (`supabase/config.toml` esiste)
-- finche Docker non e disponibile sulla macchina, `supabase start` non puo partire
-
-### Stato corrente setup locale (2026-05-07)
-
-Stato reale dell'ultima sessione sulla separazione ambienti:
-
-- Docker CLI installato e visibile: `docker --version` restituisce `Docker version 29.4.2`
-- Supabase CLI ok nel repo: `npx.cmd supabase --version` restituisce `2.95.5`
-- blocco attuale: Docker engine / Docker Desktop non raggiungibile dal terminale
-- errore visto con `docker info`:
-
-```text
-permission denied while trying to connect to the docker API at npipe:////./pipe/docker_engine
-```
-
-- su questa macchina PowerShell blocca `npx.ps1`, quindi i comandi Supabase vanno lanciati con `npx.cmd ...` e non con `npx ...`
-- in `supabase/config.toml` il seed automatico e attivo (`./seed.sql`), ma al momento il file `supabase/seed.sql` non risulta ancora presente nel repo
-
-### Da dove riprendere
-
-Ordine consigliato per la prossima sessione:
-
-1. aprire o riavviare Docker Desktop e aspettare che il motore Docker sia realmente `running`
-2. verificare da terminale:
-
-```bash
-docker info
-```
-
-3. quando `docker info` funziona, avviare Supabase locale:
-
-```bash
+```powershell
+# 1. Avviare lo stack (fallirà su storage/studio — è normale)
 npx.cmd supabase start
+
+# 2. Immediatamente dopo, riavviare i container core
+docker start supabase_db_airbnb-manager supabase_auth_airbnb-manager supabase_rest_airbnb-manager supabase_kong_airbnb-manager supabase_inbucket_airbnb-manager
 ```
 
-4. verificare credenziali e porte locali:
+### Verifica che Kong/REST sia attivo
+
+```powershell
+Invoke-WebRequest `
+  -Uri "http://127.0.0.1:54321/rest/v1/organizations?select=id&limit=1" `
+  -Headers @{ apikey = "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"; Authorization = "Bearer sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz" }
+```
+
+Risposta 200 = tutto ok, si può eseguire `npm test`.
+
+### Nota comandi Supabase CLI su Windows
+
+`npx.ps1` è bloccato da PowerShell — usare sempre `npx.cmd supabase ...` invece di `npx supabase ...`.
+
+### Verifica migration applicate
+
+Il DB locale ha tutte 17 le migration. Per verificare:
 
 ```bash
-npx.cmd supabase status
+docker exec supabase_db_airbnb-manager psql -U postgres -c \
+  "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;"
 ```
 
-5. solo dopo, copiare i valori locali dentro `.env.local` partendo da `.env.local.supabase-local`
-6. infine verificare se serve creare `supabase/seed.sql` oppure disattivare temporaneamente il seed prima di usare:
+Se mancano migration, applicarle con:
 
 ```bash
-npx.cmd supabase db reset
+npx.cmd supabase db push --local
 ```
 
-Nota pratica:
+Nota: `db push --local` usa la porta 54322 diretta. Se va in timeout (problema noto), applicare le migration via `docker exec` direttamente.
 
-- finche `docker info` fallisce, non ha senso proseguire con `supabase start`
-- la multi-tenancy va ripresa solo dopo che il flusso `Docker -> Supabase locale -> .env.local` e stabile
+---
 
-### Target ambiente verificato per questa iterazione
-
-- `.env.local` punta a `http://127.0.0.1:54321`
-- `.env.local.supabase-local` punta anch'esso a `127.0.0.1`
-- `.env.local.production-current` resta separato e punta al progetto hosted
-- quindi le modifiche di questa iterazione sono pensate per il database locale Docker, non per il progetto remoto
-
-### Avvio
+## Avvio app
 
 ```bash
 npm run dev
 ```
 
-### Verifica locale
+---
+
+## Verifica locale
 
 ```bash
 npx tsc --noEmit
@@ -170,208 +124,113 @@ npm run lint
 npm test
 ```
 
-## Architettura rapida
+---
 
-### Flusso applicativo
+## Architettura
+
+### Flusso
 
 ```text
-UI client
-  -> /api/*
-  -> lib/*
-  -> Supabase
+Browser UI
+  -> /api/*   (route handlers Next.js)
+  -> lib/*    (logica di dominio)
+  -> Supabase PostgreSQL
 ```
 
 ### Cartelle principali
 
 ```text
 app/
-  api/                 route handlers
-  actions/             pagina azioni + server actions auth
-  bookings/            pagina prenotazioni
-  finance/             pagina finanze
-  inventory/           pagina inventario
-  warehouse/           pagina magazzino / biancheria
-lib/
-  booking-automation.ts
-  action-effects.ts
-  stock.ts
-  products-schema.ts
-types/
-  db.ts
+  api/              route handlers
+  actions/          server actions auth
+  onboarding/       setup iniziale workspace
+  platform/         console admin piattaforma
+  bookings/
+  finance/
+  inventory/
+components/         UI condivisa
+lib/                logica di dominio
 supabase/
-  migrations/
+  migrations/       storia schema DB
 tests/
+  integration/      test su DB Docker reale
 ```
 
-## Funzionamento importante
+---
 
-### Autenticazione
+## Autenticazione e accesso
 
-- login/signup via server action in [app/actions/auth.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/actions/auth.ts:1)
-- sessione basata su Supabase Auth, con cookie httpOnly server-side
-- verifica accesso e refresh sessione in [proxy.ts](/abs/path/c:/Users/Enrico/airbnb-manager/proxy.ts:1)
-- rate limit login supportato da tabella DB `auth_rate_limits`, con fallback in-memory se la tabella non e disponibile
-- organizzazione attiva risolta lato server tramite membership in `user_roles`
-- onboarding owner-only disponibile su [app/onboarding/page.tsx](/abs/path/c:/Users/Enrico/airbnb-manager/app/onboarding/page.tsx:1)
-- gli utenti autenticati con workspace non ancora configurato vengono reindirizzati automaticamente a `/onboarding`
+- login email/password via Supabase Auth, cookie httpOnly server-side
+- verifica sessione e refresh in `proxy.ts` (non rinominarlo `middleware.ts`)
+- nuovi utenti: flusso richiesta accesso → approvazione admin → reset password → onboarding
+- platform admin separato: flag `app_metadata.is_platform_admin = true`
+- area `/platform` per gestire richieste accesso e account utenti
+- rate limiting login via RPC atomica `upsert_rate_limit` + tabella `auth_rate_limits`
+- form pubblici protetti con honeypot + timing check
 
-Nota:
+---
 
-- `proxy.ts` e corretto per questa versione del progetto e va lasciato cosi
-- non rinominarlo in `middleware.ts`
-- il primo utente locale puo registrarsi da `/signup`, che crea anche organization e ruolo `owner`
-- in questa fase beta il prodotto e pensato come `owner-only`: niente ruoli multipli o personalizzazioni utente avanzate per ora
+## Multi-tenancy
 
-### Prenotazioni e azioni automatiche
+Il modello è SaaS-ready ma in uso owner-only:
 
-- le prenotazioni sono gestite in [app/api/bookings/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/route.ts:1) e [app/api/bookings/[id]/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/[id]/route.ts:1)
-- la generazione/sync delle azioni automatiche vive in [lib/booking-automation.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/booking-automation.ts:1)
-- la pagina bookings nasconde di default le prenotazioni la cui azione `PULIZIA` collegata e gia `FATTO`
-- nella UI esiste un toggle `Mostra completate`
-- le sync eventuali di dominio sono rese esplicite e passano da retry/logging coerente
-- esiste un endpoint manuale di re-sync: [app/api/bookings/resync/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/resync/route.ts:1)
+- `organizations` + `user_roles` + `organization_id` su tutte le tabelle operative
+- filtro `organization_id` applicativo su ogni query (service_role lato server, RLS secondaria)
+- RLS presente sul DB ma non è l'unico guard — le API filtrano esplicitamente per org
+- onboarding obbligatorio al primo accesso, stato in `organizations.settings`
 
-### Completamento azioni
+---
 
-- il cambio stato azioni passa da [app/api/actions/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/actions/route.ts:1)
-- gli effetti collaterali stanno in [lib/action-effects.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/action-effects.ts:1)
-- ora `applyActionStatusEffects()` non e piu fire-and-forget: se fallisce, la route fallisce
-- gli errori API sono stati uniformati con shape minima `{ error: string }`
+## Hosted vs Locale
 
-### Date e fetch client
+| | Hosted | Locale Docker |
+|---|---|---|
+| Auth | HMAC custom (legacy) | Supabase Auth |
+| Multi-tenancy | NO | SI |
+| Migration applicate | 10 (fino a 20260507123000) | 17 (tutte) |
+| Platform admin UI | NO | SI |
 
-- la semantica data e centralizzata in [lib/localDate.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/localDate.ts:1)
-- `YYYY-MM-DD` viene trattato come giorno locale Italia, non come giorno UTC
-- il fetch client condiviso vive in [lib/http/clientFetch.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/http/clientFetch.ts:1)
-- dashboard, calendario, bookings, actions, finance, inventory e warehouse usano handling coerente per errori rete, JSON invalido e abort/race
+Il codice è identico nei due ambienti. Il problema è solo il DB hosted ancora pre-multi-tenancy.
 
-### Booking delete atomico
+**Cutover hosted**: da eseguire dopo aver chiuso il backlog tecnico — vedi `PROJECT_RECAP.md`.
 
-La cancellazione di una prenotazione con eventuale ripristino biancheria e stata resa atomica via funzione SQL:
+---
 
-- migration: [supabase/migrations/20260427193000_add_delete_booking_atomic_function.sql](/abs/path/c:/Users/Enrico/airbnb-manager/supabase/migrations/20260427193000_add_delete_booking_atomic_function.sql:1)
-- uso nella route: [app/api/bookings/[id]/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/[id]/route.ts:1)
+## Backlog tecnico aperto
 
-Inoltre il parsing dei dettagli biancheria e ora runtime-safe: se i dati sono invalidi, il delete viene bloccato invece di saltare silenziosamente il ripristino.
+In ordine di esecuzione:
 
-## Database e migration
+| # | Voce | Stato |
+|---|---|---|
+| BT-5 | Test tenant isolation | ✅ completato |
+| BT-1 | FK mancante `expenses.source_action_id` | aperto |
+| BT-2 | `PATCH /api/products` non atomico | aperto |
+| BT-4 | Cleanup 6 varianti checklist insert | aperto |
+| Cutover | Allineare DB hosted al locale | dopo BT-1/2/4 |
+| BT-3 | Rimozione fallback legacy | dopo cutover |
+| BT-6 | Hardening email beta-safe | prima di aprire beta |
 
-Le migration adesso sono tracciate nel repo in `supabase/migrations`.
+Per ogni voce: dettagli completi in `PROJECT_RECAP.md`.
 
-Migration presenti:
-
-- `20260306135500_add_total_amount_to_bookings.sql`
-- `20260306152000_seed_warehouse_products_and_spesa_fields.sql`
-- `20260406120000_ensure_expenses_schema.sql`
-- `20260408120000_add_stock_status_to_products.sql`
-- `20260408173000_split_bed_sets_into_summer_and_winter.sql`
-- `20260427193000_add_delete_booking_atomic_function.sql`
-- `20260427200000_add_auth_rate_limits.sql`
-- `20260427213000_fix_delete_booking_atomic_linen_alias_resolution.sql`
-- `20260507123000_add_apply_product_quantity_deltas_atomic.sql`
-- `20260507150000_add_multi_tenant_foundation.sql`
-- `20260507154000_fix_atomic_product_uuid_lookup.sql`
-
-Le ultime migration importanti per lo stato corrente del codice sono:
-
-- `add_delete_booking_atomic_function`
-- `add_auth_rate_limits`
-- `fix_delete_booking_atomic_linen_alias_resolution`
-- `add_apply_product_quantity_deltas_atomic`
-- `add_multi_tenant_foundation`
-
-### Multi-tenancy: stato reale di questa iterazione
-
-La migration `add_multi_tenant_foundation` introduce:
-
-- `organizations`
-- `user_roles`
-- `organization_id` su dati operativi (`bookings`, `actions`, `action_checklist`, `expenses`, `products`, `counters`)
-- RLS basata su membership organizzativa
-- bootstrap automatico di una workspace legacy per il caso single-tenant attuale
-- hardening delle RPC SQL piu sensibili, limitate al `service_role`
-
-Nota importante:
-
-- il database ora e pronto per l'isolamento tenant lato Supabase
-- login/sessione sono stati migrati a Supabase Auth
-- le API principali ora risolvono il contesto organizzativo lato server e filtrano i dati con `organization_id`
-- onboarding base protetto post-login e ora disponibile
-- il passaggio SaaS non e ancora completo finche non aggiungiamo inviti collaboratori, cambio workspace, recupero password e billing
-
-### Comandi Supabase utili
-
-CLI installata come dev dependency:
+Dopo ogni modifica verificare:
 
 ```bash
-npx supabase migration list
-npx supabase db push
+npm test && npx tsc --noEmit && npm run lint
 ```
 
-## Scelte e workaround ancora presenti
+---
 
-### Schema products retrocompatibile
+## File chiave
 
-In [lib/products-schema.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/products-schema.ts:1) il codice continua a supportare varianti di schema tipo:
-
-- `id` oppure `sku`
-- `quantity` oppure `qty`
-
-Ora `getProductId()` non fallisce piu in silenzio: se non riesce a risolvere un id prodotto, lancia errore esplicito.
-
-### Payload variants
-
-In piu punti del codice sono ancora presenti fallback per schemi DB non perfettamente allineati. Non vanno rimossi alla cieca finche non decidiamo di stabilizzare definitivamente lo schema.
-
-### Fire-and-forget ancora presenti
-
-Le sync secondarie come `scheduleBookingDomainResync()` restano eventuali in alcuni flussi bookings. E una scelta consapevole per non rallentare la UI, ma ora e esplicita, tracciata e recuperabile con endpoint di re-sync manuale.
-
-## Cosa e stato sistemato di recente
-
-- fix auth quando `AUTH_SECRET` manca
-- bookings: nascoste di default quelle con pulizia gia fatta
-- README riallineata al progetto reale
-- delete booking atomico con restore biancheria sicuro
-- parsing dettagli biancheria reso robusto
-- `applyActionStatusEffects()` non piu scollegato dalla risposta HTTP
-- delete finance piu sicuro: niente fallback che cancelli spese automatiche per errore
-- rate limiting login supportato da tabella DB
-- confronto password timing-safe
-- migration Supabase applicate anche al database remoto
-- utility data Italia centralizzata e testata
-- client fetch condiviso con abort/race handling
-- error shape API uniformato
-- stock atomico introdotto con RPC SQL e verifica integration
-- test auth/date/stock aggiunti
-
-## Cose ancora aperte davvero
-
-Le aree che restano sensate per un prossimo giro sono:
-
-1. hardening CSRF sulle route `POST`, `PATCH`, `DELETE`
-2. ulteriore rimozione dei fallback retrocompat nel DB solo dopo decisione esplicita di stabilizzare definitivamente lo schema
-3. eventuali nuove funzionalita operative senza riaprire la logica di dominio gia stabilizzata
-
-## Priorita pratica per la prossima sessione
-
-Se si riparte da qui, l'ordine consigliato e:
-
-1. nuove funzionalita operative, se servono al flusso quotidiano
-2. pulizia finale dei fallback DB solo con schema concordato
-3. affinamenti di sicurezza come CSRF in un secondo momento
-
-## File chiave da aprire subito
-
-- [app/bookings/page.tsx](/abs/path/c:/Users/Enrico/airbnb-manager/app/bookings/page.tsx:1)
-- [app/api/bookings/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/route.ts:1)
-- [app/api/bookings/[id]/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/bookings/[id]/route.ts:1)
-- [app/api/actions/route.ts](/abs/path/c:/Users/Enrico/airbnb-manager/app/api/actions/route.ts:1)
-- [lib/booking-automation.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/booking-automation.ts:1)
-- [lib/action-effects.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/action-effects.ts:1)
-- [lib/stock.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/stock.ts:1)
-- [lib/products-schema.ts](/abs/path/c:/Users/Enrico/airbnb-manager/lib/products-schema.ts:1)
-
-## Nota finale
-
-Questo progetto oggi e in uno stato sensibilmente piu solido di prima: auth enforcement verificato, contratti API piu coerenti, date stabili lato Italia, sync di dominio piu esplicite e stock concorrente coperto con percorso atomico su database. La prossima volta possiamo usare questa README come base e andare subito sul prossimo lavoro, senza dover ricostruire da zero cosa e gia stato sistemato.
+- `PROJECT_RECAP.md` — contesto completo, piano cutover, postura sicurezza
+- `proxy.ts` — guard sessione e routing protetto
+- `lib/organizationContext.ts` — risoluzione contesto tenant
+- `lib/platformAdmin.ts` — guard platform admin
+- `app/actions/auth.ts` — login, request access, logout
+- `app/platform/actions.ts` — approvazione richieste, gestione account
+- `app/api/bookings/route.ts` — CRUD prenotazioni
+- `app/api/actions/route.ts` — azioni operative
+- `lib/booking-automation.ts` — generazione azioni automatiche
+- `lib/action-effects.ts` — effetti collaterali azioni
+- `lib/stock.ts` — gestione scorte
+- `tests/integration/tenant-isolation.integration.test.ts` — test isolamento tenant
