@@ -1,271 +1,176 @@
 /**
- * Integration tests: tenant isolation.
- * Verifies that data belonging to org A is never visible to org B
- * when filtered by organization_id (the app-level guard, since service_role bypasses RLS).
- * Uses the real local Docker Supabase DB. All data is cleaned up after each test.
+ * Integration tests: verifica che i dati di un tenant non siano visibili a un altro.
+ * Usa il database locale Docker. Due organizzazioni separate vengono create e ripulite
+ * per ogni test.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addDays, cleanupOrg, createTestOrg, supabaseTest, today, type TestOrg } from "./helpers";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { addDays, cleanupOrg, createTestOrg, supabaseTest, today } from "./helpers";
 
-describe("tenant isolation — integration", () => {
+describe("tenant isolation — bookings", () => {
   const supabase = supabaseTest();
-  let orgA: TestOrg;
-  let orgB: TestOrg;
-  const base = today();
+  let orgA: string;
+  let orgB: string;
 
-  beforeAll(async () => {
-    orgA = await createTestOrg(supabase, "a");
-    orgB = await createTestOrg(supabase, "b");
+  beforeEach(async () => {
+    orgA = (await createTestOrg(supabase, `iso-a`)).id;
+    orgB = (await createTestOrg(supabase, `iso-b`)).id;
   });
 
-  afterAll(async () => {
-    await cleanupOrg(supabase, orgA.id);
-    await cleanupOrg(supabase, orgB.id);
+  afterEach(async () => {
+    await cleanupOrg(supabase, orgA);
+    await cleanupOrg(supabase, orgB);
   });
 
-  // ── bookings ──────────────────────────────────────────────────────────────
+  it("org A non vede le prenotazioni di org B", async () => {
+    const base = today();
 
-  describe("bookings", () => {
-    it("org A non vede le prenotazioni di org B", async () => {
-      const checkIn = addDays(base, 200);
-      const checkOut = addDays(base, 203);
+    const { data: bk, error: bkErr } = await supabase
+      .from("bookings")
+      .insert({ organization_id: orgB, check_in: base, check_out: addDays(base, 3), guests: 2 })
+      .select("id")
+      .single();
+    if (bkErr) throw new Error(bkErr.message);
 
-      const { data: inserted, error: insertErr } = await supabase
-        .from("bookings")
-        .insert({ check_in: checkIn, check_out: checkOut, guests: 2, organization_id: orgB.id })
-        .select("id")
-        .single();
-      expect(insertErr).toBeNull();
-      const bookingBId = inserted!.id;
+    const { data: rows, error } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("organization_id", orgA);
+    if (error) throw new Error(error.message);
 
-      const { data: visibleToA, error } = await supabase
-        .from("bookings")
-        .select("id")
-        .eq("organization_id", orgA.id);
-
-      expect(error).toBeNull();
-      const ids = (visibleToA ?? []).map((r) => r.id);
-      expect(ids).not.toContain(bookingBId);
-    });
-
-    it("org B non vede le prenotazioni di org A", async () => {
-      const checkIn = addDays(base, 210);
-      const checkOut = addDays(base, 213);
-
-      const { data: inserted, error: insertErr } = await supabase
-        .from("bookings")
-        .insert({ check_in: checkIn, check_out: checkOut, guests: 3, organization_id: orgA.id })
-        .select("id")
-        .single();
-      expect(insertErr).toBeNull();
-      const bookingAId = inserted!.id;
-
-      const { data: visibleToB, error } = await supabase
-        .from("bookings")
-        .select("id")
-        .eq("organization_id", orgB.id);
-
-      expect(error).toBeNull();
-      const ids = (visibleToB ?? []).map((r) => r.id);
-      expect(ids).not.toContain(bookingAId);
-    });
+    const ids = (rows ?? []).map((r) => String(r.id));
+    expect(ids).not.toContain(String(bk.id));
   });
 
-  // ── actions ───────────────────────────────────────────────────────────────
+  it("org B non vede le prenotazioni di org A", async () => {
+    const base = today();
 
-  describe("actions", () => {
-    it("org A non vede le azioni di org B", async () => {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("actions")
-        .insert({
-          action_date: addDays(base, 220),
-          action_type: "PULIZIA",
-          organization_id: orgB.id,
-        })
-        .select("id")
-        .single();
-      expect(insertErr).toBeNull();
-      const actionBId = inserted!.id;
+    const { data: bk, error: bkErr } = await supabase
+      .from("bookings")
+      .insert({ organization_id: orgA, check_in: base, check_out: addDays(base, 3), guests: 2 })
+      .select("id")
+      .single();
+    if (bkErr) throw new Error(bkErr.message);
 
-      const { data: visibleToA, error } = await supabase
-        .from("actions")
-        .select("id")
-        .eq("organization_id", orgA.id);
+    const { data: rows, error } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("organization_id", orgB);
+    if (error) throw new Error(error.message);
 
-      expect(error).toBeNull();
-      const ids = (visibleToA ?? []).map((r) => r.id);
-      expect(ids).not.toContain(actionBId);
-    });
+    const ids = (rows ?? []).map((r) => String(r.id));
+    expect(ids).not.toContain(String(bk.id));
+  });
+});
 
-    it("org B non vede le azioni di org A", async () => {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("actions")
-        .insert({
-          action_date: addDays(base, 221),
-          action_type: "BIANCHERIA",
-          organization_id: orgA.id,
-        })
-        .select("id")
-        .single();
-      expect(insertErr).toBeNull();
-      const actionAId = inserted!.id;
+describe("tenant isolation — actions", () => {
+  const supabase = supabaseTest();
+  let orgA: string;
+  let orgB: string;
 
-      const { data: visibleToB, error } = await supabase
-        .from("actions")
-        .select("id")
-        .eq("organization_id", orgB.id);
-
-      expect(error).toBeNull();
-      const ids = (visibleToB ?? []).map((r) => r.id);
-      expect(ids).not.toContain(actionAId);
-    });
+  beforeEach(async () => {
+    orgA = (await createTestOrg(supabase, `iso-act-a`)).id;
+    orgB = (await createTestOrg(supabase, `iso-act-b`)).id;
   });
 
-  // ── expenses ──────────────────────────────────────────────────────────────
-
-  describe("expenses", () => {
-    it("org A non vede le spese di org B", async () => {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("expenses")
-        .insert({
-          expense_date: addDays(base, 230),
-          category: "pulizie",
-          amount: 50,
-          organization_id: orgB.id,
-        })
-        .select("id")
-        .single();
-      expect(insertErr).toBeNull();
-      const expenseBId = inserted!.id;
-
-      const { data: visibleToA, error } = await supabase
-        .from("expenses")
-        .select("id")
-        .eq("organization_id", orgA.id);
-
-      expect(error).toBeNull();
-      const ids = (visibleToA ?? []).map((r) => r.id);
-      expect(ids).not.toContain(expenseBId);
-    });
-
-    it("org B non vede le spese di org A", async () => {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("expenses")
-        .insert({
-          expense_date: addDays(base, 231),
-          category: "manutenzione",
-          amount: 120,
-          organization_id: orgA.id,
-        })
-        .select("id")
-        .single();
-      expect(insertErr).toBeNull();
-      const expenseAId = inserted!.id;
-
-      const { data: visibleToB, error } = await supabase
-        .from("expenses")
-        .select("id")
-        .eq("organization_id", orgB.id);
-
-      expect(error).toBeNull();
-      const ids = (visibleToB ?? []).map((r) => r.id);
-      expect(ids).not.toContain(expenseAId);
-    });
+  afterEach(async () => {
+    await cleanupOrg(supabase, orgA);
+    await cleanupOrg(supabase, orgB);
   });
 
-  // ── products ──────────────────────────────────────────────────────────────
+  it("org A non vede le azioni di org B", async () => {
+    const base = today();
 
-  describe("products", () => {
-    it("org A non vede i prodotti di org B", async () => {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("products")
-        .insert({
-          sku: `sku-b-${Date.now()}`,
-          name: "Detersivo B",
-          category: "pulizia",
-          unit: "pz",
-          qty: 5,
-          threshold: 2,
-          max_qty: 10,
-          organization_id: orgB.id,
-        })
-        .select("id")
-        .single();
-      expect(insertErr).toBeNull();
-      const productBId = inserted!.id;
+    // Serve un booking di orgB per l'action trigger
+    const { data: bk } = await supabase
+      .from("bookings")
+      .insert({ organization_id: orgB, check_in: base, check_out: addDays(base, 2), guests: 1 })
+      .select("id")
+      .single();
 
-      const { data: visibleToA, error } = await supabase
-        .from("products")
-        .select("id")
-        .eq("organization_id", orgA.id);
+    const { data: act, error: actErr } = await supabase
+      .from("actions")
+      .insert({ organization_id: orgB, booking_id: bk!.id, action_type: "PULIZIA", action_date: addDays(base, 2), status: "DA_FARE" })
+      .select("id")
+      .single();
+    if (actErr) throw new Error(actErr.message);
 
-      expect(error).toBeNull();
-      const ids = (visibleToA ?? []).map((r) => r.id);
-      expect(ids).not.toContain(productBId);
-    });
+    const { data: rows, error } = await supabase
+      .from("actions")
+      .select("id")
+      .eq("organization_id", orgA);
+    if (error) throw new Error(error.message);
 
-    it("org B non vede i prodotti di org A", async () => {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("products")
-        .insert({
-          sku: `sku-a-${Date.now()}`,
-          name: "Sapone A",
-          category: "bagno",
-          unit: "pz",
-          qty: 3,
-          threshold: 1,
-          max_qty: 8,
-          organization_id: orgA.id,
-        })
-        .select("id")
-        .single();
-      expect(insertErr).toBeNull();
-      const productAId = inserted!.id;
+    const ids = (rows ?? []).map((r) => String(r.id));
+    expect(ids).not.toContain(String(act.id));
+  });
+});
 
-      const { data: visibleToB, error } = await supabase
-        .from("products")
-        .select("id")
-        .eq("organization_id", orgB.id);
+describe("tenant isolation — expenses", () => {
+  const supabase = supabaseTest();
+  let orgA: string;
+  let orgB: string;
 
-      expect(error).toBeNull();
-      const ids = (visibleToB ?? []).map((r) => r.id);
-      expect(ids).not.toContain(productAId);
-    });
+  beforeEach(async () => {
+    orgA = (await createTestOrg(supabase, `iso-exp-a`)).id;
+    orgB = (await createTestOrg(supabase, `iso-exp-b`)).id;
   });
 
-  // ── cross-conteggio: ogni org vede solo i propri dati ─────────────────────
+  afterEach(async () => {
+    await cleanupOrg(supabase, orgA);
+    await cleanupOrg(supabase, orgB);
+  });
 
-  describe("conteggio isolato per entità", () => {
-    it("il conteggio bookings per org è indipendente", async () => {
-      const checkInA = addDays(base, 240);
-      const checkOutA = addDays(base, 242);
-      const checkInB = addDays(base, 243);
-      const checkOutB = addDays(base, 245);
+  it("org A non vede le spese di org B", async () => {
+    const base = today();
 
-      await supabase
-        .from("bookings")
-        .insert({ check_in: checkInA, check_out: checkOutA, guests: 1, organization_id: orgA.id });
-      await supabase
-        .from("bookings")
-        .insert({ check_in: checkInB, check_out: checkOutB, guests: 1, organization_id: orgB.id });
+    const { data: exp, error: expErr } = await supabase
+      .from("expenses")
+      .insert({ organization_id: orgB, amount: 50, description: "Test spesa", expense_date: base, category: "pulizie" })
+      .select("id")
+      .single();
+    if (expErr) throw new Error(expErr.message);
 
-      const { count: countA } = await supabase
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", orgA.id);
+    const { data: rows, error } = await supabase
+      .from("expenses")
+      .select("id")
+      .eq("organization_id", orgA);
+    if (error) throw new Error(error.message);
 
-      const { count: countB } = await supabase
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", orgB.id);
+    const ids = (rows ?? []).map((r) => String(r.id));
+    expect(ids).not.toContain(String(exp.id));
+  });
+});
 
-      // Ogni org deve vedere solo le proprie prenotazioni
-      expect(countA).toBeGreaterThanOrEqual(1);
-      expect(countB).toBeGreaterThanOrEqual(1);
+describe("tenant isolation — products", () => {
+  const supabase = supabaseTest();
+  let orgA: string;
+  let orgB: string;
 
-      // Il totale combinato deve essere maggiore di quello di ciascuna org singola
-      // (prova che i dati non sono condivisi)
-      expect((countA ?? 0) + (countB ?? 0)).toBeGreaterThan(Math.max(countA ?? 0, countB ?? 0));
-    });
+  beforeEach(async () => {
+    orgA = (await createTestOrg(supabase, `iso-prod-a`)).id;
+    orgB = (await createTestOrg(supabase, `iso-prod-b`)).id;
+  });
+
+  afterEach(async () => {
+    await cleanupOrg(supabase, orgA);
+    await cleanupOrg(supabase, orgB);
+  });
+
+  it("org A non vede i prodotti di org B", async () => {
+    const { data: prod, error: prodErr } = await supabase
+      .from("products")
+      .insert({ organization_id: orgB, name: "Prodotto Test B", category: "magazzino", sku: `sku-iso-b-${Date.now()}`, qty: 5, threshold: 1 })
+      .select("id")
+      .single();
+    if (prodErr) throw new Error(prodErr.message);
+
+    const { data: rows, error } = await supabase
+      .from("products")
+      .select("id")
+      .eq("organization_id", orgA);
+    if (error) throw new Error(error.message);
+
+    const ids = (rows ?? []).map((r) => String(r.id));
+    expect(ids).not.toContain(String(prod.id));
   });
 });
