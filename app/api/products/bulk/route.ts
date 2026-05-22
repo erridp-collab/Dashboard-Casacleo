@@ -1,5 +1,4 @@
 import { errJson, okJson } from "@/lib/http/apiResponse";
-import { resolveProductSchema } from "@/lib/products-schema";
 import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
@@ -30,20 +29,23 @@ export async function PUT(req: Request) {
     }
 
     const supabase = supabaseAdmin();
-    const schema = await resolveProductSchema(supabase);
+
+    const normalized: Record<string, unknown>[] = [];
 
     for (const item of updates) {
       if (!item?.id) {
         return errJson("Missing product id", 400, { item });
       }
 
-      const payload: Record<string, unknown> = {};
+      const payload: Record<string, unknown> = { id: item.id };
+      let hasUpdates = false;
 
       if (item.quantity !== undefined) {
         if (!isFiniteNumber(item.quantity)) {
           return errJson("Invalid quantity", 400, { item });
         }
-        payload[schema.quantityColumn] = item.quantity;
+        payload.quantity = item.quantity;
+        hasUpdates = true;
       }
 
       if (item.threshold !== undefined) {
@@ -51,6 +53,7 @@ export async function PUT(req: Request) {
           return errJson("Invalid threshold", 400, { item });
         }
         payload.threshold = item.threshold;
+        hasUpdates = true;
       }
 
       if (item.max_qty !== undefined) {
@@ -58,6 +61,7 @@ export async function PUT(req: Request) {
           return errJson("Invalid max_qty", 400, { item });
         }
         payload.max_qty = item.max_qty;
+        hasUpdates = true;
       }
 
       if (item.consumption_per_checkout !== undefined) {
@@ -68,12 +72,20 @@ export async function PUT(req: Request) {
           return errJson("Invalid consumption_per_checkout", 400, { item });
         }
         payload.consumption_per_checkout = item.consumption_per_checkout;
+        hasUpdates = true;
       }
 
-      if (Object.keys(payload).length === 0) continue;
+      if (hasUpdates) {
+        normalized.push(payload);
+      }
+    }
 
-      const { error } = await supabase.from("products").update(payload).eq("organization_id", organizationId).eq(schema.idColumn, item.id);
-      if (error) return errJson(error.message, 400, { item });
+    if (normalized.length > 0) {
+      const { error } = await supabase.rpc("bulk_update_products", {
+        p_updates: normalized,
+        p_organization_id: organizationId,
+      });
+      if (error) return errJson(error.message, 400);
     }
 
     await syncShoppingAction(organizationId);

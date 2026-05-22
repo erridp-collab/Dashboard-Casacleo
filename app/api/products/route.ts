@@ -60,15 +60,21 @@ export async function PATCH(req: Request) {
     }
 
     const supabase = supabaseAdmin();
-    const schema = await resolveProductSchema(supabase);
-    for (const item of updates) {
-      const payload: Record<string, unknown> = {};
-      if (item.quantity !== undefined) payload[schema.quantityColumn] = item.quantity;
-      if (item.threshold !== undefined) payload.threshold = item.threshold;
-      if (Object.keys(payload).length === 0) continue;
+    
+    const normalized = updates
+      .filter((item) => item.quantity !== undefined || item.threshold !== undefined)
+      .map((item) => ({
+        id: item.id,
+        ...(item.quantity !== undefined ? { quantity: item.quantity } : {}),
+        ...(item.threshold !== undefined ? { threshold: item.threshold } : {}),
+      }));
 
-      const { error } = await supabase.from("products").update(payload).eq("organization_id", organizationId).eq(schema.idColumn, item.id);
-      if (error) return errJson(error.message, 400, { item });
+    if (normalized.length > 0) {
+      const { error } = await supabase.rpc("bulk_update_products", {
+        p_updates: normalized,
+        p_organization_id: organizationId,
+      });
+      if (error) return errJson(error.message, 400);
     }
 
     await syncShoppingAction(organizationId);
