@@ -49,22 +49,15 @@ async function ensureChecklist(actionId: string, actionType: string, organizatio
   if (existingErr) throw new Error(existingErr.message);
   if ((existingRows ?? []).length > 0) return;
 
-  const variants: Record<string, unknown>[][] = [
-    checklist.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, label })),
-    checklist.map((label) => ({ action_id: actionId, done: false, label })),
-    checklist.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, item_text: label })),
-    checklist.map((label) => ({ action_id: actionId, done: false, item_text: label })),
-    checklist.map((label, index) => ({ action_id: actionId, done: false, sort_order: index + 1, item: label })),
-    checklist.map((label) => ({ action_id: actionId, done: false, item: label })),
-  ];
+  const rows = checklist.map((label) => ({
+    action_id: actionId,
+    done: false,
+    item: label,
+    ...(organizationId ? { organization_id: organizationId } : {})
+  }));
 
-  let lastError = "";
-  for (const rows of variants) {
-    const insert = await supabase.from("action_checklist").insert(rows);
-    if (!insert.error) return;
-    lastError = insert.error.message;
-  }
-  throw new Error(lastError || "Unable to seed action checklist");
+  const { error } = await supabase.from("action_checklist").insert(rows);
+  if (error) throw new Error(error.message);
 }
 
 export function computeDesiredActions(bookings: BookingRow[]): DesiredAction[] {

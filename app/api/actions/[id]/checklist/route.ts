@@ -4,24 +4,12 @@ import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 async function fetchChecklist(supabase: ReturnType<typeof supabaseAdmin>, actionId: string, organizationId: string) {
-  let { data, error } = await supabase
+  return await supabase
     .from("action_checklist")
     .select("*")
     .eq("organization_id", organizationId)
     .eq("action_id", actionId)
-    .order("sort_order", { ascending: true });
-
-  if (error?.code === "42703" && error.message.includes("sort_order")) {
-    const retry = await supabase
-      .from("action_checklist")
-      .select("*")
-      .eq("organization_id", organizationId)
-      .eq("action_id", actionId);
-    data = retry.data;
-    error = retry.error;
-  }
-
-  return { data, error };
+    .order("created_at", { ascending: true });
 }
 
 async function seedChecklistFromTemplate(
@@ -33,23 +21,15 @@ async function seedChecklistFromTemplate(
   const template = await getChecklistTemplate(supabase, actionType);
   if (!template || template.length === 0) return;
 
-  const variants: Record<string, unknown>[][] = [
-    template.map((label, index) => ({ organization_id: organizationId, action_id: actionId, done: false, sort_order: index + 1, label })),
-    template.map((label) => ({ organization_id: organizationId, action_id: actionId, done: false, label })),
-    template.map((label, index) => ({ organization_id: organizationId, action_id: actionId, done: false, sort_order: index + 1, item_text: label })),
-    template.map((label) => ({ organization_id: organizationId, action_id: actionId, done: false, item_text: label })),
-    template.map((label, index) => ({ organization_id: organizationId, action_id: actionId, done: false, sort_order: index + 1, item: label })),
-    template.map((label) => ({ organization_id: organizationId, action_id: actionId, done: false, item: label })),
-  ];
+  const rows = template.map((label) => ({
+    organization_id: organizationId,
+    action_id: actionId,
+    done: false,
+    item: label,
+  }));
 
-  let lastError = "";
-  for (const rows of variants) {
-    const insert = await supabase.from("action_checklist").insert(rows);
-    if (!insert.error) return;
-    lastError = insert.error.message;
-  }
-
-  throw new Error(lastError || "Unable to seed checklist template");
+  const { error } = await supabase.from("action_checklist").insert(rows);
+  if (error) throw new Error(error.message || "Unable to seed checklist template");
 }
 
 export async function GET(
@@ -93,9 +73,9 @@ export async function GET(
     const checklist = (data ?? []).map((row) => ({
       id: row.id,
       action_id: row.action_id,
-      label: row.label ?? row.item_text ?? row.item ?? "Checklist item",
+      label: row.item ?? "Checklist item",
       done: Boolean(row.done),
-      sort_order: row.sort_order ?? null,
+      sort_order: null,
       created_at: row.created_at ?? null,
     }));
     return okJson({ checklist });
