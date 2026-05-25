@@ -37,7 +37,7 @@ export default async function PlatformLayout({
     <section className="mx-auto max-w-6xl space-y-6">
       <header className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-600">
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">
             Platform
           </p>
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">

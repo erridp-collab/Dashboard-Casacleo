@@ -9,7 +9,7 @@ export default async function OnboardingPage() {
   return (
     <section className="mx-auto max-w-3xl space-y-6">
       <header className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-600">Onboarding</p>
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">Onboarding</p>
         <h1 className="text-3xl font-semibold text-zinc-900">
           {completed ? "Setup iniziale workspace" : "Configura il tuo workspace"}
         </h1>

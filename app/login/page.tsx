@@ -48,7 +48,7 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
                 Password
               </label>
-              <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700">
+              <Link href="/forgot-password" className="text-xs text-primary hover:opacity-80">
                 Password dimenticata?
               </Link>
             </div>
@@ -89,7 +89,7 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-zinc-600">
             Primo accesso?{" "}
-            <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-700">
+            <Link href="/signup" className="font-medium text-primary hover:opacity-80">
               Richiedi accesso
             </Link>
           </p>

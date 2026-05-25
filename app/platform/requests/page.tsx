@@ -271,7 +271,7 @@ export default async function PlatformRequestsPage({
         <CardHeader
           title="Coda approvazioni"
           subtitle="Pending e failed richiedono un tuo intervento. I failed mantengono gli ID gia creati per consentire retry sicuri."
-          action={<RefreshCcw className="h-4 w-4 text-blue-600" />}
+          action={<RefreshCcw className="h-4 w-4 text-primary" />}
         />
 
         {queue.length === 0 ? (

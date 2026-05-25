@@ -150,7 +150,7 @@ export default async function PlatformAccountsPage({
         <CardHeader
           title="Ricerca account"
           subtitle="Cerca un utente per email e gestisci reset, blocco o riattivazione."
-          action={<Search className="h-4 w-4 text-blue-600" />}
+          action={<Search className="h-4 w-4 text-primary" />}
         />
 
         <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -230,7 +230,7 @@ export default async function PlatformAccountsPage({
                       : `Creato il ${formatDate(user.created_at)}`}
                   </p>
                 </div>
-                <UserRound className="h-5 w-5 text-blue-500" />
+                <UserRound className="h-5 w-5 text-primary" />
               </div>
             </Card>
           </div>
@@ -273,7 +273,7 @@ export default async function PlatformAccountsPage({
               <CardHeader
                 title="Azioni supporto"
                 subtitle="Operazioni rapide per supportare l'utente senza uscire dalla console."
-                action={<KeyRound className="h-4 w-4 text-blue-600" />}
+                action={<KeyRound className="h-4 w-4 text-primary" />}
               />
 
               <div className="space-y-3">
