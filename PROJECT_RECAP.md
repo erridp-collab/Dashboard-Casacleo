@@ -422,37 +422,40 @@ Tutte le migration sono state applicate al database hosted il 2026-05-25.
 - `20260509000000_add_fk_expenses_source_action.sql`
 - `20260509010000_add_bulk_product_update_atomic.sql`
 
-## Local Environment
+## Ambiente di sviluppo
 
-Valori reali attesi:
+Docker Supabase locale non è più usato. Tutto il lavoro avviene contro il database hosted remoto.
 
-- API Supabase locale: `http://127.0.0.1:54321`
-- DB locale: `postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+Configurazione `.env.local` richiesta (puntare al progetto Supabase hosted):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://ymthmncbuomtshulexkh.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key hosted>
+SUPABASE_SERVICE_ROLE_KEY=<service role hosted>
+```
 
 Comandi utili:
 
-```bash
-npx.cmd supabase status
-npx.cmd supabase db push --local
-npx.cmd supabase db reset
-npx tsc --noEmit
+```powershell
+npx.cmd tsc --noEmit
 npm run lint
 npm test
+npm run dev
 ```
+
+Nota sui test di integrazione: girano contro il DB hosted. Ogni test crea e pulisce le proprie org di test via `createTestOrg` / `cleanupOrg`. Non toccare dati dell'org produzione (`6328a160-4546-46ef-a372-a087e5785d43`).
+
+Migration: nuove migration vanno create in `supabase/migrations/` e applicate manualmente dalla dashboard Supabase hosted (SQL editor) oppure via `npx.cmd supabase db push --db-url <connection_string>`.
 
 ## Verification Status
 
-Ultimo stato verde verificato:
+Ultimo stato verde verificato (2026-05-25):
 
-- `npx supabase db push --local`
-- `npx tsc --noEmit`
-- `npm run lint`
-- `npm test`
-- login locale verificato con account `platform admin`
-- Supabase locale Docker raggiungibile e funzionante
-- reset password locale verificato con redirect corretto a `/reset-password`
-- smoke test end-to-end locale verificato per utente approvato
+- `npx tsc --noEmit` — verde
+- `npm run lint` — verde
+- `npm test` — 69/70 verde (1 fallimento pre-esistente in `booking-automation.integration.test.ts` per dati residui nel DB Docker — non rilevante, Docker non è più usato)
 - cutover hosted completato e verificato il 2026-05-25
+- tema burgundi completo applicato su tutte le pagine (T1–T6 del piano 2026-05-25)
 
 Suite rilevanti ora coperte:
 
@@ -481,7 +484,6 @@ Scelte intenzionali attuali:
 
 Scelte tecniche ancora transitorie:
 
-- compatibilita con varianti schema legacy in alcuni punti (BT-3 aperto)
 - uso di `service_role` nei moduli server-side, ma con filtro applicativo tenant
 - sync eventuali non sempre bloccanti
 
@@ -546,12 +548,9 @@ Chiuso con migration `20260509000000_add_fk_expenses_source_action.sql`.
 
 Chiuso con migration `20260509010000_add_bulk_product_update_atomic.sql` + RPC `bulk_update_products`.
 
-### BT-3: Rimozione fallback schema legacy (APERTO — ora eseguibile)
+### ~~BT-3: Rimozione fallback schema legacy~~ DONE
 
-Alcune route handler hanno fallback per lo schema legacy che ora sono codice morto.
-Il cutover hosted e completato, quindi questa voce e eseguibile.
-
-File: `app/api/bookings/route.ts`, `app/api/actions/route.ts`, `app/api/finance/route.ts`.
+Chiuso con commit `c69c6ce`. Rimossa funzione `isMissingTotalAmountError` e i 2 call site da `app/api/bookings/route.ts`. Le route `actions` e `finance` non avevano fallback reali.
 
 ### ~~BT-4: 6 varianti checklist insert in `booking-automation.ts`~~ DONE
 
@@ -586,8 +585,7 @@ File / aree: `app/actions/auth.ts`, `app/platform/actions.ts`, configurazione Su
 ### Prossimi passi
 
 ```
-1. BT-3  Rimozione fallback legacy    <- ora eseguibile, nessun rischio regressione
-2. BT-6  Hardening email beta-safe    <- prima di aprire la beta esterna
+1. BT-6  Hardening email beta-safe    <- prima di aprire la beta esterna
 ```
 
 Dopo ogni voce: `npm test` + `npx tsc --noEmit` + `npm run lint` devono passare tutti.
@@ -647,6 +645,8 @@ Mancanze consapevoli:
 ---
 
 ## Fast Re-Entry Files
+
+Ambiente: sviluppo contro DB hosted remoto. Nessun Docker. `.env.local` deve puntare a `ymthmncbuomtshulexkh.supabase.co`.
 
 Aprire subito questi file per riprendere:
 
