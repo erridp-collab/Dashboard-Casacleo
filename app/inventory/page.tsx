@@ -597,7 +597,7 @@ export default function InventoryPage() {
                   type="button"
                   onClick={() => void applyCsvImport()}
                   disabled={csvLoading}
-                  className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                 >
                   Applica import
                 </button>
@@ -770,7 +770,7 @@ export default function InventoryPage() {
                   <StockBar quantity={product.quantity} initialQuantity={product.initialQuantity} state={state} />
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <input
-                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-blue-600 focus:outline-none"
+                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-primary focus:outline-none"
                       type="number"
                       placeholder="+qta"
                       value={draft.addQty}
@@ -779,7 +779,7 @@ export default function InventoryPage() {
                       }
                     />
                     <input
-                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-blue-600 focus:outline-none"
+                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-primary focus:outline-none"
                       type="number"
                       placeholder="EUR"
                       value={draft.amount}
@@ -789,7 +789,7 @@ export default function InventoryPage() {
                     />
                   </div>
                   <button
-                    className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1 rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                     onClick={() => void restockProduct(product.id)}
                     disabled={loading}
                   >
@@ -844,7 +844,7 @@ export default function InventoryPage() {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
                         <input
-                          className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-blue-600 focus:outline-none"
+                          className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
                           type="number"
                           placeholder="+qta"
                           value={draft.addQty}
@@ -853,7 +853,7 @@ export default function InventoryPage() {
                           }
                         />
                         <input
-                          className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-blue-600 focus:outline-none"
+                          className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
                           type="number"
                           placeholder="EUR"
                           value={draft.amount}
@@ -862,7 +862,7 @@ export default function InventoryPage() {
                           }
                         />
                         <button
-                          className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
                           onClick={() => void restockProduct(product.id)}
                           disabled={loading}
                         >
