@@ -11,7 +11,10 @@
       "Bash(curl -s 'http://localhost:3000/api/actions?from=2026-04-20&to=2026-04-25' -H 'Cookie: auth-token=authenticated')",
       "Bash(curl -s 'http://localhost:3000/api/finance?month=2026-04&months=2' -H 'Cookie: auth-token=authenticated')",
       "Bash(curl -s -X POST http://localhost:3000/api/finance -H 'Cookie: auth-token=authenticated' -H 'Content-Type: application/json' -d '{\"expense_date\":\"2026-04-22\",\"amount\":24,\"category\":\"Test\",\"description\":\"Test\"}')",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(docker exec *)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__apply_migration"
     ]
   }
 }
