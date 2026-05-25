@@ -50,9 +50,9 @@ npm install
 
 ```env
 SUPABASE_URL=http://127.0.0.1:54321
-SUPABASE_SERVICE_ROLE_KEY=sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz
+SUPABASE_SERVICE_ROLE_KEY=<chiave-service-role-locale-da-supabase-status>
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<chiave-publishable-locale-da-supabase-status>
 ```
 
 Per puntare al progetto hosted, sostituire con i valori da `.env.local.production-current`.
@@ -80,7 +80,7 @@ docker start supabase_db_airbnb-manager supabase_auth_airbnb-manager supabase_re
 ```powershell
 Invoke-WebRequest `
   -Uri "http://127.0.0.1:54321/rest/v1/organizations?select=id&limit=1" `
-  -Headers @{ apikey = "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"; Authorization = "Bearer sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz" }
+  -Headers @{ apikey = "<SERVICE_ROLE_KEY>"; Authorization = "Bearer <SERVICE_ROLE_KEY>" }
 ```
 
 Risposta 200 = tutto ok, si può eseguire `npm test`.
