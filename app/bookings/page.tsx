@@ -224,30 +224,30 @@ export default function BookingsPage() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
             <div className="flex flex-col gap-1">
               <label htmlFor="booking-check-in" className="text-xs font-medium text-zinc-600">Check-in</label>
-              <input id="booking-check-in" name="check_in" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
+              <input id="booking-check-in" name="check_in" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="booking-check-out" className="text-xs font-medium text-zinc-600">Check-out</label>
-              <input id="booking-check-out" name="check_out" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-blue-600 focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
+              <input id="booking-check-out" name="check_out" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="booking-guests" className="text-xs font-medium text-zinc-600">Ospiti</label>
-              <input id="booking-guests" name="guests" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-blue-600 focus:outline-none" type="number" inputMode="numeric" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
+              <input id="booking-guests" name="guests" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" type="number" inputMode="numeric" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="booking-channel" className="text-xs font-medium text-zinc-600">Canale</label>
-              <input id="booking-channel" name="channel" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-blue-600 focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="es. airbnb" autoComplete="off" />
+              <input id="booking-channel" name="channel" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="es. airbnb" autoComplete="off" />
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="booking-total-amount" className="text-xs font-medium text-zinc-600">Importo (€)</label>
-              <input id="booking-total-amount" name="total_amount" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-blue-600 focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="0.00" />
+              <input id="booking-total-amount" name="total_amount" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="0.00" />
             </div>
             <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
               <label htmlFor="booking-notes" className="text-xs font-medium text-zinc-600">Note</label>
-              <input id="booking-notes" name="notes" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-blue-600 focus:outline-none" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note aggiuntive..." />
+              <input id="booking-notes" name="notes" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note aggiuntive..." />
             </div>
           </div>
-          <button className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
+          <button className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
             <Plus className="h-4 w-4" />
             {loading ? "Creazione..." : "Crea prenotazione"}
           </button>
@@ -313,7 +313,7 @@ export default function BookingsPage() {
                       <h3 className="text-sm font-semibold text-zinc-900">{b.check_in} {"->"} {b.check_out}</h3>
                       <p className="text-xs text-zinc-500">Ospiti: {b.guests} | Canale: {b.channel ?? "-"}</p>
                     </div>
-                    <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                    <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
                       EUR {amountDraftById[b.id] || b.total_amount || "-"}
                     </span>
                   </div>

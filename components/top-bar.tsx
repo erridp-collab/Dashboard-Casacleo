@@ -28,10 +28,10 @@ export function TopBar() {
   }
 
   return (
-    <header className="border-b border-zinc-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="border-b border-white/10 bg-sidebar-bg shadow-sm">
       <div className="mx-auto flex w-full max-w-[1200px] items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2 rounded-xl px-2 py-1 text-zinc-900 hover:bg-zinc-100">
-          <BookOpen className="h-4 w-4 text-blue-600" />
+        <Link href="/" className="flex items-center gap-2 rounded-xl px-2 py-1 text-white hover:bg-white/10">
+          <BookOpen className="h-4 w-4 text-brand" />
           <span className="text-sm font-semibold">Alva Host Manager</span>
         </Link>
 
@@ -46,7 +46,7 @@ export function TopBar() {
                 key={item.href}
                 href={item.href}
                 className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition ${
-                  active ? "bg-blue-50 text-blue-700" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                  active ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -61,18 +61,18 @@ export function TopBar() {
 
         <Link
           href="/bookings"
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 active:scale-95"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-brand px-3 py-2 text-sm font-medium text-sidebar-bg shadow-sm transition hover:opacity-90 active:scale-95"
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Nuova prenotazione</span>
         </Link>
         <form action={logoutFormAction} className="flex items-center gap-2">
           {logoutState?.error ? (
-            <span className="hidden text-xs text-rose-600 md:inline">{logoutState.error}</span>
+            <span className="hidden text-xs text-rose-300 md:inline">{logoutState.error}</span>
           ) : null}
           <button
             type="submit"
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-200 active:scale-95"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-white/20 active:scale-95"
           >
             <LogOut className="h-4 w-4" />
             <span className="hidden sm:inline">Esci</span>

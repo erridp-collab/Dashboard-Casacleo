@@ -220,7 +220,7 @@ function QuantityInputs<T extends string>({
             min="0"
             step="1"
             inputMode="numeric"
-            className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+            className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
             value={draft[key]}
             onChange={(e) => onChange(key, e.target.value)}
           />
@@ -272,7 +272,7 @@ function ActionModalShell({
 
         <div className="flex shrink-0 flex-col gap-2 border-t border-zinc-100 px-5 py-4">
           <button
-            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50"
+            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-white shadow-sm hover:opacity-90 active:opacity-80 disabled:opacity-50"
             onClick={onSave}
             disabled={isBusy}
           >
@@ -590,7 +590,7 @@ export default function ActionsPage() {
             </button>
           </div>
           <button
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 active:scale-95"
             onClick={() => void loadActions()}
           >
             <RefreshCw className="h-4 w-4" />
@@ -623,7 +623,7 @@ export default function ActionsPage() {
                   type="date"
                   value={fromDraft}
                   onChange={(e) => setFromDraft(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                  className="mt-1 block w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-primary"
                 />
               </label>
               <label className="text-sm text-zinc-600">
@@ -634,7 +634,7 @@ export default function ActionsPage() {
                   type="date"
                   value={toDraft}
                   onChange={(e) => setToDraft(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                  className="mt-1 block w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-primary"
                 />
               </label>
               <button
@@ -667,7 +667,7 @@ export default function ActionsPage() {
           <Card key={date}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-800">
-                <CalendarRange className="h-4 w-4 text-blue-600" />
+                <CalendarRange className="h-4 w-4 text-primary" />
                 {date}
               </h2>
               <button
@@ -802,7 +802,7 @@ export default function ActionsPage() {
               placeholder="es. 34.50"
               value={spesaAmount}
               onChange={(e) => setSpesaAmount(e.target.value)}
-              className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+              className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
             />
           </label>
           {spesaAmount.trim() && Number(spesaAmount.replace(",", ".")) > 0 ? (
@@ -836,7 +836,7 @@ export default function ActionsPage() {
               placeholder="es. 15"
               value={laundryCost}
               onChange={(e) => setLaundryCost(e.target.value)}
-              className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+              className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
             />
           </label>
           {laundryCost.trim() && Number(laundryCost.replace(",", ".")) > 0 ? (

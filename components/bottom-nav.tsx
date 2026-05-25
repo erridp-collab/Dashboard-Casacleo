@@ -26,7 +26,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-zinc-200 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.08)] md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-sidebar-bg shadow-[0_-2px_16px_rgba(0,0,0,0.2)] md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div className="flex items-center justify-around px-2 py-2">
@@ -39,8 +39,8 @@ export function BottomNav() {
               href={item.href}
               className={`flex min-h-[52px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all ${
                 active
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  ? "bg-white/15 text-brand"
+                  : "text-white/50 hover:bg-white/10 hover:text-white"
               }`}
             >
               <Icon className={`h-5 w-5 ${active ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
