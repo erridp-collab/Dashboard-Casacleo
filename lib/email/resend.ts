@@ -64,7 +64,7 @@ export async function sendCleaningReminder(params: CleaningReminderParams): Prom
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
                 <tr>
                   <td align="center">
-                    <a href="https://tuo-dominio.com/actions" style="display:inline-block;background:#701a2f;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;">
+                    <a href="https://dashboard-casacleo.vercel.app/actions" style="display:inline-block;background:#701a2f;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;">
                       Apri il Gestionale
                     </a>
                   </td>
