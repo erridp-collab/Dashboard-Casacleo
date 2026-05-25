@@ -682,7 +682,7 @@ export default function ActionsPage() {
               {rows.map((a) => (
                 <button
                   key={a.id}
-                  className={`w-full rounded-xl border border-zinc-200 px-3 py-2 text-left transition hover:border-blue-200 hover:bg-zinc-50 ${
+                  className={`w-full rounded-xl border border-zinc-200 px-3 py-2 text-left transition hover:border-primary/30 hover:bg-primary/5 ${
                     a.status === "FATTO" ? "opacity-70 line-through" : ""
                   }`}
                   onClick={() => {

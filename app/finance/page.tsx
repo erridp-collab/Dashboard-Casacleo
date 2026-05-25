@@ -170,7 +170,7 @@ export default function FinancePage() {
             Mese
             <input
               type="month"
-              className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+              className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             />
@@ -178,7 +178,7 @@ export default function FinancePage() {
           <label className="text-sm text-zinc-600">
             Analisi trend
             <select
-              className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+              className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
               value={months}
               onChange={(e) => setMonths(Number(e.target.value))}
             >
@@ -384,7 +384,7 @@ export default function FinancePage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Revenue vs Spese" subtitle="Trend" action={<ChartColumn className="h-4 w-4 text-blue-600" />} />
+          <CardHeader title="Revenue vs Spese" subtitle="Trend" action={<ChartColumn className="h-4 w-4 text-primary" />} />
           <div className="h-52 md:h-60">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>
