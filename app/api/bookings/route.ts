@@ -28,14 +28,6 @@ function isValidIsoDate(date: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(date);
 }
 
-function isMissingTotalAmountError(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  return (
-    (error.code === "42703" || error.code === "PGRST204") &&
-    String(error.message ?? "").includes("total_amount")
-  );
-}
-
 async function hasDateConflict(checkIn: string, checkOut: string, organizationId: string): Promise<boolean> {
   const supabase = supabaseAdmin();
   const { data, error } = await supabase
@@ -59,22 +51,11 @@ export async function GET() {
     const { organizationId } = auth.context;
 
     const supabase = supabaseAdmin();
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("bookings")
       .select("id, check_in, check_out, guests, channel, notes, total_amount")
       .eq("organization_id", organizationId)
       .order("check_in", { ascending: true });
-
-    // Backward-compatible fallback when total_amount is not present in older schemas.
-    if (isMissingTotalAmountError(error)) {
-      const retry = await supabase
-        .from("bookings")
-        .select("id, check_in, check_out, guests, channel, notes")
-        .eq("organization_id", organizationId)
-        .order("check_in", { ascending: true });
-      data = (retry.data ?? []).map((row: Record<string, unknown>) => ({ ...row, total_amount: null })) as typeof data;
-      error = retry.error;
-    }
 
     if (error) {
       console.error("[GET /api/bookings] db error", error);
@@ -161,27 +142,11 @@ export async function POST(req: Request) {
     };
 
     const supabase = supabaseAdmin();
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("bookings")
       .insert(payload)
       .select("id, check_in, check_out")
       .single();
-
-    // Backward-compatible fallback when total_amount is not present in older schemas.
-    if (isMissingTotalAmountError(error)) {
-      if (parsedAmount !== null) {
-        return errJson("La colonna bookings.total_amount non esiste nel database. Aggiungila per salvare l'importo.", 400);
-      }
-      const legacyPayload: Record<string, unknown> = { ...payload };
-      delete legacyPayload.total_amount;
-      const retry = await supabase
-        .from("bookings")
-        .insert(legacyPayload)
-        .select("id, check_in, check_out")
-        .single();
-      data = retry.data;
-      error = retry.error;
-    }
 
     if (error) {
       if (String(error.code) === "23P01" || String(error.code) === "23505") {
