@@ -10,13 +10,12 @@ Se devi fare un audit di questo progetto, considera questi vincoli reali:
 - il prodotto sta passando da tool interno a SaaS in modo graduale
 - la fase attuale e `owner-only`
 - non ci sono ancora ruoli multipli reali, billing reale o landing pubblica
-- il setup verificato degli ultimi lavori e il Supabase locale su Docker
-- il database hosted e ancora legacy (pre-multi-tenancy) — vedi sezione "Stato Hosted"
+- il database hosted e stato migrato a multi-tenancy il 2026-05-25 (cutover completato)
 - la priorita attuale e rendere distribuibile e sicuro quello che gia esiste, non completare tutta la piattaforma enterprise
 
 ## Executive Summary
 
-`Alva Host Manager` e un gestionale operativo per affitti brevi. Le aree funzionali principali sono:
+Gestionale operativo per affitti brevi (Casa Cleo). Le aree funzionali principali sono:
 
 - prenotazioni
 - azioni operative
@@ -24,7 +23,7 @@ Se devi fare un audit di questo progetto, considera questi vincoli reali:
 - biancheria
 - finanza/spese
 
-L'app era nata come strumento single-tenant per uso interno. Ora e stata portata a una base SaaS multi-tenant, ma con rollout graduale:
+L'app era nata come strumento single-tenant per uso interno. Ora e stata portata a una base SaaS multi-tenant, con rollout graduale:
 
 - database pronto per multi-tenancy
 - auth applicativa migrata a Supabase Auth
@@ -32,6 +31,26 @@ L'app era nata come strumento single-tenant per uso interno. Ora e stata portata
 - onboarding interno protetto post-login
 - accesso nuovi utenti gestito con richiesta approvata manualmente
 - modello di utilizzo attuale: un solo owner per workspace
+
+## Produzione Attuale
+
+| Campo | Valore |
+|---|---|
+| URL | `https://dashboard-casacleo.vercel.app` |
+| Repo GitHub | `https://github.com/erridp-collab/Dashboard-Casacleo.git` |
+| Branch produzione | `main` |
+| Vercel project | `dashboard-casacleo` |
+| Supabase project | `ymthmncbuomtshulexkh.supabase.co` |
+| Organizzazione | `Casa Cleo` (id: `6328a160-4546-46ef-a372-a087e5785d43`) |
+| Owner | `erri.dp@gmail.com` (id: `d5a3aef5-f484-49f7-8fd8-aa83fa66240a`) |
+| Cutover completato | 2026-05-25 |
+
+Dati presenti in produzione dopo il cutover:
+
+- 17 bookings
+- 63 azioni
+- 13 spese
+- 29 prodotti
 
 ## Product Scope Right Now
 
@@ -51,6 +70,7 @@ Quello che esiste davvero oggi:
 - stock management
 - finance tracking
 - sync automatiche di dominio su prenotazioni e shopping list
+- cron endpoint reminder pulizie (`/api/cron/cleaning-reminder`) via Resend
 
 Quello che volutamente non e ancora prioritario:
 
@@ -115,14 +135,6 @@ Flusso attuale per un nuovo tester:
 9. completa i dati base del workspace
 10. poi usa la dashboard normalmente
 
-Flusso validato in locale:
-
-- richiesta accesso inviata da utente anonimo
-- approvazione eseguita da `platform admin`
-- reset password ricevuto via Mailpit locale
-- login riuscito
-- utente owner nuovo indirizzato prima a `/onboarding`
-
 Flusso per utente esistente:
 
 1. apre `/login`
@@ -148,12 +160,7 @@ Distinzione confermata:
 
 ## Authentication Model
 
-Vecchio modello (ancora attivo su hosted):
-
-- password condivisa di squadra
-- cookie HMAC custom
-
-Nuovo modello (attivo su locale, da portare su hosted):
+Modello attivo (hosted + locale):
 
 - Supabase Auth
 - login server-side
@@ -203,7 +210,7 @@ Il database ha:
 - RLS
 - helper SQL
 - trigger di coerenza tenant
-- fallback compatibili col caso legacy single-workspace
+- fallback compatibili col caso legacy single-workspace (da rimuovere con BT-3)
 
 Importante:
 
@@ -263,13 +270,6 @@ Supporto account disponibile da console:
 - disable account
 - reactivate account
 
-Stato operativo attuale:
-
-- primo `platform admin` configurato sia su hosted sia su locale
-- login `platform admin` senza membership org supportato lato server
-- ambiente locale completato con chiavi auth publishable/anon necessarie per login e reset
-- flusso end-to-end locale `request access -> approve -> reset -> login -> onboarding` verificato
-
 ## Route Protection
 
 La protezione attuale vive in `proxy.ts`.
@@ -327,6 +327,7 @@ API principali:
 - `app/api/products/restock/route.ts`
 - `app/api/products/stock-status/route.ts`
 - `app/api/finance/route.ts`
+- `app/api/cron/cleaning-reminder/route.ts`
 
 Pattern attuale:
 
@@ -399,7 +400,7 @@ File chiave:
 
 ## Database Migration Timeline
 
-Migration principali:
+Tutte le migration sono state applicate al database hosted il 2026-05-25.
 
 - `20260301000000_initial_public_schema.sql`
 - `20260306135500_add_total_amount_to_bookings.sql`
@@ -418,18 +419,10 @@ Migration principali:
 - `20260508120000_drop_create_booking_function.sql`
 - `20260508130000_add_booking_overlap_exclusion.sql`
 - `20260508140000_add_signup_requests.sql`
+- `20260509000000_add_fk_expenses_source_action.sql`
+- `20260509010000_add_bulk_product_update_atomic.sql`
 
-Le migration SaaS piu importanti oggi sono:
-
-- `20260507150000_add_multi_tenant_foundation.sql`
-- `20260507154000_fix_atomic_product_uuid_lookup.sql`
-- `20260508100000_fix_delete_booking_atomic_org_filter.sql`
-- `20260508130000_add_booking_overlap_exclusion.sql`
-- `20260508140000_add_signup_requests.sql`
-
-## Local Environment Reality
-
-L'ultima iterazione e stata verificata sul Supabase locale Docker.
+## Local Environment
 
 Valori reali attesi:
 
@@ -447,14 +440,9 @@ npm run lint
 npm test
 ```
 
-Nota audit molto importante:
-
-- l'ultimo lavoro SaaS e stato validato sul locale Docker
-- il database hosted e ancora pre-multi-tenancy (vedi sezione "Stato Hosted")
-
 ## Verification Status
 
-Alla fine dell'ultima sessione risultava tutto verde su locale:
+Ultimo stato verde verificato:
 
 - `npx supabase db push --local`
 - `npx tsc --noEmit`
@@ -464,6 +452,7 @@ Alla fine dell'ultima sessione risultava tutto verde su locale:
 - Supabase locale Docker raggiungibile e funzionante
 - reset password locale verificato con redirect corretto a `/reset-password`
 - smoke test end-to-end locale verificato per utente approvato
+- cutover hosted completato e verificato il 2026-05-25
 
 Suite rilevanti ora coperte:
 
@@ -476,6 +465,7 @@ Suite rilevanti ora coperte:
 - platform admin guard
 - platform request actions
 - platform account actions
+- tenant isolation (bookings, actions, expenses, products)
 
 ## Known Design Choices
 
@@ -491,16 +481,11 @@ Scelte intenzionali attuali:
 
 Scelte tecniche ancora transitorie:
 
-- compatibilita con varianti schema legacy in alcuni punti
-- fallback per colonne storiche
+- compatibilita con varianti schema legacy in alcuni punti (BT-3 aperto)
 - uso di `service_role` nei moduli server-side, ma con filtro applicativo tenant
 - sync eventuali non sempre bloccanti
 
 ## Audit 2026-05-07 - Risultati e Stato
-
-Audit completo eseguito il 2026-05-07.
-
-### Corretti
 
 | # | Problema | File |
 |---|----------|------|
@@ -512,9 +497,6 @@ Audit completo eseguito il 2026-05-07.
 | yes | Race condition rate limiting | `app/actions/auth.ts` + migration |
 
 ## Audit 2026-05-08 - Risultati e Stato
-
-Audit completo eseguito il 2026-05-08 con 3 agenti indipendenti.
-I risultati sono stati consolidati direttamente in questo recap.
 
 ### Critical corretti
 
@@ -550,242 +532,65 @@ I risultati sono stati consolidati direttamente in questo recap.
 - honeypot + timing check su `login`, `signup/request access`, `forgot password`
 - security headers in `next.config.ts`
 - constraint DB `bookings_no_overlap` per bloccare collisioni concorrenti sui booking
-
----
-
-## Stato Hosted (verificato 2026-05-09)
-
-Questa sezione descrive lo stato reale del database in produzione (Vercel + Supabase hosted).
-
-### Delta rispetto al locale
-
-| | Hosted | Locale |
-|---|---|---|
-| Auth | HMAC custom (password condivisa) | Supabase Auth cookie server-side |
-| Multi-tenancy | NO | SI (organizations + user_roles) |
-| Platform admin UI | NO | SI (/platform) |
-| Onboarding | NO | SI (/onboarding) |
-| Request access | NO | SI (signup_requests) |
-| Migration applicate | 9 (fino a 20260507123000) | 17 (fino a 20260508140000) |
-
-Il codice sorgente e identico tra i due ambienti (stesso repo GitHub, stesso commit `6ceda53`).
-Il problema e esclusivamente il database hosted che e ancora pre-multi-tenancy.
-
-### Dati reali presenti nel database hosted
-
-- 14 bookings
-- 47 azioni
-- 10 spese
-- 29 prodotti
-- action_checklist e counters presenti
-
-Questi dati vanno preservati nel cutover.
-
-### Migration mancanti nel hosted
-
-Vanno applicate in questo ordine esatto:
-
-```
-20260507150000_add_multi_tenant_foundation.sql   <- CRITICA
-20260507154000_fix_atomic_product_uuid_lookup.sql
-20260507160000_add_upsert_rate_limit_atomic.sql
-20260508100000_fix_delete_booking_atomic_org_filter.sql
-20260508120000_drop_create_booking_function.sql
-20260508130000_add_booking_overlap_exclusion.sql
-20260508140000_add_signup_requests.sql
-```
+- FK `expenses.source_action_id → actions.id ON DELETE SET NULL`
 
 ---
 
 ## Backlog Tecnico Residuo
 
-Cinque voci aperte. Vanno chiuse con rigore massimo — nessuna regressione.
+### ~~BT-1: FK mancante su `expenses.source_action_id`~~ DONE
 
-Aggiornamento: il backlog ora include anche BT-6, dedicato all'hardening email beta-safe.
+Chiuso con migration `20260509000000_add_fk_expenses_source_action.sql`.
 
-### BT-1: FK mancante su `expenses.source_action_id`
+### ~~BT-2: `PATCH /api/products` con loop non transazionale~~ DONE
 
-La colonna non ha FK verso `actions.id`. Se un'azione viene cancellata, le spese collegate restano orfane senza errore.
+Chiuso con migration `20260509010000_add_bulk_product_update_atomic.sql` + RPC `bulk_update_products`.
 
-Fix: nuova migration con FK + `ON DELETE SET NULL`.
-
-Vincolo: verificare prima se esistono righe orfane nel database (bloccherebbero l'aggiunta del FK).
-
-File: `supabase/migrations/` — nuova migration, nessuna modifica applicativa.
-
-### BT-2: `PATCH /api/products` con loop non transazionale
-
-Il bulk update dei prodotti usa un loop di UPDATE separati. Se uno fallisce a meta, il DB resta in stato parziale senza rollback.
-
-Fix: usare la RPC atomica `apply_product_quantity_deltas` gia esistente, oppure wrappare in transazione esplicita.
-
-Vincolo: non cambiare la firma dell'API — solo rendere l'operazione atomica lato server.
-
-File: `app/api/products/route.ts`, `lib/product-quantity.ts`.
-
-Nota importante: prima di implementare, verificare se il rischio reale riguarda solo `app/api/products/route.ts` oppure anche `app/api/products/bulk/route.ts`.
-
-### BT-3: Rimozione fallback schema legacy
+### BT-3: Rimozione fallback schema legacy (APERTO — ora eseguibile)
 
 Alcune route handler hanno fallback per lo schema legacy che ora sono codice morto.
-
-ATTENZIONE: questa voce va eseguita SOLO dopo il cutover hosted. Finche il database hosted non e allineato, i fallback devono restare.
+Il cutover hosted e completato, quindi questa voce e eseguibile.
 
 File: `app/api/bookings/route.ts`, `app/api/actions/route.ts`, `app/api/finance/route.ts`.
 
-### BT-4: 6 varianti checklist insert in `booking-automation.ts`
+### ~~BT-4: 6 varianti checklist insert in `booking-automation.ts`~~ DONE
 
-Codice relitto della migrazione da schema legacy. 6 varianti di logica insert per la checklist che ora possono essere consolidate in una sola path con `organization_id`.
+Chiuso con refactor `e09ce53`.
 
-Vincolo: i test esistenti devono continuare a passare senza modifiche semantiche.
+### ~~BT-5: Test di tenant isolation end-to-end~~ DONE
 
-File: `lib/booking-automation.ts`, `tests/booking-automation.test.ts`.
+Chiuso con `e22fb71 test: add tenant isolation integration tests`.
 
-Nota importante: prima di implementare, verificare se i fallback checklist residui sono davvero da consolidare solo in `lib/booking-automation.ts` oppure anche in `app/api/actions/[id]/checklist/route.ts`.
+### BT-6: Hardening email beta-safe (APERTO)
 
-### BT-5: Test di tenant isolation end-to-end
-
-Non esistono test che verificano che i dati di un tenant non siano visibili a un altro. E il gap piu critico per un sistema multi-tenant.
-
-Fix: integration test che creano due organizzazioni distinte e verificano che i dati non si incrocino. Copertura minima: bookings, actions, expenses, products.
-
-Vincolo: usare il database locale Docker, non mock.
-
-File: `tests/integration/` — nuovi file, `tests/integration/helpers.ts` — estensione.
-
-### BT-6: Hardening email beta-safe
-
-Il flusso email attuale va reso piu robusto prima di aprire la beta esterna. Il dominio va usato come identita del prodotto, ma l'invio automatico deve passare da un provider transazionale dedicato (`Resend` o similare), non da una casella normale o dal default SMTP Supabase.
+Il flusso email va reso piu robusto prima di aprire la beta esterna.
 
 Decisioni congelate:
 
 - sender automatico: `no-reply@auth.<dominio>` oppure `no-reply@<dominio>`
 - inbox operativa umana: `support@<dominio>`
 - `reply-to`: `support@<dominio>`
-- provider transazionale: `Resend` o similare
+- provider transazionale: `Resend` (gia integrato in `lib/email/resend.ts`)
 - Supabase Auth resta il motore dei flussi auth, ma dietro custom SMTP/provider dedicato
 
-Fix:
+Fix da fare:
 
-- configurare provider transazionale, dominio o sottodominio auth, SPF/DKIM/DMARC
-- collegare Supabase Auth al provider
-- valutare notifica email a `support@...` per nuove `signup_requests`, mantenendo `signup_requests` come fonte di verita applicativa
+- configurare dominio o sottodominio auth, SPF/DKIM/DMARC
+- collegare Supabase Auth a Resend come SMTP custom
+- valutare notifica email a `support@...` per nuove `signup_requests`
 
 Vincolo: eseguire BT-6 prima dell'apertura beta a utenti esterni.
 
 File / aree: `app/actions/auth.ts`, `app/platform/actions.ts`, configurazione Supabase Auth SMTP, DNS dominio.
 
-### Ordine di esecuzione consigliato
+### Prossimi passi
 
 ```
-1. BT-5  Test tenant isolation       <- prima i test, cosi hai copertura
-2. BT-1  FK expenses.source_action_id
-3. BT-2  PATCH /api/products atomico
-4. BT-4  Cleanup checklist legacy
-5. Cutover database hosted           <- vedi sezione Piano di Cutover Hosted
-6. BT-3  Rimozione fallback legacy   <- solo dopo cutover hosted
-7. BT-6  Hardening email beta-safe   <- prima di aprire la beta esterna
+1. BT-3  Rimozione fallback legacy    <- ora eseguibile, nessun rischio regressione
+2. BT-6  Hardening email beta-safe    <- prima di aprire la beta esterna
 ```
 
 Dopo ogni voce: `npm test` + `npx tsc --noEmit` + `npm run lint` devono passare tutti.
-
----
-
-## Piano di Cutover Hosted
-
-Da eseguire dopo aver chiuso BT-1, BT-2, BT-4, BT-5.
-
-### Step 1 — Backup
-
-Esportare dump completo del database hosted prima di qualsiasi modifica.
-Salvare lista utenti Auth (anche se vuota, per conferma).
-
-### Step 2 — Leggere la migration critica
-
-Leggere il contenuto di `supabase/migrations/20260507150000_add_multi_tenant_foundation.sql` prima di applicarla.
-Verificare se aggiunge `organization_id NOT NULL` con o senza default.
-Se non ha default, le righe esistenti bloccheranno la migration — in quel caso applicarla in due fasi (aggiungere DEFAULT NULL, applicare, assegnare org_id, poi aggiungere NOT NULL con migration separata).
-
-### Step 3 — Applicare le 7 migration mancanti
-
-Eseguire in ordine dall'editor SQL Supabase hosted oppure via `npx supabase db push` puntando all'hosted.
-
-### Step 4 — Creare organizzazione legacy
-
-```sql
-INSERT INTO organizations (name, slug, currency_code, timezone, settings)
-VALUES ('Casa Cleo', 'casa-cleo', 'EUR', 'Europe/Rome', '{"onboarding_completed": true}')
-RETURNING id;
-```
-
-Annotare l'`id` restituito.
-
-### Step 5 — Assegnare organization_id ai dati esistenti
-
-```sql
--- Sostituire <ORG_ID> con l'id del passo precedente
-UPDATE bookings SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
-UPDATE actions SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
-UPDATE action_checklist SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
-UPDATE expenses SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
-UPDATE products SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
-UPDATE counters SET organization_id = '<ORG_ID>' WHERE organization_id IS NULL;
-```
-
-### Step 6 — Creare utente Supabase Auth
-
-Dalla dashboard Supabase hosted → Authentication → Users:
-- Creare nuovo utente con l'email dell'utente attivo
-- Impostare password
-- Annotare l'`auth_user_id`
-
-### Step 7 — Creare membership owner
-
-```sql
-INSERT INTO user_roles (organization_id, user_id, role)
-VALUES ('<ORG_ID>', '<AUTH_USER_ID>', 'owner');
-```
-
-### Step 8 — Configurare platform admin
-
-Dalla dashboard Supabase hosted → Authentication → Users → selezionare l'utente admin:
-- Aggiungere in `app_metadata`: `{"is_platform_admin": true}`
-
-### Step 9 — Verifica finale
-
-```sql
--- Tutti devono essere 0
-SELECT
-  (SELECT COUNT(*) FROM bookings WHERE organization_id IS NULL) as bookings_senza_org,
-  (SELECT COUNT(*) FROM actions WHERE organization_id IS NULL) as actions_senza_org,
-  (SELECT COUNT(*) FROM expenses WHERE organization_id IS NULL) as expenses_senza_org,
-  (SELECT COUNT(*) FROM products WHERE organization_id IS NULL) as products_senza_org;
-
--- Deve mostrare utente + ruolo + org
-SELECT u.email, r.role, o.name
-FROM user_roles r
-JOIN organizations o ON o.id = r.organization_id
-JOIN auth.users u ON u.id = r.user_id;
-```
-
-### Step 10 — Test end-to-end
-
-- Login con le nuove credenziali Supabase Auth
-- Verificare che la dashboard mostri tutti i dati storici (14 bookings, 47 azioni, 10 spese, 29 prodotti)
-- Verificare che bookings/actions/finance/inventory funzionino senza errori
-- Verificare che `/platform` sia accessibile con l'account admin
-
-### Rollback
-
-Se qualcosa va storto: ripristinare il dump del database dal Step 1.
-Il codice non va toccato — e gia compatibile con entrambi i modelli durante la transizione.
-
-### Definizione di done
-
-- L'utente storico entra senza attrito
-- Vede tutti i suoi dati precedenti
-- Nessuna area restituisce `Forbidden` o dati vuoti per mismatch tenant
-- `/platform` accessibile per l'admin
 
 ---
 
@@ -872,15 +677,16 @@ Aprire subito questi file per riprendere:
 
 ## Bottom Line
 
-Il codice locale e pulito, testato e pronto. Il problema e il database hosted ancora pre-multi-tenancy.
+La produzione e live. Database migrato, auth nuovo attivo, dati tutti presenti.
 
-Il percorso e chiaro:
+Stato attuale:
 
-1. chiudere il backlog tecnico nel codice (BT-1 → BT-5 nell'ordine indicato)
-2. eseguire il cutover del database hosted seguendo il piano di questa sezione
-3. rimuovere i fallback legacy (BT-3) dopo il cutover
-4. aprire la beta ai primi tester
+- `dashboard-casacleo.vercel.app` serve il codice multi-tenant aggiornato
+- Supabase hosted ha tutte le 19 migration applicate
+- organizzazione "Casa Cleo" configurata con owner `erri.dp@gmail.com`
+- repo di riferimento: `Dashboard-Casacleo/main` su GitHub (watched da Vercel)
 
-Aggiornamento operativo: prima dell'apertura beta esterna, chiudere BT-6 e rendere i flussi email beta-safe. Per BT-2 e BT-4 fare sempre prima una verifica di scope reale nel codice e nello schema.
+Prossimi passi in ordine:
 
-La priorita assoluta e non rompere nulla di funzionante. Dopo ogni modifica: `npm test` + `npx tsc --noEmit` + `npm run lint`.
+1. BT-3 — rimuovere i fallback legacy nel codice (ora eseguibile)
+2. BT-6 — hardening email prima della beta esterna
