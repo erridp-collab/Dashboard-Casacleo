@@ -164,7 +164,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                 onClick={() => setMode("SELF")}
                 className={`flex flex-col items-center gap-2 rounded-xl border-2 py-4 text-sm font-medium transition ${
                   mode === "SELF"
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    ? "border-primary bg-primary/10 text-primary"
                     : "border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
                 }`}
               >
@@ -175,7 +175,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                 onClick={() => setMode("EXTERNAL")}
                 className={`flex flex-col items-center gap-2 rounded-xl border-2 py-4 text-sm font-medium transition ${
                   mode === "EXTERNAL"
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    ? "border-primary bg-primary/10 text-primary"
                     : "border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
                 }`}
               >
@@ -195,7 +195,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                     placeholder="es. 2.5"
                     value={externalHours}
                     onChange={(e) => setExternalHours(e.target.value)}
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
                   />
                 </label>
                 <label className="mt-2 block text-sm text-zinc-600">
@@ -208,11 +208,11 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                     placeholder="es. 12"
                     value={externalRate}
                     onChange={(e) => setExternalRate(e.target.value)}
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-blue-600"
+                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
                   />
                 </label>
                 {externalHours && externalRate && Number(externalHours.replace(",", ".")) > 0 && Number(externalRate.replace(",", ".")) > 0 ? (
-                  <p className="mt-1 text-xs font-medium text-blue-600">
+                  <p className="mt-1 text-xs font-medium text-primary">
                     Totale: €{(Number(externalHours.replace(",", ".")) * Number(externalRate.replace(",", "."))).toFixed(2)}
                   </p>
                 ) : null}
@@ -260,7 +260,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
               Segnalazione manutenzione (opzionale)
             </label>
             <textarea
-              className="mt-2 w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+              className="mt-2 w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-primary"
               rows={3}
               placeholder="Es: perdita sotto il lavandino, maniglia rotta, lampadina fulminata..."
               value={maintenanceNote}
@@ -276,7 +276,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
 
         <div className="flex flex-col gap-2 border-t border-zinc-100 px-5 py-4">
           <button
-            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50"
+            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-white shadow-sm hover:opacity-90 active:opacity-80 disabled:opacity-50"
             onClick={() => void handleSave()}
             disabled={saving || loadingProducts}
           >
