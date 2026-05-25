@@ -1,0 +1,102 @@
+import { Resend } from "resend";
+
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error("RESEND_API_KEY non configurata in .env.local");
+  return new Resend(key);
+}
+
+function getFromEmail() {
+  const from = process.env.RESEND_FROM_EMAIL?.trim();
+
+  if (from) {
+    return from;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return "onboarding@resend.dev";
+  }
+
+  throw new Error(
+    "RESEND_FROM_EMAIL non configurata in produzione. " +
+    "Configurare un mittente verificato su Resend.",
+  );
+}
+
+export type CleaningReminderParams = {
+  to: string;
+  hostName: string;
+  date: string;
+  cleaningActionsHtml: string;
+};
+
+export async function sendCleaningReminder(params: CleaningReminderParams): Promise<string> {
+  const { to, hostName, date, cleaningActionsHtml } = params;
+
+  const html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Riepilogo Pulizie: ${date}</title>
+</head>
+<body style="margin:0;padding:0;background:#fefce8;font-family:Inter,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fefce8;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;max-width:560px;width:100%;border:1px solid #fde047;">
+          <tr>
+            <td style="background:#701a2f;padding:28px 32px;">
+              <p style="margin:0;color:#fefce8;font-size:20px;font-weight:700;">Alva Host Manager</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 8px;font-size:24px;font-weight:700;color:#18181b;">Riepilogo Pulizie</p>
+              <p style="margin:0 0 28px;font-size:15px;color:#71717a;line-height:1.5;">
+                Ciao <strong>${hostName}</strong>, ecco le pulizie programmate per il giorno <strong>${date}</strong>:
+              </p>
+
+              <div style="background:#fafafa;border:1px solid #e4e4e7;border-radius:8px;padding:16px;margin-bottom:28px;">
+                ${cleaningActionsHtml}
+              </div>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                <tr>
+                  <td align="center">
+                    <a href="https://tuo-dominio.com/actions" style="display:inline-block;background:#701a2f;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;">
+                      Apri il Gestionale
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #e4e4e7;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">
+                Questa email è stata inviata automaticamente dal tuo gestionale Alva Host.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const response = await getResend().emails.send({
+    from: getFromEmail(),
+    to,
+    subject: `Riepilogo Pulizie - ${date}`,
+    html,
+  });
+
+  if (response.error || !response.data?.id) {
+    const reason = response.error?.message ?? "Invio email fallito senza dettagli.";
+    throw new Error(`[sendCleaningReminder] ${reason}`);
+  }
+
+  return response.data.id;
+}

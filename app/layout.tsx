@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TopBar } from "@/components/top-bar";
@@ -16,9 +16,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#701a2f",
+};
+
 export const metadata: Metadata = {
   title: "Alva Host Manager",
   description: "Operational manager for bookings, actions, stock, and finance",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Alva Host",
+  },
 };
 
 export default function RootLayout({
@@ -28,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-zinc-50 text-zinc-900 antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}>
         <div className="min-h-screen">
           <TopBar />
           <PageContainer>{children}</PageContainer>

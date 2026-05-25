@@ -601,6 +601,8 @@ Vanno applicate in questo ordine esatto:
 
 Cinque voci aperte. Vanno chiuse con rigore massimo — nessuna regressione.
 
+Aggiornamento: il backlog ora include anche BT-6, dedicato all'hardening email beta-safe.
+
 ### BT-1: FK mancante su `expenses.source_action_id`
 
 La colonna non ha FK verso `actions.id`. Se un'azione viene cancellata, le spese collegate restano orfane senza errore.
@@ -621,6 +623,8 @@ Vincolo: non cambiare la firma dell'API — solo rendere l'operazione atomica la
 
 File: `app/api/products/route.ts`, `lib/product-quantity.ts`.
 
+Nota importante: prima di implementare, verificare se il rischio reale riguarda solo `app/api/products/route.ts` oppure anche `app/api/products/bulk/route.ts`.
+
 ### BT-3: Rimozione fallback schema legacy
 
 Alcune route handler hanno fallback per lo schema legacy che ora sono codice morto.
@@ -637,6 +641,8 @@ Vincolo: i test esistenti devono continuare a passare senza modifiche semantiche
 
 File: `lib/booking-automation.ts`, `tests/booking-automation.test.ts`.
 
+Nota importante: prima di implementare, verificare se i fallback checklist residui sono davvero da consolidare solo in `lib/booking-automation.ts` oppure anche in `app/api/actions/[id]/checklist/route.ts`.
+
 ### BT-5: Test di tenant isolation end-to-end
 
 Non esistono test che verificano che i dati di un tenant non siano visibili a un altro. E il gap piu critico per un sistema multi-tenant.
@@ -647,6 +653,28 @@ Vincolo: usare il database locale Docker, non mock.
 
 File: `tests/integration/` — nuovi file, `tests/integration/helpers.ts` — estensione.
 
+### BT-6: Hardening email beta-safe
+
+Il flusso email attuale va reso piu robusto prima di aprire la beta esterna. Il dominio va usato come identita del prodotto, ma l'invio automatico deve passare da un provider transazionale dedicato (`Resend` o similare), non da una casella normale o dal default SMTP Supabase.
+
+Decisioni congelate:
+
+- sender automatico: `no-reply@auth.<dominio>` oppure `no-reply@<dominio>`
+- inbox operativa umana: `support@<dominio>`
+- `reply-to`: `support@<dominio>`
+- provider transazionale: `Resend` o similare
+- Supabase Auth resta il motore dei flussi auth, ma dietro custom SMTP/provider dedicato
+
+Fix:
+
+- configurare provider transazionale, dominio o sottodominio auth, SPF/DKIM/DMARC
+- collegare Supabase Auth al provider
+- valutare notifica email a `support@...` per nuove `signup_requests`, mantenendo `signup_requests` come fonte di verita applicativa
+
+Vincolo: eseguire BT-6 prima dell'apertura beta a utenti esterni.
+
+File / aree: `app/actions/auth.ts`, `app/platform/actions.ts`, configurazione Supabase Auth SMTP, DNS dominio.
+
 ### Ordine di esecuzione consigliato
 
 ```
@@ -656,6 +684,7 @@ File: `tests/integration/` — nuovi file, `tests/integration/helpers.ts` — es
 4. BT-4  Cleanup checklist legacy
 5. Cutover database hosted           <- vedi sezione Piano di Cutover Hosted
 6. BT-3  Rimozione fallback legacy   <- solo dopo cutover hosted
+7. BT-6  Hardening email beta-safe   <- prima di aprire la beta esterna
 ```
 
 Dopo ogni voce: `npm test` + `npx tsc --noEmit` + `npm run lint` devono passare tutti.
@@ -851,5 +880,7 @@ Il percorso e chiaro:
 2. eseguire il cutover del database hosted seguendo il piano di questa sezione
 3. rimuovere i fallback legacy (BT-3) dopo il cutover
 4. aprire la beta ai primi tester
+
+Aggiornamento operativo: prima dell'apertura beta esterna, chiudere BT-6 e rendere i flussi email beta-safe. Per BT-2 e BT-4 fare sempre prima una verifica di scope reale nel codice e nello schema.
 
 La priorita assoluta e non rompere nulla di funzionante. Dopo ogni modifica: `npm test` + `npx tsc --noEmit` + `npm run lint`.

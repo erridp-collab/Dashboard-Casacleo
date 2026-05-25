@@ -2,11 +2,23 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Chiudere 5 voci di debito tecnico nel codice locale, poi eseguire il cutover del database hosted in produzione.
+**Goal:** Chiudere 6 voci di debito tecnico nel codice locale, poi eseguire il cutover del database hosted in produzione e infine irrobustire il canale email per la beta.
 
 **Architecture:** Approccio sequenziale — prima i test di tenant isolation (copertura), poi le fix atomiche al database locale (BT-1, BT-2, BT-4), poi il cutover manuale del database hosted, infine rimozione dei fallback legacy (BT-3). Ogni task termina con `npm test + npx tsc --noEmit + npm run lint` tutti verdi.
 
 **Tech Stack:** Next.js 16 App Router, React 19, Tailwind CSS 4, Supabase Postgres, Vitest, TypeScript.
+
+**Execution rule:** Prima di toccare BT-2 e BT-4, verificare nel codice e nello schema reale se il refactor e davvero necessario e quanto e ampio. Non allargare i cambiamenti "per simmetria".
+
+| `app/api/products/bulk/route.ts` | Verify / eventual modify â€” se il loop update Ã¨ davvero parte del rischio atomico | BT-2 |
+| `app/api/actions/[id]/checklist/route.ts` | Verify / eventual modify â€” se mantiene fallback checklist legacy non piÃ¹ necessari | BT-4 |
+| `app/actions/auth.ts` | Verify / eventual modify â€” integrare provider email transazionale per i flussi auth | BT-6 |
+| `app/platform/actions.ts` | Verify / eventual modify â€” notifica a `support@...` su nuove richieste accesso | BT-6 |
+
+| `app/api/products/bulk/route.ts` | Verify / eventual modify - se il loop update e davvero parte del rischio atomico | BT-2 |
+| `app/api/actions/[id]/checklist/route.ts` | Verify / eventual modify - se mantiene fallback checklist legacy non piu necessari | BT-4 |
+| `app/actions/auth.ts` | Verify / eventual modify - integrare provider email transazionale per i flussi auth | BT-6 |
+| `app/platform/actions.ts` | Verify / eventual modify - notifica a `support@...` su nuove richieste accesso | BT-6 |
 
 ---
 
@@ -358,9 +370,25 @@ git commit -m "feat: add FK on expenses.source_action_id with ON DELETE SET NULL
 
 **Files:**
 - Modify: `app/api/products/route.ts`
+- Verify / eventual modify: `app/api/products/bulk/route.ts`
 - Create: `supabase/migrations/20260509010000_add_bulk_product_update_atomic.sql`
 
-- [ ] **Step 1: Creare la migration con la funzione atomica**
+- [ ] **Step 1: Verificare se il rischio e reale solo nel PATCH o anche nel bulk**
+
+Prima di scrivere codice:
+
+```bash
+rg -n "for \\(const item of updates\\)|update\\(payload\\)" app/api/products
+```
+
+Confermare se il rischio transazionale riguarda:
+
+- solo `app/api/products/route.ts`
+- oppure anche `app/api/products/bulk/route.ts`
+
+Se il bulk non e realmente coinvolto nello scenario di rischio che vogliamo correggere, non allargare il refactor.
+
+- [ ] **Step 2: Creare la migration con la funzione atomica**
 
 Creare `supabase/migrations/20260509010000_add_bulk_product_update_atomic.sql`:
 
@@ -420,7 +448,7 @@ revoke all on function public.bulk_update_products(jsonb, uuid) from authenticat
 grant execute on function public.bulk_update_products(jsonb, uuid) to service_role;
 ```
 
-- [ ] **Step 2: Applicare la migration**
+- [ ] **Step 3: Applicare la migration**
 
 ```bash
 npx supabase db push --local
@@ -428,7 +456,7 @@ npx supabase db push --local
 
 Atteso: `Applying migration 20260509010000_add_bulk_product_update_atomic.sql... done`
 
-- [ ] **Step 3: Sostituire il loop nel PATCH di `app/api/products/route.ts`**
+- [ ] **Step 4: Sostituire il loop nel PATCH di `app/api/products/route.ts`**
 
 Sostituire il corpo della funzione `PATCH` (righe 49–81 attuali) con:
 
@@ -488,7 +516,11 @@ export async function PATCH(req: Request) {
 
 **Nota:** La funzione SQL usa colonna `qty` hardcoded (schema moderno). Se `schema.quantityColumn` è diverso da `qty` (schema legacy), il fallback vecchio schema è già nella `resolveProductSchema`. Dopo il cutover hosted questo non sarà più rilevante.
 
-- [ ] **Step 4: Verificare che TypeScript compili**
+- [ ] **Step 5: Se il bulk e confermato nello scope, applicare lo stesso principio anche li**
+
+Solo se lo Step 1 lo conferma, aggiornare anche `app/api/products/bulk/route.ts` per evitare update parziali.
+
+- [ ] **Step 6: Verificare che TypeScript compili**
 
 ```bash
 npx tsc --noEmit
@@ -496,7 +528,7 @@ npx tsc --noEmit
 
 Atteso: nessun errore.
 
-- [ ] **Step 5: Eseguire la suite completa**
+- [ ] **Step 7: Eseguire la suite completa**
 
 ```bash
 npm test
@@ -505,11 +537,11 @@ npm run lint
 
 Atteso: tutto verde. I test esistenti su `stock-atomic` e `stock-consumption` devono passare invariati.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add supabase/migrations/20260509010000_add_bulk_product_update_atomic.sql app/api/products/route.ts
-git commit -m "feat: make PATCH /api/products atomic via bulk_update_products RPC"
+git add supabase/migrations/20260509010000_add_bulk_product_update_atomic.sql app/api/products/route.ts app/api/products/bulk/route.ts
+git commit -m "feat: make product updates atomic where confirmed necessary"
 ```
 
 ---
@@ -520,8 +552,24 @@ git commit -m "feat: make PATCH /api/products atomic via bulk_update_products RP
 
 **Files:**
 - Modify: `lib/booking-automation.ts`
+- Verify / eventual modify: `app/api/actions/[id]/checklist/route.ts`
 
-- [ ] **Step 1: Verificare la colonna effettiva di `action_checklist` nel DB locale**
+- [ ] **Step 1: Verificare se i fallback checklist residui sono davvero ancora necessari**
+
+Prima di scrivere codice:
+
+```bash
+rg -n "item_text|item\\b|variants|fallback|sort_order" lib/booking-automation.ts app/api/actions/[id]/checklist/route.ts
+```
+
+Confermare se i fallback legacy da consolidare sono:
+
+- solo in `lib/booking-automation.ts`
+- oppure anche in `app/api/actions/[id]/checklist/route.ts`
+
+Se la route `[id]/checklist` mantiene fallback ancora utili per la transizione hosted, non rimuoverli in anticipo.
+
+- [ ] **Step 2: Verificare la colonna effettiva di `action_checklist` nel DB locale**
 
 Eseguire nell'editor SQL Supabase locale:
 
@@ -534,7 +582,7 @@ ORDER BY ordinal_position;
 
 Confermare che esiste la colonna `label` (e non `item_text` o `item`). Se così non fosse, fermarsi e segnalare — il piano assumerebbe uno schema errato.
 
-- [ ] **Step 2: Semplificare `ensureChecklist` in `lib/booking-automation.ts`**
+- [ ] **Step 3: Semplificare `ensureChecklist` in `lib/booking-automation.ts`**
 
 Sostituire la funzione `ensureChecklist` (righe 36–68 attuali) con:
 
@@ -567,7 +615,11 @@ async function ensureChecklist(actionId: string, actionType: string, organizatio
 }
 ```
 
-- [ ] **Step 3: Verificare che TypeScript compili**
+- [ ] **Step 4: Se confermato necessario, consolidare anche `app/api/actions/[id]/checklist/route.ts`**
+
+Solo se lo Step 1 lo conferma, ridurre anche nella route `[id]/checklist` le varianti legacy non piu necessarie.
+
+- [ ] **Step 5: Verificare che TypeScript compili**
 
 ```bash
 npx tsc --noEmit
@@ -575,7 +627,7 @@ npx tsc --noEmit
 
 Atteso: nessun errore.
 
-- [ ] **Step 4: Eseguire la suite completa**
+- [ ] **Step 6: Eseguire la suite completa**
 
 ```bash
 npm test
@@ -583,7 +635,7 @@ npm test
 
 Atteso: tutti i test passano. In particolare `tests/integration/booking-automation.integration.test.ts` deve passare invariato — questo è il test di regressione principale per questa modifica.
 
-- [ ] **Step 5: Lint**
+- [ ] **Step 7: Lint**
 
 ```bash
 npm run lint
@@ -591,11 +643,11 @@ npm run lint
 
 Atteso: nessun errore o warning.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add lib/booking-automation.ts
-git commit -m "refactor: consolidate ensureChecklist to single insert path using label column"
+git add lib/booking-automation.ts app/api/actions/[id]/checklist/route.ts
+git commit -m "refactor: consolidate checklist insert paths where confirmed necessary"
 ```
 
 ---
@@ -808,14 +860,98 @@ git commit -m "refactor: remove legacy schema fallbacks from bookings, actions, 
 
 ---
 
+## Task 7 â€” BT-6: Hardening email beta-safe
+
+**Problema:** Il flusso email attuale funziona ma e troppo fragile per la beta esterna. Serve un provider email transazionale dedicato (`Resend` o similare), mantenendo il dominio come identita del prodotto e `support@...` come inbox operativa.
+
+**Decisioni congelate:**
+
+- provider email transazionale dedicato: `Resend` o similare
+- sender automatico: `no-reply@auth.<dominio>` oppure `no-reply@<dominio>`
+- inbox operativa umana: `support@<dominio>`
+- `reply-to`: `support@<dominio>`
+- Supabase Auth continua a gestire i flussi auth, ma dietro custom SMTP/provider dedicato
+
+**Files / aree:**
+
+- Verify / eventual modify: `app/actions/auth.ts`
+- Verify / eventual modify: `app/platform/actions.ts`
+- Hosted config: Supabase Auth SMTP settings
+- DNS: SPF, DKIM, DMARC per dominio o sottodominio auth
+
+- [ ] **Step 1: Scegliere e configurare provider email transazionale (`Resend` o similare)**
+
+Confermare:
+
+- provider scelto
+- dominio o sottodominio auth
+- sender `no-reply@...`
+- inbox `support@...`
+
+- [ ] **Step 2: Configurare identita email**
+
+Configurare:
+
+- `SPF`
+- `DKIM`
+- `DMARC`
+- eventuale sottodominio `auth.<dominio>`
+
+- [ ] **Step 3: Collegare Supabase Auth al provider via custom SMTP o integrazione equivalente**
+
+Obiettivo:
+
+- reset password
+- recovery / auth emails
+- inviti / email auth future
+
+devono passare dal provider dedicato, non dal default SMTP Supabase.
+
+- [ ] **Step 4: Impostare convenzione sender / reply-to**
+
+Configurazione desiderata:
+
+- From: `no-reply@auth.<dominio>` oppure `no-reply@<dominio>`
+- Reply-To: `support@<dominio>`
+
+- [ ] **Step 5: Valutare se le nuove richieste accesso devono notificare `support@...`**
+
+Verificare se e davvero necessario aggiungere notifica email applicativa oltre al salvataggio in `signup_requests`.
+
+Se serve:
+
+- inviare una notifica a `support@...` per ogni nuova richiesta accesso
+- mantenere `signup_requests` come fonte di verita, la inbox solo come alert operativo
+
+- [ ] **Step 6: Verificare i flussi beta-safe**
+
+Confermare almeno:
+
+- reset password consegnato correttamente
+- mail auth coerente col brand del dominio
+- risposta utente instradata a `support@...`
+- eventuale richiesta accesso notificata a `support@...`
+
+- [ ] **Step 7: Commit / documentazione**
+
+Se BT-6 richiede modifiche di codice o config documentata, aggiornare anche il recap operativo e documentare:
+
+- provider scelto
+- sender
+- reply-to
+- ruolo di `support@...`
+
+---
+
 ## Verifica finale globale
 
-Dopo aver completato tutti i task (o almeno BT-1, BT-2, BT-4, BT-5 prima del cutover):
+Dopo aver completato tutti i task (o almeno BT-1, BT-2, BT-4, BT-5 prima del cutover, e BT-6 prima dell'apertura beta):
 
 - [ ] `npm test` — tutti i test passano
 - [ ] `npx tsc --noEmit` — nessun errore TypeScript
 - [ ] `npm run lint` — nessun errore lint
 - [ ] Nessun comportamento funzionante rotto rispetto allo stato iniziale
+- [ ] Flussi email auth e supporto beta-safe
 
 ---
 
@@ -825,3 +961,4 @@ Se il cutover hosted va storto:
 - Ripristinare il dump del database dal backup (Step 1 del Task 5)
 - Il codice locale non va toccato — i fallback legacy in BT-3 devono restare fino al cutover
 - Tutti i task BT-1/BT-2/BT-4/BT-5 sono safe anche senza cutover hosted
+- BT-6 va eseguito in modo indipendente dal cutover, ma prima dell'apertura beta esterna

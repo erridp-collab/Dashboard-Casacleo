@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarRange, CheckCheck, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { CalendarRange, CheckCheck, ChevronLeft, ChevronRight, RefreshCw, ClipboardList } from "lucide-react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
@@ -725,10 +725,14 @@ export default function ActionsPage() {
         ))}
         {visibleActions.length === 0 ? (
           <Card>
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <span className="text-3xl">...</span>
-              <p className="text-sm font-medium text-zinc-700">Nessuna azione</p>
-              <p className="text-xs text-zinc-400">Nessuna azione pianificata nel range selezionato</p>
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+                <ClipboardList className="h-8 w-8" />
+              </div>
+              <p className="text-base font-medium text-zinc-800">Nessuna azione trovata</p>
+              <p className="max-w-[280px] text-sm text-zinc-500">
+                Nessuna azione pianificata nel range selezionato. Le azioni vengono generate automaticamente in base alle prenotazioni.
+              </p>
             </div>
           </Card>
         ) : null}

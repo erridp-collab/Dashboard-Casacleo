@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
@@ -7,7 +7,7 @@ import { clientFetchJson } from "@/lib/http/clientFetch";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
-import { CalendarDays, ChevronDown, PenLine, Plus, Save, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronDown, PenLine, Plus, Save, Trash2, CalendarOff } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
 import { addDaysLocalIT, todayLocalIT } from "@/lib/localDate";
 
@@ -288,13 +288,15 @@ export default function BookingsPage() {
             </div>
           </>
         ) : visibleBookings.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <span className="text-3xl">🏠</span>
-            <p className="text-sm font-medium text-zinc-700">Nessuna prenotazione visibile</p>
-            <p className="text-xs text-zinc-400">
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+              <CalendarOff className="h-8 w-8" />
+            </div>
+            <p className="text-base font-medium text-zinc-800">Nessuna prenotazione visibile</p>
+            <p className="max-w-[280px] text-sm text-zinc-500">
               {bookings.length === 0
-                ? "Aggiungi la prima prenotazione qui sopra"
-                : "Le prenotazioni con pulizia FATTO sono nascoste"}
+                ? "Aggiungi la prima prenotazione usando il modulo qui sopra per iniziare."
+                : "Tutte le prenotazioni visibili sono già state pulite (le prenotazioni FATTO sono nascoste)."}
             </p>
           </div>
         ) : (
