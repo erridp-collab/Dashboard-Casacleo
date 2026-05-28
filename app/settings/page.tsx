@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Settings2 } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
 import { WorkspaceSettingsForm } from "@/components/workspace-settings-form";
 import { requireOrganizationState } from "@/lib/organizationContext";
@@ -8,9 +9,14 @@ export default async function SettingsPage() {
 
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-zinc-900">Impostazioni</h1>
-        <p className="text-sm text-zinc-500">Configurazioni operative del workspace e accesso ai moduli avanzati</p>
+      <header className="flex items-center gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
+          <Settings2 className="h-5 w-5 text-brand" />
+        </div>
+        <div>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Impostazioni</h1>
+          <p className="mt-1 text-xs text-text-secondary">Configurazioni operative del workspace</p>
+        </div>
       </header>
 
       <Card className="p-6">

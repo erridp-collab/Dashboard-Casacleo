@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarRange, CheckCheck, ChevronLeft, ChevronRight, RefreshCw, ClipboardList } from "lucide-react";
+import { CalendarRange, CheckCheck, CheckSquare, ChevronLeft, ChevronRight, ClipboardList, RefreshCw } from "lucide-react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
@@ -556,9 +556,14 @@ export default function ActionsPage() {
 
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-zinc-900">Actions</h1>
-        <p className="text-sm text-zinc-500">Azioni raggruppate per data</p>
+      <header className="flex items-center gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
+          <CheckSquare className="h-5 w-5 text-brand" />
+        </div>
+        <div>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Azioni</h1>
+          <p className="mt-1 text-xs text-text-secondary">Azioni raggruppate per data</p>
+        </div>
       </header>
 
       <Card>

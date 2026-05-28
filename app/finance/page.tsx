@@ -8,7 +8,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { KpiCardSkeleton } from "@/components/skeleton";
 import { monthLabel } from "@/lib/format";
 import { todayLocalIT } from "@/lib/localDate";
-import { ChartColumn, LineChartIcon, Plus, Trash2 } from "lucide-react";
+import { ChartColumn, LineChartIcon, Plus, TrendingUp, Trash2 } from "lucide-react";
 import type { MonthlyFinancePoint } from "@/types/db";
 
 type FinanceEntry = {
@@ -156,9 +156,14 @@ export default function FinancePage() {
 
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-zinc-900">Finance / Spese</h1>
-        <p className="text-sm text-zinc-500">Mese corrente con lista movimenti e analisi trend</p>
+      <header className="flex items-center gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
+          <TrendingUp className="h-5 w-5 text-brand" />
+        </div>
+        <div>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Finance</h1>
+          <p className="mt-1 text-xs text-text-secondary">Mese corrente con lista movimenti e analisi trend</p>
+        </div>
       </header>
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}

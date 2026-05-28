@@ -7,7 +7,7 @@ import { clientFetchJson } from "@/lib/http/clientFetch";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
-import { CalendarDays, ChevronDown, PenLine, Plus, Save, Trash2, CalendarOff } from "lucide-react";
+import { BedDouble, CalendarDays, CalendarOff, ChevronDown, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
 import { addDaysLocalIT, todayLocalIT } from "@/lib/localDate";
 
@@ -200,9 +200,14 @@ export default function BookingsPage() {
 
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-zinc-900">Bookings</h1>
-        <p className="text-sm text-zinc-500">Gestione prenotazioni e azioni collegate</p>
+      <header className="flex items-center gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
+          <BedDouble className="h-5 w-5 text-brand" />
+        </div>
+        <div>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Bookings</h1>
+          <p className="mt-1 text-xs text-text-secondary">Gestione prenotazioni e azioni collegate</p>
+        </div>
       </header>
 
       <Card>

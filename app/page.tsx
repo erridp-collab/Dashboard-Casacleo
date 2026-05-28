@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LayoutDashboard } from "lucide-react";
 import CalendarClient from "@/app/calendar/calendar-client";
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
@@ -75,9 +76,14 @@ export default function DashboardPage() {
 
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-zinc-900">Dashboard</h1>
-        <p className="text-sm text-zinc-500">Panoramica operativa giornaliera</p>
+      <header className="flex items-center gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
+          <LayoutDashboard className="h-5 w-5 text-brand" />
+        </div>
+        <div>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Dashboard</h1>
+          <p className="mt-1 text-xs text-text-secondary">Panoramica operativa giornaliera</p>
+        </div>
       </header>
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
