@@ -15,12 +15,3 @@ export function getActionCategory(actionType: string): "cleaning" | "laundry" | 
   if (upper.includes("MANUT")) return "maintenance";
   return "shopping";
 }
-
-export function getActionIcon(actionType: string): string {
-  const category = getActionCategory(actionType);
-  if (category === "cleaning") return "🧹";
-  if (category === "laundry") return "🧺";
-  if (category === "linen") return "🧺";
-  if (category === "maintenance") return "🛠";
-  return "📌";
-}
