@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: 42 50% 96%;
+  --background: 38 35% 90%;
   --foreground: 35 53% 7%;
   --sidebar-bg: 338 68% 17%;
   --brand: 47 86% 69%;
@@ -9,6 +9,13 @@
   --canvas: 338 68% 17%;
   --surface: 338 56% 27%;
   --primary: 339 55% 46%;
+  --surface-1: 40 60% 99%;
+  --surface-2: 38 35% 93%;
+  --border-subtle: 32 30% 85%;
+  --border-default: 32 25% 80%;
+  --text-primary: 30 60% 8%;
+  --text-secondary: 28 25% 45%;
+  --text-tertiary: 28 20% 55%;
 }
 
 .dark {
@@ -30,6 +37,13 @@
   --color-canvas: hsl(var(--canvas));
   --color-surface: hsl(var(--surface));
   --color-primary: hsl(var(--primary));
+  --color-surface-1: hsl(var(--surface-1));
+  --color-surface-2: hsl(var(--surface-2));
+  --color-border-subtle: hsl(var(--border-subtle));
+  --color-border-default: hsl(var(--border-default));
+  --color-text-primary: hsl(var(--text-primary));
+  --color-text-secondary: hsl(var(--text-secondary));
+  --color-text-tertiary: hsl(var(--text-tertiary));
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -38,6 +52,30 @@ body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-xl bg-sidebar-bg px-4 py-2.5 text-sm font-semibold text-brand shadow-sm transition hover:opacity-90 active:scale-95;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 rounded-xl border border-border-subtle bg-surface-1 px-4 py-2.5 text-sm font-medium text-text-primary transition hover:bg-surface-2 active:scale-95;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-text-secondary underline underline-offset-4 transition hover:text-text-primary;
+  }
+  .btn-danger {
+    @apply inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 active:scale-95;
+  }
+  .btn-sm {
+    @apply h-8 rounded-lg px-3 py-0 text-xs;
+  }
+  .input-base {
+    @apply h-11 w-full rounded-xl border border-border-default bg-surface-1 px-3.5 text-sm text-text-primary transition placeholder:text-text-tertiary focus:border-sidebar-bg focus:outline-none focus:ring-2 focus:ring-sidebar-bg/10;
+  }
+  .label-base {
+    @apply text-[10px] font-bold uppercase tracking-[.06em] text-text-secondary;
+  }
 }
 
 .calendar-shell {
