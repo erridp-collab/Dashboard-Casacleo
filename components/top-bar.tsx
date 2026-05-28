@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useActionState } from "react";
-import { BookOpen, ClipboardList, Euro, Home, Plus, Settings, Warehouse, LogOut } from "lucide-react";
+import { BookOpen, ClipboardList, Euro, Home, LogOut, Plus, Settings, Warehouse } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 
 const NAV_ITEMS = [
@@ -28,25 +28,31 @@ export function TopBar() {
   }
 
   return (
-    <header className="border-b border-white/10 bg-sidebar-bg shadow-sm">
+    <header className="border-b border-white/10 bg-[#5c1526] shadow-sm">
       <div className="mx-auto flex w-full max-w-[1200px] items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2 rounded-xl px-2 py-1 text-white hover:bg-white/10">
-          <BookOpen className="h-4 w-4 text-brand" />
-          <span className="text-sm font-semibold">Alva Host Manager</span>
+        <Link href="/" className="flex items-center gap-2.5 rounded-xl px-2 py-1 text-white hover:bg-white/10">
+          <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[7px] bg-brand">
+            <BookOpen className="h-3.5 w-3.5 text-sidebar-bg" />
+          </div>
+          <div className="leading-none">
+            <div className="text-[13px] font-bold">Alva Host</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-brand/70">Manager</div>
+          </div>
         </Link>
 
-        {/* Desktop nav — hidden on mobile */}
+        {/* Desktop nav */}
         <nav className="hidden flex-1 items-center gap-1 md:flex">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;
-
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition ${
-                  active ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                  active
+                    ? "border border-brand/25 bg-brand/15 text-white"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -56,7 +62,6 @@ export function TopBar() {
           })}
         </nav>
 
-        {/* Spacer on mobile so CTA stays on the right */}
         <div className="flex-1 md:hidden" />
 
         <Link

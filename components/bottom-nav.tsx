@@ -37,14 +37,15 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-h-[52px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all ${
-                active
-                  ? "bg-white/15 text-brand"
-                  : "text-white/50 hover:bg-white/10 hover:text-white"
+              className={`relative flex min-h-[52px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all ${
+                active ? "text-brand" : "text-white/50 hover:bg-white/10 hover:text-white"
               }`}
             >
+              {active && (
+                <span className="absolute left-1/2 top-0 h-[3px] w-6 -translate-x-1/2 rounded-b-sm bg-brand" />
+              )}
               <Icon className={`h-5 w-5 ${active ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
-              <span className={`text-[11px] leading-none ${active ? "font-semibold" : "font-medium"}`}>{item.label}</span>
+              <span className={`text-[11px] leading-none ${active ? "font-bold" : "font-medium"}`}>{item.label}</span>
             </Link>
           );
         })}
