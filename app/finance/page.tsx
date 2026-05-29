@@ -175,7 +175,7 @@ export default function FinancePage() {
             Mese
             <input
               type="month"
-              className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+              className="input-base mt-1"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             />
@@ -183,7 +183,7 @@ export default function FinancePage() {
           <label className="text-sm text-zinc-600">
             Analisi trend
             <select
-              className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+              className="input-base mt-1"
               value={months}
               onChange={(e) => setMonths(Number(e.target.value))}
             >
@@ -264,7 +264,7 @@ export default function FinancePage() {
             <p className="text-xs text-zinc-500">Pulizie, manutenzioni, rifornimenti e spese manuali</p>
           </div>
           <button
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-rose-600 px-3 text-sm font-medium text-white transition hover:bg-rose-700 active:scale-95"
+            className="btn-danger min-h-[44px]"
             onClick={() => setShowForm((v) => !v)}
           >
             <Plus className="h-4 w-4" />
@@ -284,7 +284,7 @@ export default function FinancePage() {
                   required
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                  className="input-base mt-1"
                 />
               </label>
               <label className="text-xs text-zinc-600">
@@ -296,7 +296,7 @@ export default function FinancePage() {
                   required
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
-                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                  className="input-base mt-1"
                 />
               </label>
               <label className="text-xs text-zinc-600">
@@ -304,7 +304,7 @@ export default function FinancePage() {
                 <select
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
-                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                  className="input-base mt-1"
                 >
                   {EXPENSE_CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -318,7 +318,7 @@ export default function FinancePage() {
                   placeholder="Opzionale"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                  className="input-base mt-1"
                 />
               </label>
             </div>
