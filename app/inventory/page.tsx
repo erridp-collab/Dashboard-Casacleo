@@ -773,7 +773,7 @@ export default function InventoryPage() {
                   <StockBar quantity={product.quantity} initialQuantity={product.initialQuantity} state={state} />
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <input
-                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-primary focus:outline-none"
+                      className="input-base"
                       type="number"
                       placeholder="+qta"
                       value={draft.addQty}
@@ -782,7 +782,7 @@ export default function InventoryPage() {
                       }
                     />
                     <input
-                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-primary focus:outline-none"
+                      className="input-base"
                       type="number"
                       placeholder="EUR"
                       value={draft.amount}
@@ -847,7 +847,7 @@ export default function InventoryPage() {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
                         <input
-                          className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+                          className="input-base w-20"
                           type="number"
                           placeholder="+qta"
                           value={draft.addQty}
@@ -856,7 +856,7 @@ export default function InventoryPage() {
                           }
                         />
                         <input
-                          className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+                          className="input-base w-24"
                           type="number"
                           placeholder="EUR"
                           value={draft.amount}

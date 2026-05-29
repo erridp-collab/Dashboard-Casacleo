@@ -220,7 +220,7 @@ function QuantityInputs<T extends string>({
             min="0"
             step="1"
             inputMode="numeric"
-            className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+            className="input-base mt-1"
             value={draft[key]}
             onChange={(e) => onChange(key, e.target.value)}
           />
@@ -807,7 +807,7 @@ export default function ActionsPage() {
               placeholder="es. 34.50"
               value={spesaAmount}
               onChange={(e) => setSpesaAmount(e.target.value)}
-              className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+              className="input-base mt-1"
             />
           </label>
           {spesaAmount.trim() && Number(spesaAmount.replace(",", ".")) > 0 ? (
@@ -841,7 +841,7 @@ export default function ActionsPage() {
               placeholder="es. 15"
               value={laundryCost}
               onChange={(e) => setLaundryCost(e.target.value)}
-              className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+              className="input-base mt-1"
             />
           </label>
           {laundryCost.trim() && Number(laundryCost.replace(",", ".")) > 0 ? (
