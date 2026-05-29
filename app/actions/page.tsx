@@ -628,7 +628,7 @@ export default function ActionsPage() {
                   type="date"
                   value={fromDraft}
                   onChange={(e) => setFromDraft(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-primary"
+                  className="input-base mt-1"
                 />
               </label>
               <label className="text-sm text-zinc-600">
@@ -639,7 +639,7 @@ export default function ActionsPage() {
                   type="date"
                   value={toDraft}
                   onChange={(e) => setToDraft(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-primary"
+                  className="input-base mt-1"
                 />
               </label>
               <button
