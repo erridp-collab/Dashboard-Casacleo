@@ -563,6 +563,18 @@ export default function BookingsPage() {
           </>
         )}
       </Card>
+
+      {/* FAB mobile — apre il form nuova prenotazione */}
+      <button
+        className="btn-primary fixed bottom-[72px] right-4 z-40 flex h-12 w-12 items-center justify-center rounded-[14px] shadow-[0_4px_16px_rgba(181,40,88,0.35)] md:hidden"
+        onClick={() => {
+          setShowForm(true);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        aria-label="Nuova prenotazione"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
     </section>
   );
 }
