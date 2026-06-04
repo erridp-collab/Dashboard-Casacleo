@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Package, ShoppingCart } from "lucide-react";
+import { AlertTriangle, ChevronDown, Package, ShoppingCart } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import { getRefillState, isMonitoredRefillProduct, isStatusManagedRefillProduct, type StockStatus } from "@/lib/refill";
@@ -140,6 +140,8 @@ export default function InventoryPage() {
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvColumns, setCsvColumns] = useState({ threshold: false, maxQty: false, consumption: false });
+  const [showImport, setShowImport] = useState(false);
+  const [activeTab, setActiveTab] = useState<"consumabili" | "biancheria">("biancheria");
   const productsAbortRef = useRef<AbortController | null>(null);
   const productsRequestSeqRef = useRef(0);
 
@@ -523,105 +525,151 @@ export default function InventoryPage() {
       {success && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{success}</p>}
 
       <Card>
-        <CardHeader title="Import CSV / Excel" subtitle="Aggiorna i valori del magazzino in blocco" />
-        <div className="space-y-4 px-6 pb-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={downloadTemplate}
-              className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              Scarica template CSV
-            </button>
-            <button
-              type="button"
-              onClick={downloadTemplateXlsx}
-              className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
-            >
-              Scarica template Excel
-            </button>
-            <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100">
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleCsvFile(file);
-                }}
-              />
-              Carica CSV o Excel
-            </label>
-            {csvFileName && <span className="text-xs text-zinc-500">File: {csvFileName}</span>}
-          </div>
-          <p className="text-xs text-zinc-500">
-            Carica un file CSV o Excel (.xlsx) per aggiornare i valori del magazzino in blocco.
-          </p>
+        <button
+          className="flex w-full items-center justify-between"
+          onClick={() => setShowImport((v) => !v)}
+        >
+          <CardHeader
+            title="Import CSV / Excel"
+            subtitle={showImport ? "Aggiorna i valori del magazzino in blocco" : "Tap per espandere"}
+          />
+          <ChevronDown
+            className={`mr-6 h-5 w-5 shrink-0 text-zinc-400 transition-transform ${showImport ? "rotate-180" : ""}`}
+          />
+        </button>
 
-          {csvErrors.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-              {csvErrors.map((err) => (
-                <p key={err}>{err}</p>
-              ))}
-            </div>
-          )}
-
-          {csvPreview.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-zinc-700">Anteprima aggiornamenti</p>
-              <div className="overflow-hidden rounded-xl border border-zinc-200">
-                <Table>
-                  <TableHead>
-                    <tr>
-                      <TableHeaderCell>Prodotto</TableHeaderCell>
-                      <TableHeaderCell>Qtà attuale</TableHeaderCell>
-                      <TableHeaderCell>Qtà nuova</TableHeaderCell>
-                      <TableHeaderCell>Soglia</TableHeaderCell>
-                      <TableHeaderCell>Massimo</TableHeaderCell>
-                      <TableHeaderCell>Consumo</TableHeaderCell>
-                    </tr>
-                  </TableHead>
-                  <TableBody>
-                    {csvPreview.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-medium text-zinc-900">{row.name}</TableCell>
-                        <TableCell>{row.quantityNow}</TableCell>
-                        <TableCell className="text-zinc-900">{row.quantityNext}</TableCell>
-                        <TableCell>{row.thresholdNext}</TableCell>
-                        <TableCell>{row.maxQtyNext ?? "-"}</TableCell>
-                        <TableCell>{row.consumptionNext ?? "-"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void applyCsvImport()}
-                  disabled={csvLoading}
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-                >
-                  Applica import
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCsvPreview([]);
-                    setCsvErrors([]);
-                    setCsvFileName("");
+        {showImport && (
+          <div className="space-y-4 px-6 pb-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={downloadTemplate}
+                className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                Scarica template CSV
+              </button>
+              <button
+                type="button"
+                onClick={downloadTemplateXlsx}
+                className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
+              >
+                Scarica template Excel
+              </button>
+              <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100">
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleCsvFile(file);
                   }}
-                  className="text-xs text-zinc-500 hover:text-zinc-700"
-                >
-                  Pulisci selezione
-                </button>
-              </div>
+                />
+                Carica CSV o Excel
+              </label>
+              {csvFileName && <span className="text-xs text-zinc-500">File: {csvFileName}</span>}
             </div>
-          )}
-        </div>
+            <p className="text-xs text-zinc-500">
+              Carica un file CSV o Excel (.xlsx) per aggiornare i valori del magazzino in blocco.
+            </p>
+
+            {csvErrors.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+                {csvErrors.map((err) => (
+                  <p key={err}>{err}</p>
+                ))}
+              </div>
+            )}
+
+            {csvPreview.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-zinc-700">Anteprima aggiornamenti</p>
+                <div className="overflow-hidden rounded-xl border border-zinc-200">
+                  <Table>
+                    <TableHead>
+                      <tr>
+                        <TableHeaderCell>Prodotto</TableHeaderCell>
+                        <TableHeaderCell>Qtà attuale</TableHeaderCell>
+                        <TableHeaderCell>Qtà nuova</TableHeaderCell>
+                        <TableHeaderCell>Soglia</TableHeaderCell>
+                        <TableHeaderCell>Massimo</TableHeaderCell>
+                        <TableHeaderCell>Consumo</TableHeaderCell>
+                      </tr>
+                    </TableHead>
+                    <TableBody>
+                      {csvPreview.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-medium text-zinc-900">{row.name}</TableCell>
+                          <TableCell>{row.quantityNow}</TableCell>
+                          <TableCell className="text-zinc-900">{row.quantityNext}</TableCell>
+                          <TableCell>{row.thresholdNext}</TableCell>
+                          <TableCell>{row.maxQtyNext ?? "-"}</TableCell>
+                          <TableCell>{row.consumptionNext ?? "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void applyCsvImport()}
+                    disabled={csvLoading}
+                    className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    Applica import
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCsvPreview([]);
+                      setCsvErrors([]);
+                      setCsvFileName("");
+                    }}
+                    className="text-xs text-zinc-500 hover:text-zinc-700"
+                  >
+                    Pulisci selezione
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
-      <Card>
+      <div className="space-y-4">
+        {/* Tab bar */}
+        <div className="grid grid-cols-2 gap-1 rounded-[13px] bg-[#f4ede6] p-1">
+          <button
+            className={`rounded-[10px] py-2 text-sm font-semibold transition-all ${
+              activeTab === "biancheria"
+                ? "bg-surface text-text-primary shadow-sm"
+                : "text-text-secondary hover:text-text-primary"
+            }`}
+            onClick={() => setActiveTab("biancheria")}
+          >
+            Biancheria{" "}
+            <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === "biancheria" ? "bg-primary/10 text-primary" : "bg-zinc-200 text-zinc-500"}`}>
+              {visibleQuantityProducts.length}
+            </span>
+          </button>
+          <button
+            className={`rounded-[10px] py-2 text-sm font-semibold transition-all ${
+              activeTab === "consumabili"
+                ? "bg-surface text-text-primary shadow-sm"
+                : "text-text-secondary hover:text-text-primary"
+            }`}
+            onClick={() => setActiveTab("consumabili")}
+          >
+            Consumabili{" "}
+            <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === "consumabili" ? "bg-primary/10 text-primary" : "bg-zinc-200 text-zinc-500"}`}>
+              {visibleStatusProducts.length}
+            </span>
+          </button>
+        </div>
+
+        {activeTab === "consumabili" && (
+        <Card>
         <CardHeader title="Consumabili a Stati" subtitle={`${visibleStatusProducts.length} prodotti monitorati a 3 stati`} />
 
         {loadingProducts ? (
@@ -667,7 +715,6 @@ export default function InventoryPage() {
                       </div>
                       {stateBadge(state)}
                     </div>
-                    <p className="mt-3 text-xs text-zinc-500">Gestione a 3 stati per i consumabili.</p>
                     <div className="mt-3">{statusSelector(product)}</div>
                   </article>
                 );
@@ -709,9 +756,11 @@ export default function InventoryPage() {
             </div>
           </>
         )}
-      </Card>
+        </Card>
+        )}
 
-      <Card>
+        {activeTab === "biancheria" && (
+        <Card>
         <CardHeader title="Biancheria a Quantità" subtitle={`${visibleQuantityProducts.length} prodotti gestiti a pezzi/set`} />
 
         {loadingProducts ? (
@@ -882,7 +931,9 @@ export default function InventoryPage() {
           </div>
           </>
         )}
-      </Card>
+        </Card>
+        )}
+      </div>
     </section>
   );
 }
