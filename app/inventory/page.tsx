@@ -574,8 +574,8 @@ export default function InventoryPage() {
                   <TableHead>
                     <tr>
                       <TableHeaderCell>Prodotto</TableHeaderCell>
-                      <TableHeaderCell>Q.ta attuale</TableHeaderCell>
-                      <TableHeaderCell>Q.ta nuova</TableHeaderCell>
+                      <TableHeaderCell>Qtà attuale</TableHeaderCell>
+                      <TableHeaderCell>Qtà nuova</TableHeaderCell>
                       <TableHeaderCell>Soglia</TableHeaderCell>
                       <TableHeaderCell>Massimo</TableHeaderCell>
                       <TableHeaderCell>Consumo</TableHeaderCell>
@@ -712,7 +712,7 @@ export default function InventoryPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Biancheria a Quantita" subtitle={`${visibleQuantityProducts.length} prodotti gestiti a pezzi/set`} />
+        <CardHeader title="Biancheria a Quantità" subtitle={`${visibleQuantityProducts.length} prodotti gestiti a pezzi/set`} />
 
         {loadingProducts ? (
           <>
@@ -773,7 +773,7 @@ export default function InventoryPage() {
                   <StockBar quantity={product.quantity} initialQuantity={product.initialQuantity} state={state} />
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <input
-                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-primary focus:outline-none"
+                      className="input-base"
                       type="number"
                       placeholder="+qta"
                       value={draft.addQty}
@@ -782,7 +782,7 @@ export default function InventoryPage() {
                       }
                     />
                     <input
-                      className="h-10 rounded-lg border border-zinc-300 px-2 text-sm focus:border-primary focus:outline-none"
+                      className="input-base"
                       type="number"
                       placeholder="EUR"
                       value={draft.amount}
@@ -809,8 +809,8 @@ export default function InventoryPage() {
               <tr>
                 <TableHeaderCell>Prodotto</TableHeaderCell>
                 <TableHeaderCell>Categoria</TableHeaderCell>
-                <TableHeaderCell>Q.ta iniziale</TableHeaderCell>
-                <TableHeaderCell>Q.ta attuale</TableHeaderCell>
+                <TableHeaderCell>Qtà iniziale</TableHeaderCell>
+                <TableHeaderCell>Qtà attuale</TableHeaderCell>
                 <TableHeaderCell>Soglia</TableHeaderCell>
                 <TableHeaderCell>Stato</TableHeaderCell>
                 <TableHeaderCell>Rifornisci</TableHeaderCell>
@@ -847,7 +847,7 @@ export default function InventoryPage() {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
                         <input
-                          className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+                          className="input-base w-20"
                           type="number"
                           placeholder="+qta"
                           value={draft.addQty}
@@ -856,7 +856,7 @@ export default function InventoryPage() {
                           }
                         />
                         <input
-                          className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+                          className="input-base w-24"
                           type="number"
                           placeholder="EUR"
                           value={draft.amount}

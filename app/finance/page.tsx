@@ -161,7 +161,7 @@ export default function FinancePage() {
           <TrendingUp className="h-5 w-5 text-brand" />
         </div>
         <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Finance</h1>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Spese</h1>
           <p className="mt-1 text-xs text-text-secondary">Mese corrente con lista movimenti e analisi trend</p>
         </div>
       </header>
@@ -175,7 +175,7 @@ export default function FinancePage() {
             Mese
             <input
               type="month"
-              className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+              className="input-base mt-1"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             />
@@ -183,7 +183,7 @@ export default function FinancePage() {
           <label className="text-sm text-zinc-600">
             Analisi trend
             <select
-              className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+              className="input-base mt-1"
               value={months}
               onChange={(e) => setMonths(Number(e.target.value))}
             >
@@ -264,7 +264,7 @@ export default function FinancePage() {
             <p className="text-xs text-zinc-500">Pulizie, manutenzioni, rifornimenti e spese manuali</p>
           </div>
           <button
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-rose-600 px-3 text-sm font-medium text-white transition hover:bg-rose-700 active:scale-95"
+            className="btn-danger min-h-[44px]"
             onClick={() => setShowForm((v) => !v)}
           >
             <Plus className="h-4 w-4" />
@@ -284,7 +284,7 @@ export default function FinancePage() {
                   required
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                  className="input-base mt-1"
                 />
               </label>
               <label className="text-xs text-zinc-600">
@@ -296,7 +296,7 @@ export default function FinancePage() {
                   required
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
-                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                  className="input-base mt-1"
                 />
               </label>
               <label className="text-xs text-zinc-600">
@@ -304,7 +304,7 @@ export default function FinancePage() {
                 <select
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
-                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                  className="input-base mt-1"
                 >
                   {EXPENSE_CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -318,7 +318,7 @@ export default function FinancePage() {
                   placeholder="Opzionale"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  className="mt-1 block h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-rose-500"
+                  className="input-base mt-1"
                 />
               </label>
             </div>
@@ -389,11 +389,11 @@ export default function FinancePage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Revenue vs Spese" subtitle="Trend" action={<ChartColumn className="h-4 w-4 text-primary" />} />
+          <CardHeader title="Entrate vs Spese" subtitle="Trend" action={<ChartColumn className="h-4 w-4 text-primary" />} />
           <div className="h-52 md:h-60">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0d5c8" />
                 <XAxis
                   dataKey="monthLabel"
                   tick={{ fontSize: 11 }}
@@ -403,20 +403,27 @@ export default function FinancePage() {
                   height={months >= 6 ? 48 : 24}
                 />
                 <YAxis tick={{ fontSize: 11 }} width={45} />
-                <Tooltip />
-                <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="expenses" fill="#059669" radius={[6, 6, 0, 0]} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#fdfaf7",
+                    border: "1px solid #e0d5c8",
+                    borderRadius: 12,
+                    boxShadow: "0 4px 12px rgba(80,40,20,0.08)",
+                  }}
+                />
+                <Bar dataKey="revenue" fill="#701a2f" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="expenses" fill="#f5c842" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Occupancy Rate" subtitle="Trend" action={<LineChartIcon className="h-4 w-4 text-emerald-600" />} />
+          <CardHeader title="Tasso occupazione" subtitle="Trend" action={<LineChartIcon className="h-4 w-4 text-emerald-600" />} />
           <div className="h-52 md:h-60">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0d5c8" />
                 <XAxis
                   dataKey="monthLabel"
                   tick={{ fontSize: 11 }}
@@ -426,8 +433,15 @@ export default function FinancePage() {
                   height={months >= 6 ? 48 : 24}
                 />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} width={35} />
-                <Tooltip />
-                <Line type="monotone" dataKey="occupancyRate" stroke="#059669" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#fdfaf7",
+                    border: "1px solid #e0d5c8",
+                    borderRadius: 12,
+                    boxShadow: "0 4px 12px rgba(80,40,20,0.08)",
+                  }}
+                />
+                <Line type="monotone" dataKey="occupancyRate" stroke="#16a34a" strokeWidth={2.5} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

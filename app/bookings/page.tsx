@@ -205,7 +205,7 @@ export default function BookingsPage() {
           <BedDouble className="h-5 w-5 text-brand" />
         </div>
         <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Bookings</h1>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Prenotazioni</h1>
           <p className="mt-1 text-xs text-text-secondary">Gestione prenotazioni e azioni collegate</p>
         </div>
       </header>
@@ -228,31 +228,31 @@ export default function BookingsPage() {
         <div className={`${showForm ? "block" : "hidden"} md:block`}>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
             <div className="flex flex-col gap-1">
-              <label htmlFor="booking-check-in" className="text-xs font-medium text-zinc-600">Check-in</label>
-              <input id="booking-check-in" name="check_in" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
+              <label htmlFor="booking-check-in" className="label-base">Check-in</label>
+              <input id="booking-check-in" name="check_in" className="input-base" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="booking-check-out" className="text-xs font-medium text-zinc-600">Check-out</label>
-              <input id="booking-check-out" name="check_out" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
+              <label htmlFor="booking-check-out" className="label-base">Check-out</label>
+              <input id="booking-check-out" name="check_out" className="input-base" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="booking-guests" className="text-xs font-medium text-zinc-600">Ospiti</label>
-              <input id="booking-guests" name="guests" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" type="number" inputMode="numeric" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
+              <label htmlFor="booking-guests" className="label-base">Ospiti</label>
+              <input id="booking-guests" name="guests" className="input-base" type="number" inputMode="numeric" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="booking-channel" className="text-xs font-medium text-zinc-600">Canale</label>
-              <input id="booking-channel" name="channel" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="es. airbnb" autoComplete="off" />
+              <label htmlFor="booking-channel" className="label-base">Canale</label>
+              <input id="booking-channel" name="channel" className="input-base" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="es. airbnb" autoComplete="off" />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="booking-total-amount" className="text-xs font-medium text-zinc-600">Importo (€)</label>
-              <input id="booking-total-amount" name="total_amount" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="0.00" />
+              <label htmlFor="booking-total-amount" className="label-base">Importo (€)</label>
+              <input id="booking-total-amount" name="total_amount" className="input-base" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="0.00" />
             </div>
             <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
-              <label htmlFor="booking-notes" className="text-xs font-medium text-zinc-600">Note</label>
-              <input id="booking-notes" name="notes" className="h-11 rounded-xl border border-zinc-300 px-3 text-sm focus:border-primary focus:outline-none" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note aggiuntive..." />
+              <label htmlFor="booking-notes" className="label-base">Note</label>
+              <input id="booking-notes" name="notes" className="input-base" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note aggiuntive..." />
             </div>
           </div>
-          <button className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
+          <button className="btn-primary mt-4 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
             <Plus className="h-4 w-4" />
             {loading ? "Creazione..." : "Crea prenotazione"}
           </button>
@@ -339,17 +339,17 @@ export default function BookingsPage() {
                   )}
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-zinc-300 px-2 text-xs hover:bg-zinc-100" onClick={() => void toggleActionsForBooking(b.id)}>
+                    <button className="btn-secondary btn-sm inline-flex items-center justify-center gap-1" onClick={() => void toggleActionsForBooking(b.id)}>
                       <CalendarDays className="h-3.5 w-3.5" />
                       Azioni
                     </button>
                     {isEditing ? (
-                      <button className="inline-flex h-10 items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 text-xs text-white hover:bg-emerald-700" onClick={() => void updateBooking(b.id)}>
+                      <button className="btn-primary btn-sm inline-flex items-center justify-center gap-1" onClick={() => void updateBooking(b.id)}>
                         <Save className="h-3.5 w-3.5" />
                         Salva
                       </button>
                     ) : (
-                      <button className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-zinc-300 px-2 text-xs hover:bg-zinc-100" onClick={() => {
+                      <button className="btn-secondary btn-sm inline-flex items-center justify-center gap-1" onClick={() => {
                         setAmountDraftById((prev) => ({
                           ...prev,
                           [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
@@ -361,7 +361,7 @@ export default function BookingsPage() {
                       </button>
                     )}
                   </div>
-                  <button className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1 rounded-lg border border-rose-200 px-2 text-xs text-rose-700 hover:bg-rose-50" onClick={() => void deleteBooking(b.id)}>
+                  <button className="btn-danger btn-sm mt-2 inline-flex w-full items-center justify-center gap-1" onClick={() => void deleteBooking(b.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
                     Elimina
                   </button>
@@ -436,18 +436,18 @@ export default function BookingsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <button className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => void toggleActionsForBooking(b.id)}>
+                          <button className="btn-secondary btn-sm inline-flex items-center gap-1" onClick={() => void toggleActionsForBooking(b.id)}>
                             <CalendarDays className="h-3.5 w-3.5" />
                             Azioni
                           </button>
 
                           {isEditing ? (
-                            <button className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700" onClick={() => void updateBooking(b.id)}>
+                            <button className="btn-primary btn-sm inline-flex items-center gap-1" onClick={() => void updateBooking(b.id)}>
                               <Save className="h-3.5 w-3.5" />
                               Salva
                             </button>
                           ) : (
-                            <button className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => {
+                            <button className="btn-secondary btn-sm inline-flex items-center gap-1" onClick={() => {
                               setAmountDraftById((prev) => ({
                                 ...prev,
                                 [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
@@ -459,7 +459,7 @@ export default function BookingsPage() {
                             </button>
                           )}
 
-                          <button className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50" onClick={() => void deleteBooking(b.id)}>
+                          <button className="btn-danger btn-sm inline-flex items-center gap-1" onClick={() => void deleteBooking(b.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                             Elimina
                           </button>

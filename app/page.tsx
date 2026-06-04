@@ -88,26 +88,6 @@ export default function DashboardPage() {
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
-      <Card className="p-4">
-        <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
-        <CalendarClient />
-        <div className="calendar-legend mt-4">
-          <span className="calendar-legend-label">Legenda</span>
-          <span className="calendar-legend-token calendar-legend-token--booking">PR</span>
-          <span className="calendar-legend-text">Prenotazioni</span>
-          <span className="calendar-legend-token calendar-legend-token--cleaning">P</span>
-          <span className="calendar-legend-text">Pulizia</span>
-          <span className="calendar-legend-token calendar-legend-token--linen">B</span>
-          <span className="calendar-legend-text">Biancheria</span>
-          <span className="calendar-legend-token calendar-legend-token--laundry">L</span>
-          <span className="calendar-legend-text">Lavatrici</span>
-          <span className="calendar-legend-token calendar-legend-token--maintenance">M</span>
-          <span className="calendar-legend-text">Manutenzione</span>
-          <span className="calendar-legend-token calendar-legend-token--shopping">S</span>
-          <span className="calendar-legend-text">Spesa</span>
-        </div>
-      </Card>
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading ? (
           <>
@@ -142,6 +122,26 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      <Card className="p-4">
+        <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
+        <CalendarClient />
+        <div className="calendar-legend mt-4">
+          <span className="calendar-legend-label">Legenda</span>
+          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#3b82f6]" />
+          <span className="calendar-legend-text">Prenotazioni</span>
+          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#16a34a]" />
+          <span className="calendar-legend-text">Pulizia</span>
+          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#facc15]" />
+          <span className="calendar-legend-text">Biancheria</span>
+          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#ea580c]" />
+          <span className="calendar-legend-text">Lavatrici</span>
+          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#7e22ce]" />
+          <span className="calendar-legend-text">Manutenzione</span>
+          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#64748b]" />
+          <span className="calendar-legend-text">Spesa</span>
+        </div>
+      </Card>
     </section>
   );
 }

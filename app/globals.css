@@ -143,16 +143,19 @@ body {
 }
 
 .calendar-modern .fc-daygrid-day.fc-day-today {
-  background: rgba(59, 130, 246, 0.08);
+  background: rgba(245, 200, 66, 0.15);
+  border: 1.5px solid rgba(245, 200, 66, 0.45);
+  border-radius: 6px;
 }
 
 .calendar-modern .fc-event {
   border: 0;
-  border-radius: 10px;
-  padding: 0.1rem 0.35rem;
-  font-size: 0.75rem;
+  border-radius: 8px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  box-shadow: 0 4px 12px rgba(54, 40, 24, 0.12);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  letter-spacing: 0.02em;
 }
 
 .calendar-modern .fc-event-title {
@@ -187,10 +190,9 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 999px;
-  padding: 0 0.3rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 4px;
   font-weight: 700;
   color: #fff;
 }
