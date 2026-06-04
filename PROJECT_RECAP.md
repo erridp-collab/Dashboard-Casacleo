@@ -449,13 +449,15 @@ Migration: nuove migration vanno create in `supabase/migrations/` e applicate ma
 
 ## Verification Status
 
-Ultimo stato verde verificato (2026-05-25):
+Ultimo stato verde verificato (2026-06-04):
 
 - `npx tsc --noEmit` — verde
 - `npm run lint` — verde
-- `npm test` — 69/70 verde (1 fallimento pre-esistente in `booking-automation.integration.test.ts` per dati residui nel DB Docker — non rilevante, Docker non è più usato)
-- cutover hosted completato e verificato il 2026-05-25
-- tema burgundi completo applicato su tutte le pagine (T1–T6 del piano 2026-05-25)
+- `npm test` — verde
+- cutover hosted completato il 2026-05-25
+- UI polish completo (12 task: CSS tokens, Card, KpiCard, TopBar/BottomNav, ActionBadges, page headers, btn-*/input-base su tutte le pagine, calendar amber, Recharts brand colors, dashboard KPI-first)
+- mobile UX completato (card prenotazioni compatte, FAB, tab inventario, import collassato, rimozione testo ridondante)
+- remote git: solo `casacleo` → `Dashboard-Casacleo` (remote `alva` rimosso)
 
 Suite rilevanti ora coperte:
 
@@ -538,6 +540,60 @@ Scelte tecniche ancora transitorie:
 
 ---
 
+## UI/UX Polish — Lavoro Completato
+
+### Layer 1–4: Premium UI (2026-05-28 → 2026-06-04)
+
+| Task | Dettaglio | Commit |
+|---|---|---|
+| L1: CSS foundations | token semantici, `btn-*`, `input-base`, `label-base` in `globals.css` | 6c8b4c0 |
+| L2a: Card warm surface | sfondo `surface-1`, separatore gradiente | 83f2243 |
+| L2b: KpiCard redesign | valore extrabold, icona opzionale, micro-label | 87e026c |
+| L3a/b: TopBar + BottomNav | logo box, border attivo, amber indicator | c2c64d0 |
+| L3c: ActionTypeBadge | emoji → Lucide icons | 8e652a5 |
+| L3d: Page headers | pattern icon-box su tutte le pagine | b3ca5d6 |
+| L2c/d: btn-*/input-base bookings | bottoni e input uniformati | 4954f5b |
+| L2c/d: btn-*/input-base finance | bottoni e input uniformati | 5cd40c7 |
+| L2c/d: input-base actions+inventory | input uniformati | 78ff225 |
+| L4a: Calendar CSS | oggi amber, pill eventi, legend quadrati | 62f7d10 |
+| L4b: Recharts brand colors | barre burgundy/amber, linea verde, tooltip caldo | 2e30d68 |
+| L4c: Dashboard KPI-first | ordine KPI, legend quadrati arrotondati | 45624b6 |
+
+### Mobile UX (2026-06-04)
+
+| Task | Dettaglio | Commit |
+|---|---|---|
+| Card prenotazione compatta | stato pulizia + prezzo, date leggibili, menu `···` | 6204785 |
+| FAB nuova prenotazione | fisso sopra BottomNav, solo mobile | da17b62 |
+| Tab Biancheria/Consumabili | inventario su tab invece di scroll | 9686b39 |
+| Import CSV collassato | espandibile on-demand | 9686b39 |
+| Rimozione testo ridondante | rimosso hint statico da ogni card consumabile | 9686b39 |
+
+---
+
+## Miglioramenti Pianificati (Low Effort)
+
+Miglioramenti identificati nell'audit 2026-06-04, non ancora implementati. Tutti fattibili in 1–4h ciascuno senza toccare schema DB o logica di business.
+
+### UX
+
+| # | Descrizione | Effort | File |
+|---|---|---|---|
+| U1 | Dashboard: KPI "Azioni Aperte" cliccabile → pagina azioni filtrata su `DA_FARE` | 1h | `app/page.tsx`, `app/actions/page.tsx` |
+| U2 | Booking form: validazione `check_out > check_in` con messaggio inline | 1h | `app/bookings/page.tsx` |
+| U3 | Elimina prenotazione: conferma con conteggio azioni collegate | 2h | `app/bookings/page.tsx`, `app/api/bookings/[id]/route.ts` |
+
+### Funzionali
+
+| # | Descrizione | Effort | File |
+|---|---|---|---|
+| F1 | Azioni: bottone "Oggi" accanto al range picker | 1h | `app/actions/page.tsx` |
+| F2 | Inventario: export CSV stato attuale (xlsx già installato) | 2h | `app/inventory/page.tsx` |
+| F3 | Finance: filtro per categoria sulle spese | 2h | `app/finance/page.tsx` |
+| F4 | Finance: Δ% mese precedente su entrate/uscite | 3h | `app/finance/page.tsx` |
+
+---
+
 ## Backlog Tecnico Residuo
 
 ### ~~BT-1: FK mancante su `expenses.source_action_id`~~ DONE
@@ -586,9 +642,11 @@ File / aree: `app/actions/auth.ts`, `app/platform/actions.ts`, configurazione Su
 
 ```
 1. BT-6  Hardening email beta-safe    <- prima di aprire la beta esterna
+2. U1–U3 Miglioramenti UX (vedi sezione dedicata)
+3. F1–F4 Miglioramenti funzionali (vedi sezione dedicata)
 ```
 
-Dopo ogni voce: `npm test` + `npx tsc --noEmit` + `npm run lint` devono passare tutti.
+Dopo ogni modifica: `npm test` + `npx tsc --noEmit` + `npm run lint` devono passare tutti.
 
 ---
 
@@ -677,16 +735,18 @@ Aprire subito questi file per riprendere:
 
 ## Bottom Line
 
-La produzione e live. Database migrato, auth nuovo attivo, dati tutti presenti.
+La produzione e live. Database migrato, auth nuovo attivo, UI polish completo, mobile UX ottimizzato.
 
 Stato attuale:
 
-- `dashboard-casacleo.vercel.app` serve il codice multi-tenant aggiornato
+- `dashboard-casacleo.vercel.app` serve il codice aggiornato
 - Supabase hosted ha tutte le 19 migration applicate
 - organizzazione "Casa Cleo" configurata con owner `erri.dp@gmail.com`
 - repo di riferimento: `Dashboard-Casacleo/main` su GitHub (watched da Vercel)
+- remote git locale: solo `casacleo` (alva rimosso)
+- backlog tecnico BT-1/2/3/4/5 tutti chiusi
 
 Prossimi passi in ordine:
 
-1. BT-3 — rimuovere i fallback legacy nel codice (ora eseguibile)
-2. BT-6 — hardening email prima della beta esterna
+1. BT-6 — hardening email prima della beta esterna
+2. U1–U3 / F1–F4 — miglioramenti UX e funzionali low effort (vedi sezione dedicata)
