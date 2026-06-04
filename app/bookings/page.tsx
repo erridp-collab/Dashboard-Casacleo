@@ -47,6 +47,21 @@ function parseAmountInput(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : NaN;
 }
 
+function formatDateRange(checkIn: string, checkOut: string): string {
+  const start = new Date(checkIn + "T00:00:00");
+  const end = new Date(checkOut + "T00:00:00");
+  const nights = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const fmt = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
+  return `${fmt.format(start)}–${fmt.format(end)} · ${nights} ${nights === 1 ? "notte" : "notti"}`;
+}
+
+function channelChipClass(channel: string | null): string {
+  const ch = (channel ?? "").toLowerCase();
+  if (ch.includes("airbnb")) return "bg-sidebar-bg text-[#f5c842]";
+  if (ch.includes("booking")) return "bg-[#1a3a6b] text-white";
+  return "bg-zinc-600 text-white";
+}
+
 export default function BookingsPage() {
   const [form, setForm] = useState<BookingForm>(() => buildInitialForm());
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -199,21 +214,6 @@ export default function BookingsPage() {
     [bookings, showCompleted],
   );
 
-  function formatDateRange(checkIn: string, checkOut: string): string {
-    const start = new Date(checkIn + "T00:00:00");
-    const end = new Date(checkOut + "T00:00:00");
-    const nights = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    const fmt = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
-    return `${fmt.format(start)}–${fmt.format(end)} · ${nights} ${nights === 1 ? "notte" : "notti"}`;
-  }
-
-  function channelChipClass(channel: string | null): string {
-    const ch = (channel ?? "").toLowerCase();
-    if (ch.includes("airbnb")) return "bg-sidebar-bg text-[#f5c842]";
-    if (ch.includes("booking")) return "bg-[#1a3a6b] text-white";
-    return "bg-zinc-600 text-white";
-  }
-
   return (
     <section className="space-y-6">
       <header className="flex items-center gap-4">
@@ -328,6 +328,7 @@ export default function BookingsPage() {
               const linked = bookingActions[b.id] ?? [];
               const menuOpen = expandedMenuId === b.id;
               const cleaningDone = b.cleaning_status === "FATTO";
+              const displayAmount = amountDraftById[b.id] !== "" ? amountDraftById[b.id] : b.total_amount;
 
               return (
                 <article key={b.id} className="rounded-xl border border-zinc-200 bg-white p-3">
@@ -343,7 +344,7 @@ export default function BookingsPage() {
                       {cleaningDone ? "✓ Pulito" : "⚠ Da pulire"}
                     </span>
                     <span className="text-base font-extrabold text-primary">
-                      {amountDraftById[b.id] || b.total_amount ? `€${amountDraftById[b.id] || b.total_amount}` : "—"}
+                      {displayAmount != null && displayAmount !== "" ? `€${displayAmount}` : "—"}
                     </span>
                   </div>
 
@@ -392,12 +393,15 @@ export default function BookingsPage() {
                         Azioni ›
                       </button>
                     )}
-                    <button
-                      className="btn-secondary btn-sm inline-flex items-center justify-center px-2.5 font-bold tracking-widest"
-                      onClick={() => setExpandedMenuId(menuOpen ? null : b.id)}
-                    >
-                      ···
-                    </button>
+                    {!isEditing && (
+                      <button
+                        aria-label={menuOpen ? "Chiudi menu" : "Apri menu prenotazione"}
+                        className="btn-secondary btn-sm inline-flex items-center justify-center px-2.5 font-bold tracking-widest"
+                        onClick={() => setExpandedMenuId(menuOpen ? null : b.id)}
+                      >
+                        ···
+                      </button>
+                    )}
                   </div>
 
                   {/* Menu ··· espanso: Modifica / Elimina */}
