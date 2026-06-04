@@ -13,6 +13,7 @@ import {
   writeActiveOrganizationCookie,
   writeSessionCookies,
 } from "@/lib/supabaseAuth";
+import { sendSignupRequestNotification } from "@/lib/email/resend";
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000; // 15 minuti
@@ -235,6 +236,12 @@ export async function requestAccessAction(prevState: AuthActionState, formData: 
       console.error("Request access insert failed", error);
       return { error: "Richiesta non completata. Verifica i dati e riprova." };
     }
+
+    sendSignupRequestNotification({
+      email,
+      fullName: fullName || null,
+      organizationName,
+    }).catch((err) => console.error("Signup notification failed:", err));
   } catch (error) {
     console.error("Request access failed", error);
     return { error: "Richiesta non completata. Verifica i dati e riprova." };
