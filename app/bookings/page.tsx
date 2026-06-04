@@ -47,6 +47,21 @@ function parseAmountInput(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : NaN;
 }
 
+function formatDateRange(checkIn: string, checkOut: string): string {
+  const start = new Date(checkIn + "T00:00:00");
+  const end = new Date(checkOut + "T00:00:00");
+  const nights = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const fmt = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
+  return `${fmt.format(start)}–${fmt.format(end)} · ${nights} ${nights === 1 ? "notte" : "notti"}`;
+}
+
+function channelChipClass(channel: string | null): string {
+  const ch = (channel ?? "").toLowerCase();
+  if (ch.includes("airbnb")) return "bg-sidebar-bg text-[#f5c842]";
+  if (ch.includes("booking")) return "bg-[#1a3a6b] text-white";
+  return "bg-zinc-600 text-white";
+}
+
 export default function BookingsPage() {
   const [form, setForm] = useState<BookingForm>(() => buildInitialForm());
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -58,6 +73,7 @@ export default function BookingsPage() {
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [expandedMenuId, setExpandedMenuId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const bookingsAbortRef = useRef<AbortController | null>(null);
   const bookingsRequestSeqRef = useRef(0);
@@ -310,62 +326,112 @@ export default function BookingsPage() {
             {visibleBookings.map((b) => {
               const isEditing = editId === b.id;
               const linked = bookingActions[b.id] ?? [];
+              const menuOpen = expandedMenuId === b.id;
+              const cleaningDone = b.cleaning_status === "FATTO";
+              const displayAmount = amountDraftById[b.id] !== "" ? amountDraftById[b.id] : b.total_amount;
 
               return (
                 <article key={b.id} className="rounded-xl border border-zinc-200 bg-white p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold text-zinc-900">{b.check_in} {"->"} {b.check_out}</h3>
-                      <p className="text-xs text-zinc-500">Ospiti: {b.guests} | Canale: {b.channel ?? "-"}</p>
-                    </div>
-                    <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                      EUR {amountDraftById[b.id] || b.total_amount || "-"}
+                  {/* Riga 1: stato pulizia + prezzo */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        cleaningDone
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {cleaningDone ? "✓ Pulito" : "⚠ Da pulire"}
+                    </span>
+                    <span className="text-base font-extrabold text-primary">
+                      {displayAmount != null && displayAmount !== "" ? `€${displayAmount}` : "—"}
                     </span>
                   </div>
 
-                  {isEditing ? (
+                  {/* Riga 2: date leggibili */}
+                  <p className="mt-1.5 text-sm font-bold text-text-primary">
+                    {formatDateRange(b.check_in, b.check_out)}
+                  </p>
+
+                  {/* Riga 3: canale + ospiti + note */}
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${channelChipClass(b.channel)}`}>
+                      {b.channel ?? "—"}
+                    </span>
+                    <span className="text-xs text-text-secondary">{b.guests} ospiti</span>
+                    {b.notes && <span className="text-xs text-text-secondary">· {b.notes}</span>}
+                  </div>
+
+                  {/* Form modifica inline (solo quando isEditing) */}
+                  {isEditing && (
                     <div className="mt-3 grid gap-2">
-                      <input name={`check_in_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
-                      <input name={`check_out_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
-                      <input name={`guests_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" type="number" value={b.guests} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
-                      <input name={`channel_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" value={b.channel ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
-                      <input name={`total_amount_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
-                      <input name={`notes_m_${b.id}`} className="h-10 rounded-lg border border-zinc-300 px-2 text-sm" value={b.notes ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
-                    </div>
-                  ) : (
-                    <div className="mt-3 text-xs text-zinc-500">
-                      <p>Note: {b.notes ? b.notes : "-"}</p>
+                      <input name={`check_in_m_${b.id}`} className="input-base text-sm" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
+                      <input name={`check_out_m_${b.id}`} className="input-base text-sm" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
+                      <input name={`guests_m_${b.id}`} className="input-base text-sm" type="number" value={b.guests} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
+                      <input name={`channel_m_${b.id}`} className="input-base text-sm" value={b.channel ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
+                      <input name={`total_amount_m_${b.id}`} className="input-base text-sm" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
+                      <input name={`notes_m_${b.id}`} className="input-base text-sm" value={b.notes ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
                     </div>
                   )}
 
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button className="btn-secondary btn-sm inline-flex items-center justify-center gap-1" onClick={() => void toggleActionsForBooking(b.id)}>
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      Azioni
-                    </button>
+                  {/* Footer: CTA principale + menu ··· */}
+                  <div className="mt-3 flex items-center justify-end gap-2">
                     {isEditing ? (
-                      <button className="btn-primary btn-sm inline-flex items-center justify-center gap-1" onClick={() => void updateBooking(b.id)}>
+                      <button
+                        className="btn-primary btn-sm inline-flex items-center gap-1"
+                        onClick={() => void updateBooking(b.id)}
+                      >
                         <Save className="h-3.5 w-3.5" />
                         Salva
                       </button>
                     ) : (
-                      <button className="btn-secondary btn-sm inline-flex items-center justify-center gap-1" onClick={() => {
-                        setAmountDraftById((prev) => ({
-                          ...prev,
-                          [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
-                        }));
-                        setEditId(b.id);
-                      }}>
-                        <PenLine className="h-3.5 w-3.5" />
-                        Modifica
+                      <button
+                        className="btn-primary btn-sm inline-flex items-center gap-1"
+                        onClick={() => void toggleActionsForBooking(b.id)}
+                      >
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        Azioni ›
+                      </button>
+                    )}
+                    {!isEditing && (
+                      <button
+                        aria-label={menuOpen ? "Chiudi menu" : "Apri menu prenotazione"}
+                        className="btn-secondary btn-sm inline-flex items-center justify-center px-2.5 font-bold tracking-widest"
+                        onClick={() => setExpandedMenuId(menuOpen ? null : b.id)}
+                      >
+                        ···
                       </button>
                     )}
                   </div>
-                  <button className="btn-danger btn-sm mt-2 inline-flex w-full items-center justify-center gap-1" onClick={() => void deleteBooking(b.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Elimina
-                  </button>
 
+                  {/* Menu ··· espanso: Modifica / Elimina */}
+                  {menuOpen && !isEditing && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        className="btn-secondary btn-sm inline-flex flex-1 items-center justify-center gap-1"
+                        onClick={() => {
+                          setAmountDraftById((prev) => ({
+                            ...prev,
+                            [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
+                          }));
+                          setEditId(b.id);
+                          setExpandedMenuId(null);
+                        }}
+                      >
+                        <PenLine className="h-3.5 w-3.5" />
+                        Modifica
+                      </button>
+                      <button
+                        className="btn-danger btn-sm inline-flex flex-1 items-center justify-center gap-1"
+                        onClick={() => void deleteBooking(b.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Elimina
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Accordion azioni collegate */}
                   {expandedBookingId === b.id && (
                     <div className="mt-3 space-y-2 rounded-xl bg-zinc-50 p-2">
                       {linked.length === 0 ? (
@@ -497,6 +563,18 @@ export default function BookingsPage() {
           </>
         )}
       </Card>
+
+      {/* FAB mobile — apre il form nuova prenotazione */}
+      <button
+        className="btn-primary fixed bottom-[72px] right-4 z-40 flex h-12 w-12 items-center justify-center rounded-[14px] shadow-[0_4px_16px_rgba(181,40,88,0.35)] md:hidden"
+        onClick={() => {
+          setShowForm(true);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        aria-label="Nuova prenotazione"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
     </section>
   );
 }
