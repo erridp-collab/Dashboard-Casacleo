@@ -187,6 +187,6 @@ export async function sendSignupRequestNotification(params: SignupRequestNotific
   });
 
   if (response.error) {
-    console.error("[sendSignupRequestNotification] failed:", response.error.message);
+    console.error("[sendSignupRequestNotification] failed:", response.error.name, response.error.message, JSON.stringify(response.error));
   }
 }
