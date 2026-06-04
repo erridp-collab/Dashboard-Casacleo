@@ -6,10 +6,10 @@ import { ClipboardList, Euro, Home, Settings, Warehouse } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/actions", label: "Azioni", icon: ClipboardList },
-  { href: "/bookings", label: "Booking", icon: Home },
-  { href: "/inventory", label: "Scorte", icon: Warehouse },
+  { href: "/bookings", label: "Prenotazioni", icon: Home },
+  { href: "/inventory", label: "Rifornimento", icon: Warehouse },
   { href: "/finance", label: "Spese", icon: Euro },
-  { href: "/settings", label: "Config", icon: Settings },
+  { href: "/settings", label: "Impostazioni", icon: Settings },
 ];
 
 export function BottomNav() {

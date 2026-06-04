@@ -205,7 +205,7 @@ export default function BookingsPage() {
           <BedDouble className="h-5 w-5 text-brand" />
         </div>
         <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Bookings</h1>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Prenotazioni</h1>
           <p className="mt-1 text-xs text-text-secondary">Gestione prenotazioni e azioni collegate</p>
         </div>
       </header>

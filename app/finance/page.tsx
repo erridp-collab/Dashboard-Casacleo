@@ -161,7 +161,7 @@ export default function FinancePage() {
           <TrendingUp className="h-5 w-5 text-brand" />
         </div>
         <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Finance</h1>
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Spese</h1>
           <p className="mt-1 text-xs text-text-secondary">Mese corrente con lista movimenti e analisi trend</p>
         </div>
       </header>
@@ -389,7 +389,7 @@ export default function FinancePage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Revenue vs Spese" subtitle="Trend" action={<ChartColumn className="h-4 w-4 text-primary" />} />
+          <CardHeader title="Entrate vs Spese" subtitle="Trend" action={<ChartColumn className="h-4 w-4 text-primary" />} />
           <div className="h-52 md:h-60">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>
@@ -419,7 +419,7 @@ export default function FinancePage() {
         </Card>
 
         <Card>
-          <CardHeader title="Occupancy Rate" subtitle="Trend" action={<LineChartIcon className="h-4 w-4 text-emerald-600" />} />
+          <CardHeader title="Tasso occupazione" subtitle="Trend" action={<LineChartIcon className="h-4 w-4 text-emerald-600" />} />
           <div className="h-52 md:h-60">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>

@@ -574,8 +574,8 @@ export default function InventoryPage() {
                   <TableHead>
                     <tr>
                       <TableHeaderCell>Prodotto</TableHeaderCell>
-                      <TableHeaderCell>Q.ta attuale</TableHeaderCell>
-                      <TableHeaderCell>Q.ta nuova</TableHeaderCell>
+                      <TableHeaderCell>Qtà attuale</TableHeaderCell>
+                      <TableHeaderCell>Qtà nuova</TableHeaderCell>
                       <TableHeaderCell>Soglia</TableHeaderCell>
                       <TableHeaderCell>Massimo</TableHeaderCell>
                       <TableHeaderCell>Consumo</TableHeaderCell>
@@ -712,7 +712,7 @@ export default function InventoryPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Biancheria a Quantita" subtitle={`${visibleQuantityProducts.length} prodotti gestiti a pezzi/set`} />
+        <CardHeader title="Biancheria a Quantità" subtitle={`${visibleQuantityProducts.length} prodotti gestiti a pezzi/set`} />
 
         {loadingProducts ? (
           <>
@@ -809,8 +809,8 @@ export default function InventoryPage() {
               <tr>
                 <TableHeaderCell>Prodotto</TableHeaderCell>
                 <TableHeaderCell>Categoria</TableHeaderCell>
-                <TableHeaderCell>Q.ta iniziale</TableHeaderCell>
-                <TableHeaderCell>Q.ta attuale</TableHeaderCell>
+                <TableHeaderCell>Qtà iniziale</TableHeaderCell>
+                <TableHeaderCell>Qtà attuale</TableHeaderCell>
                 <TableHeaderCell>Soglia</TableHeaderCell>
                 <TableHeaderCell>Stato</TableHeaderCell>
                 <TableHeaderCell>Rifornisci</TableHeaderCell>
