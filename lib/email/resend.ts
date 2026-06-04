@@ -64,7 +64,7 @@ export async function sendCleaningReminder(params: CleaningReminderParams): Prom
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
                 <tr>
                   <td align="center">
-                    <a href="https://dashboard-casacleo.vercel.app/actions" style="display:inline-block;background:#701a2f;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;">
+                    <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://host.alva.land"}/actions" style="display:inline-block;background:#701a2f;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;">
                       Apri il Gestionale
                     </a>
                   </td>
@@ -99,4 +99,94 @@ export async function sendCleaningReminder(params: CleaningReminderParams): Prom
   }
 
   return response.data.id;
+}
+
+export type SignupRequestNotificationParams = {
+  email: string;
+  fullName: string | null;
+  organizationName: string;
+};
+
+export async function sendSignupRequestNotification(params: SignupRequestNotificationParams): Promise<void> {
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!adminEmail) return;
+
+  const { email, fullName, organizationName } = params;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://host.alva.land";
+
+  const html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nuova richiesta accesso</title>
+</head>
+<body style="margin:0;padding:0;background:#f4ede6;font-family:Inter,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4ede6;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;max-width:560px;width:100%;border:1px solid #e7dfd2;">
+          <tr>
+            <td style="background:#5c1526;padding:28px 32px;">
+              <p style="margin:0;color:#f5c842;font-size:20px;font-weight:700;">Alva Host Manager</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 24px;font-size:22px;font-weight:700;color:#18181b;">Nuova richiesta accesso</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#fdfaf7;border:1px solid #e7dfd2;border-radius:10px;padding:0;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:16px 20px;border-bottom:1px solid #e7dfd2;">
+                    <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#7a6a58;">Email</p>
+                    <p style="margin:4px 0 0;font-size:15px;color:#18181b;">${email}</p>
+                  </td>
+                </tr>
+                ${fullName ? `<tr>
+                  <td style="padding:16px 20px;border-bottom:1px solid #e7dfd2;">
+                    <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#7a6a58;">Nome</p>
+                    <p style="margin:4px 0 0;font-size:15px;color:#18181b;">${fullName}</p>
+                  </td>
+                </tr>` : ""}
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#7a6a58;">Organizzazione</p>
+                    <p style="margin:4px 0 0;font-size:15px;color:#18181b;">${organizationName}</p>
+                  </td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${siteUrl}/platform/requests" style="display:inline-block;background:#b52858;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;">
+                      Gestisci richiesta →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #e7dfd2;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">
+                Notifica automatica — Alva Host Manager
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const response = await getResend().emails.send({
+    from: getFromEmail(),
+    to: adminEmail,
+    subject: `Nuova richiesta accesso — ${organizationName}`,
+    html,
+  });
+
+  if (response.error) {
+    console.error("[sendSignupRequestNotification] failed:", response.error.message);
+  }
 }
