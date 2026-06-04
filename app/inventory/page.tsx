@@ -526,6 +526,7 @@ export default function InventoryPage() {
 
       <Card>
         <button
+          type="button"
           className="flex w-full items-center justify-between"
           onClick={() => setShowImport((v) => !v)}
         >
