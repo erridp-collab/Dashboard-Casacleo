@@ -640,7 +640,7 @@ export async function applyActionStatusEffects(
         storedDetails.laundry_applied = await applyLaundryRestock(laundry, resolvedOrganizationId);
         await saveActionDetails(actionId, storedDetails, resolvedOrganizationId);
       }
-      const laundryAmount = Number(completion?.amount ?? 0);
+      const laundryAmount = Number(completion?.amount ?? 1.5);
       if (Number.isFinite(laundryAmount) && laundryAmount > 0) {
         await upsertLaundryExpense(actionId, String(actionRow.action_date), laundryAmount, resolvedOrganizationId);
       }
