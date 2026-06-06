@@ -1,5 +1,6 @@
 import { findPrimaryOrganizationForUser, isOnboardingComplete } from "@/lib/organizationContext";
 import { isPlatformAdminClaims } from "@/lib/platformAdmin";
+import { isPublicPath } from "@/lib/publicPaths";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
@@ -10,17 +11,16 @@ import {
   writeSessionCookies,
 } from "@/lib/supabaseAuth";
 
-const PUBLIC_PATH_PREFIXES = ["/login", "/signup", "/forgot-password", "/reset-password"];
-
 export async function proxy(request: NextRequest) {
   const tokens = readSessionTokens(request.cookies);
   const verified = await verifySessionTokens(tokens);
-  const isLoginPage = request.nextUrl.pathname.startsWith("/login");
-  const isSignupPage = request.nextUrl.pathname.startsWith("/signup");
-  const isOnboardingPage = request.nextUrl.pathname.startsWith("/onboarding");
-  const isPlatformPage = request.nextUrl.pathname.startsWith("/platform");
-  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
-  const isPublicPage = PUBLIC_PATH_PREFIXES.some((prefix) => request.nextUrl.pathname.startsWith(prefix));
+  const { pathname } = request.nextUrl;
+  const isLoginPage = pathname === "/login" || pathname.startsWith("/login/");
+  const isSignupPage = pathname === "/signup" || pathname.startsWith("/signup/");
+  const isOnboardingPage = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+  const isPlatformPage = pathname === "/platform" || pathname.startsWith("/platform/");
+  const isApiRoute = pathname.startsWith("/api/");
+  const isPublicPage = isPublicPath(pathname);
   const isAuthenticated = Boolean(verified.user);
   const isPlatformAdmin = isPlatformAdminClaims(verified.user?.app_metadata);
   const response = NextResponse.next();

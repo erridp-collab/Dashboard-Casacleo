@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPublicPath } from "../middleware";
+import { isPublicPath } from "../lib/publicPaths";
 
 describe("isPublicPath", () => {
   it("permette /login", () => {
