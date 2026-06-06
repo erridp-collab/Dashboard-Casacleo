@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     if (status !== "success") return;
-    const id = window.setTimeout(() => router.replace("/"), 1200);
+    const id = window.setTimeout(() => router.replace("/login"), 1200);
     return () => window.clearTimeout(id);
   }, [router, status]);
 
