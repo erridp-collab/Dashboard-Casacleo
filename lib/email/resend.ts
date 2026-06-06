@@ -190,3 +190,87 @@ export async function sendSignupRequestNotification(params: SignupRequestNotific
     console.error("[sendSignupRequestNotification] failed:", response.error.name, response.error.message, JSON.stringify(response.error));
   }
 }
+
+export type WelcomeEmailParams = {
+  email: string;
+  fullName: string | null;
+  organizationName: string;
+  setPasswordUrl: string;
+  siteUrl: string;
+};
+
+export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<void> {
+  const { email, fullName, organizationName, setPasswordUrl, siteUrl } = params;
+
+  // ── TESTI PERSONALIZZABILI ──────────────────────────────────────────────────
+  const SUBJECT = `Benvenuto su Alva Host Manager — ${organizationName}`;
+  const HEADLINE = "Il tuo account è pronto";
+  const INTRO = fullName
+    ? `Ciao <strong>${fullName}</strong>, la tua richiesta di accesso è stata approvata.`
+    : "La tua richiesta di accesso è stata approvata.";
+  const BODY =
+    "Clicca il pulsante qui sotto per impostare la tua password e iniziare a usare il gestionale. Il link è valido per 24 ore.";
+  const CTA_LABEL = "Imposta la tua password →";
+  const FOOTER = "Se non hai richiesto tu l'accesso, ignora questa email.";
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${SUBJECT}</title>
+</head>
+<body style="margin:0;padding:0;background:#fefce8;font-family:Inter,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fefce8;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;max-width:560px;width:100%;border:1px solid #fde047;">
+          <tr>
+            <td style="background:#701a2f;padding:28px 32px;">
+              <p style="margin:0;color:#fde047;font-size:20px;font-weight:700;">Alva Host Manager</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 8px;font-size:24px;font-weight:700;color:#18181b;">${HEADLINE}</p>
+              <p style="margin:0 0 20px;font-size:15px;color:#3f3f46;line-height:1.6;">${INTRO}</p>
+              <p style="margin:0 0 28px;font-size:15px;color:#3f3f46;line-height:1.6;">${BODY}</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                <tr>
+                  <td align="center">
+                    <a href="${setPasswordUrl}" style="display:inline-block;background:#701a2f;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;">
+                      ${CTA_LABEL}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-size:13px;color:#71717a;line-height:1.5;">
+                Oppure copia questo link nel browser:<br />
+                <a href="${setPasswordUrl}" style="color:#701a2f;word-break:break-all;">${setPasswordUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #fde047;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">${FOOTER}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const response = await getResend().emails.send({
+    from: getFromEmail(),
+    to: email,
+    subject: SUBJECT,
+    html,
+  });
+
+  if (response.error) {
+    throw new Error(`[sendWelcomeEmail] ${response.error.message}`);
+  }
+}

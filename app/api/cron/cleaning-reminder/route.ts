@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     
     // Sicurezza di base per chiamate cron: richiediamo un token segreto
     const secret = searchParams.get("secret");
-    if (secret !== process.env.APP_PASSWORD && process.env.NODE_ENV === "production") {
+    if (secret !== process.env.APP_PASSWORD) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

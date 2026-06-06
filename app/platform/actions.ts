@@ -12,6 +12,7 @@ import { requirePlatformAdmin } from "@/lib/platformAdmin";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabaseAuthClient } from "@/lib/supabaseAuth";
+import { sendWelcomeEmail } from "@/lib/email/resend";
 
 type SignupRequestRecord = {
   id: string;
@@ -150,14 +151,26 @@ export async function approveSignupRequestAction(formData: FormData): Promise<vo
 
     await ensureOwnerMembership(organizationId, authUserId);
 
-    const authClient = supabaseAuthClient();
-    const reset = await authClient.auth.resetPasswordForEmail(request.email, {
-      redirectTo: `${siteUrl}/reset-password`,
+    const { data: linkData, error: linkError } = await supabaseAdmin().auth.admin.generateLink({
+      type: "recovery",
+      email: request.email,
+      options: { redirectTo: `${siteUrl}/reset-password` },
     });
 
-    if (reset.error) {
-      throw new Error(reset.error.message);
+    if (linkError || !linkData?.properties?.action_link) {
+      throw new Error(linkError?.message ?? "Impossibile generare il link di attivazione");
     }
+
+    // Email failure non deve bloccare il provisioning: l'admin può usare "Reinvia link" se necessario.
+    await sendWelcomeEmail({
+      email: request.email,
+      fullName: request.full_name,
+      organizationName: request.organization_name,
+      setPasswordUrl: linkData.properties.action_link,
+      siteUrl,
+    }).catch((emailErr) => {
+      console.error("[approveSignupRequestAction] welcome email failed:", emailErr);
+    });
 
     await patchSignupRequest(request.id, {
       status: "approved",
