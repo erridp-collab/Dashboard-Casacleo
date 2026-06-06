@@ -500,8 +500,8 @@ export default function ActionsPage() {
       return;
     }
 
-    if (next === "FATTO" && isLaundryAction(action.action_type)) {
-      openLaundryModal(action);
+    if (next === "FATTO" && (isLaundryAction(action.action_type) || action.action_type.toUpperCase().startsWith("MANUT"))) {
+      setSelectedAction(action);
       return;
     }
 
