@@ -14,7 +14,7 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/forgot-password")).toBe(true);
   });
 
-  it("permette /reset-password con query string", () => {
+  it("permette /reset-password", () => {
     expect(isPublicPath("/reset-password")).toBe(true);
   });
 
@@ -52,5 +52,9 @@ describe("isPublicPath", () => {
 
   it("blocca /settings", () => {
     expect(isPublicPath("/settings")).toBe(false);
+  });
+
+  it("blocca /loginextra (non confonde con /login)", () => {
+    expect(isPublicPath("/loginextra")).toBe(false);
   });
 });
