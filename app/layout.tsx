@@ -23,11 +23,13 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Alva Host Manager",
   description: "Operational manager for bookings, actions, stock, and finance",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Alva Host",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
   },
 };
 
