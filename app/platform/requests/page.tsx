@@ -145,7 +145,7 @@ function RequestActions({ request }: { request: SignupRequestRecord }) {
         <input type="hidden" name="request_id" value={request.id} />
         <button
           type="submit"
-          className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800"
+          className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 active:scale-95"
         >
           {request.status === "failed" ? "Riprova provisioning" : "Approva"}
         </button>
@@ -156,12 +156,36 @@ function RequestActions({ request }: { request: SignupRequestRecord }) {
           <input type="hidden" name="request_id" value={request.id} />
           <button
             type="submit"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+            className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 active:scale-95"
           >
             Rifiuta
           </button>
         </form>
       ) : null}
+    </div>
+  );
+}
+
+function RequestQueueCard({ request }: { request: SignupRequestRecord }) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-zinc-900 truncate">
+            {request.full_name || "Senza nome"}
+          </p>
+          <p className="text-sm text-zinc-500 truncate">{request.email}</p>
+          <p className="mt-0.5 text-sm text-zinc-700">{request.organization_name}</p>
+        </div>
+        <StatusBadge status={request.status} />
+      </div>
+      <div className="text-xs text-zinc-500 space-y-0.5">
+        <p>{request.auth_user_id ? "Auth pronto" : "Auth da creare"}</p>
+        <p>{request.organization_id ? "Workspace pronto" : "Workspace da creare"}</p>
+        {request.notes ? <p className="text-rose-700">{request.notes}</p> : null}
+        <p>Ricevuta: {formatDate(request.created_at)}</p>
+      </div>
+      <RequestActions request={request} />
     </div>
   );
 }
@@ -279,55 +303,11 @@ export default async function PlatformRequestsPage({
             Nessuna richiesta in coda in questo momento.
           </div>
         ) : (
-          <Table>
-            <TableHead>
-              <tr>
-                <TableHeaderCell>Richiesta</TableHeaderCell>
-                <TableHeaderCell>Workspace</TableHeaderCell>
-                <TableHeaderCell>Stato</TableHeaderCell>
-                <TableHeaderCell>Creata</TableHeaderCell>
-                <TableHeaderCell>Dettagli</TableHeaderCell>
-                <TableHeaderCell className="text-right">Azioni</TableHeaderCell>
-              </tr>
-            </TableHead>
-            <TableBody>
-              {queue.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="font-medium text-zinc-900">
-                        {request.full_name || "Richiesta senza nome"}
-                      </p>
-                      <p className="text-sm text-zinc-500">{request.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <p className="font-medium text-zinc-900">{request.organization_name}</p>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={request.status} />
-                  </TableCell>
-                  <TableCell className="text-sm text-zinc-600">
-                    {formatDate(request.created_at)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1 text-sm text-zinc-600">
-                      {request.auth_user_id ? <p>Auth pronto</p> : <p>Auth da creare</p>}
-                      {request.organization_id ? <p>Workspace pronto</p> : <p>Workspace da creare</p>}
-                      {request.notes ? (
-                        <p className="max-w-md text-rose-700">{request.notes}</p>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end">
-                      <RequestActions request={request} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="space-y-3">
+            {queue.map((request) => (
+              <RequestQueueCard key={request.id} request={request} />
+            ))}
+          </div>
         )}
       </Card>
 

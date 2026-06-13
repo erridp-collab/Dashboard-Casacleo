@@ -8,7 +8,11 @@ import {
   createOrganization,
   resolveOrCreateAuthUser,
 } from "@/lib/accountProvisioning";
-import { requirePlatformAdmin } from "@/lib/platformAdmin";
+import {
+  requirePlatformAdmin,
+  PlatformUnauthorizedError,
+  PlatformForbiddenError,
+} from "@/lib/platformAdmin";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabaseAuthClient } from "@/lib/supabaseAuth";
@@ -31,6 +35,16 @@ type SignupRequestRecord = {
 
 function getRequestId(formData: FormData): string {
   return formData.get("request_id")?.toString().trim() ?? "";
+}
+
+async function requirePlatformAdminForAction() {
+  try {
+    return await requirePlatformAdmin();
+  } catch (error) {
+    if (error instanceof PlatformUnauthorizedError) redirect("/login");
+    if (error instanceof PlatformForbiddenError) redirect("/");
+    throw error;
+  }
 }
 
 function buildRequestsRedirect(params: Record<string, string>): never {
@@ -87,7 +101,7 @@ async function patchSignupRequest(requestId: string, payload: Partial<SignupRequ
 }
 
 export async function approveSignupRequestAction(formData: FormData): Promise<void> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requirePlatformAdminForAction();
   const requestId = getRequestId(formData);
 
   if (!requestId) {
@@ -207,7 +221,7 @@ export async function approveSignupRequestAction(formData: FormData): Promise<vo
 }
 
 export async function rejectSignupRequestAction(formData: FormData): Promise<void> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requirePlatformAdminForAction();
   const requestId = getRequestId(formData);
 
   if (!requestId) {
@@ -235,7 +249,7 @@ export async function rejectSignupRequestAction(formData: FormData): Promise<voi
 }
 
 export async function resendAccountResetLinkAction(formData: FormData): Promise<void> {
-  await requirePlatformAdmin();
+  await requirePlatformAdminForAction();
 
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? "";
   if (!email) {
@@ -262,7 +276,7 @@ export async function resendAccountResetLinkAction(formData: FormData): Promise<
 }
 
 export async function disablePlatformAccountAction(formData: FormData): Promise<void> {
-  await requirePlatformAdmin();
+  await requirePlatformAdminForAction();
 
   const userId = formData.get("user_id")?.toString().trim() ?? "";
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? "";
@@ -285,7 +299,7 @@ export async function disablePlatformAccountAction(formData: FormData): Promise<
 }
 
 export async function reactivatePlatformAccountAction(formData: FormData): Promise<void> {
-  await requirePlatformAdmin();
+  await requirePlatformAdminForAction();
 
   const userId = formData.get("user_id")?.toString().trim() ?? "";
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? "";
