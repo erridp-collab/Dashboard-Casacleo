@@ -5,6 +5,7 @@ import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageContainer } from "@/components/page-container";
 import { ToastContainer } from "@/components/toast";
+import { SwRegister } from "@/components/sw-register";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +42,7 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}>
+        <SwRegister />
         <div className="min-h-screen">
           <TopBar />
           <PageContainer>{children}</PageContainer>
