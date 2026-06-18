@@ -1,3 +1,5 @@
+import { LINEN_ROLE_VALUES } from "@/lib/linen-roles";
+
 export type RefillState = "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE";
 export type StockStatus = "PIENO" | "A_META" | "TERMINATO";
 
@@ -8,6 +10,7 @@ export type RefillProduct = {
   threshold: number;
   initialQuantity: number;
   stockStatus?: StockStatus | null;
+  linen_role?: string | null;
 };
 
 const EXCLUDED_OPERATIONAL_PRODUCTS = new Set(["LENZUOLO SOTTO EXTRA"]);
@@ -21,7 +24,9 @@ function normalizeCategory(category: string | null | undefined): string {
   return String(category ?? "").toUpperCase().trim();
 }
 
-export function isQuantityManagedRefillProduct(product: Pick<RefillProduct, "name" | "category">): boolean {
+export function isQuantityManagedRefillProduct(product: Pick<RefillProduct, "name" | "category" | "linen_role">): boolean {
+  if (product.linen_role && LINEN_ROLE_VALUES.has(product.linen_role)) return true;
+
   const nameKey = normalizeName(product.name);
   if (EXCLUDED_OPERATIONAL_PRODUCTS.has(nameKey)) return false;
 
@@ -40,7 +45,7 @@ export function isQuantityManagedRefillProduct(product: Pick<RefillProduct, "nam
   );
 }
 
-export function isStatusManagedRefillProduct(product: Pick<RefillProduct, "name" | "category">): boolean {
+export function isStatusManagedRefillProduct(product: Pick<RefillProduct, "name" | "category" | "linen_role">): boolean {
   const nameKey = normalizeName(product.name);
   if (EXCLUDED_OPERATIONAL_PRODUCTS.has(nameKey)) return false;
   return !isQuantityManagedRefillProduct(product);
@@ -59,7 +64,7 @@ export function getRefillState(product: RefillProduct): RefillState {
   return "OK";
 }
 
-export function isMonitoredRefillProduct(product: Pick<RefillProduct, "name" | "category">): boolean {
+export function isMonitoredRefillProduct(product: Pick<RefillProduct, "name" | "category" | "linen_role">): boolean {
   const nameKey = normalizeName(product.name);
   if (EXCLUDED_OPERATIONAL_PRODUCTS.has(nameKey)) return false;
   return isQuantityManagedRefillProduct(product) || isStatusManagedRefillProduct(product);
