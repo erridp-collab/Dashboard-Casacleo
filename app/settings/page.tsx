@@ -3,6 +3,7 @@ import { Settings2 } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
 import { WorkspaceSettingsForm } from "@/components/workspace-settings-form";
 import { requireOrganizationState } from "@/lib/organizationContext";
+import { ProductCatalogEditor } from "@/components/product-catalog-editor";
 
 export default async function SettingsPage() {
   const { organization } = await requireOrganizationState();
@@ -25,6 +26,16 @@ export default async function SettingsPage() {
           subtitle="Dati base dell'organizzazione attiva"
         />
         <WorkspaceSettingsForm organization={organization} mode="settings" />
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Prodotti & Biancheria"
+          subtitle="Gestisci il catalogo prodotti: biancheria con ruoli automazione e consumabili"
+        />
+        <div className="px-6 pb-6">
+          <ProductCatalogEditor />
+        </div>
       </Card>
 
       <Card>
