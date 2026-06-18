@@ -4,6 +4,7 @@ import { applyProductQuantityDeltas } from "@/lib/product-quantity";
 import { resolveOrganizationId } from "@/lib/organizationContext";
 import { isQuantityManagedRefillProduct, type StockStatus } from "@/lib/refill";
 import { parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
+import { LINEN_ROLES, LINEN_ROLE_VALUES, isLinenRole, type LinenRole } from "@/lib/linen-roles";
 
 type StockProduct = {
   id: string;
@@ -56,6 +57,16 @@ export function getBookingConsumptionMap(checkIn: string, checkOut: string, gues
   return consumptions;
 }
 
+export function getLinenRoleConsumptionMap(guests: number): Map<LinenRole, number> {
+  const map = new Map<LinenRole, number>();
+  if (guests <= 0) return map;
+  for (const role of LINEN_ROLES) {
+    const qty = role.consumption(guests);
+    if (qty > 0) map.set(role.value, qty);
+  }
+  return map;
+}
+
 function shoppingDetails(products: StockProduct[]): string {
   const rows = products.map((p) => {
     if (p.stock_status === "TERMINATO") return `- ${p.name}: FINITO`;
@@ -66,7 +77,9 @@ function shoppingDetails(products: StockProduct[]): string {
   return `Prodotti da reintegrare:\n${rows.join("\n")}`;
 }
 
-export function shouldIncludeInShoppingList(product: Pick<StockProduct, "name" | "unit"> & { category?: string | null }): boolean {
+export function shouldIncludeInShoppingList(product: Pick<StockProduct, "name" | "unit"> & { category?: string | null; linen_role?: string | null }): boolean {
+  if (product.linen_role && LINEN_ROLE_VALUES.has(product.linen_role)) return false;
+
   const category = String(product.category ?? "").toUpperCase();
   const name = String(product.name ?? "").toUpperCase();
 
@@ -256,6 +269,7 @@ export async function applyBookingConsumptionDelta(
   organizationId?: string,
 ): Promise<void> {
   const consumptionByName = getBookingConsumptionMap(checkIn, checkOut, guests);
+  const consumptionByRole = getLinenRoleConsumptionMap(guests);
 
   const supabase = supabaseAdmin();
   const resolvedOrganizationId = await resolveOrganizationId(organizationId);
@@ -263,22 +277,31 @@ export async function applyBookingConsumptionDelta(
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, consumption_per_checkout`)
+    .select(`${schema.idColumn}, name, category, ${schema.quantityColumn}, consumption_per_checkout, linen_role`)
     .eq("organization_id", resolvedOrganizationId);
   if (error) throw new Error(error.message);
 
-  // Build all updates first, then fire them in parallel.
   const deltas: Array<{ id: string; currentQty: number; delta: number }> = [];
   for (const raw of data ?? []) {
     const row = raw as Record<string, unknown>;
     const rawName = String(row.name ?? "");
     const normalized = normalizeProductName(rawName);
-    const fixedConsume = consumptionByName.get(normalized) ?? 0;
     const category = row.category === null || row.category === undefined ? null : String(row.category);
+    const rawRole = row.linen_role;
+
+    let consume = 0;
+
+    if (isLinenRole(rawRole)) {
+      consume = consumptionByRole.get(rawRole) ?? 0;
+    } else {
+      consume = consumptionByName.get(normalized) ?? 0;
+    }
+
     const perCheckoutConsume = isQuantityManagedRefillProduct({ name: rawName, category })
       ? toFixedNumber(row.consumption_per_checkout, 0)
       : 0;
-    const consume = fixedConsume + Math.max(0, perCheckoutConsume);
+    consume += Math.max(0, perCheckoutConsume);
+
     if (consume <= 0) continue;
 
     const productId = getProductId(row, schema);
