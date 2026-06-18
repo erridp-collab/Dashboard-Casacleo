@@ -1,6 +1,7 @@
 import { Card, CardHeader } from "@/components/card";
 import { WorkspaceSettingsForm } from "@/components/workspace-settings-form";
 import { isOnboardingComplete, requireOrganizationState } from "@/lib/organizationContext";
+import { ProductCatalogEditor } from "@/components/product-catalog-editor";
 
 export default async function OnboardingPage() {
   const { organization } = await requireOrganizationState();
@@ -29,6 +30,16 @@ export default async function OnboardingPage() {
           mode="onboarding"
           organization={organization}
         />
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Prodotti & Biancheria"
+          subtitle="Configura il catalogo prodotti del tuo B&B (puoi modificarlo in qualsiasi momento da Impostazioni)"
+        />
+        <div className="px-6 pb-6">
+          <ProductCatalogEditor />
+        </div>
       </Card>
     </section>
   );
