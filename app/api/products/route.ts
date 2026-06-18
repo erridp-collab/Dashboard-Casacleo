@@ -3,6 +3,7 @@ import { errJson, okJson } from "@/lib/http/apiResponse";
 import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
+import { isLinenRole } from "@/lib/linen-roles";
 
 type ProductPatch = {
   id: string;
@@ -36,6 +37,7 @@ export async function GET() {
             ? null
             : Number(row.consumption_per_checkout),
         stock_status: row.stock_status === null || row.stock_status === undefined ? null : row.stock_status,
+        linen_role: row.linen_role === null || row.linen_role === undefined ? null : String(row.linen_role),
         updated_at: row.updated_at === null || row.updated_at === undefined ? undefined : String(row.updated_at),
       };
     });
@@ -82,6 +84,105 @@ export async function PATCH(req: Request) {
     return okJson({ ok: true });
   } catch (e: unknown) {
     console.error("[PATCH /api/products]", e);
+    return errJson("Errore interno del server", 500);
+  }
+}
+
+type CreateProductBody = {
+  name?: unknown;
+  category?: unknown;
+  unit?: unknown;
+  linen_role?: unknown;
+  quantity?: unknown;
+  threshold?: unknown;
+};
+
+function generateSku(name: string): string {
+  const slug = String(name)
+    .toLowerCase()
+    .trim()
+    .replace(/[àáâãäå]/g, "a")
+    .replace(/[èéêë]/g, "e")
+    .replace(/[ìíîï]/g, "i")
+    .replace(/[òóôõö]/g, "o")
+    .replace(/[ùúûü]/g, "u")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  return `${slug}_${Date.now().toString(36)}`;
+}
+
+export async function POST(req: Request) {
+  try {
+    const auth = await requireRouteContext();
+    if (!auth.ok) return auth.response;
+    const { organizationId } = auth.context;
+
+    const body = (await req.json()) as CreateProductBody;
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name) return errJson("Il nome del prodotto è obbligatorio", 400);
+
+    const linenRole = body.linen_role ?? null;
+    if (linenRole !== null && !isLinenRole(linenRole)) {
+      return errJson("Ruolo biancheria non valido", 400);
+    }
+
+    const supabase = supabaseAdmin();
+
+    if (linenRole !== null) {
+      const { data: existing } = await supabase
+        .from("products")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("linen_role", linenRole)
+        .limit(1)
+        .maybeSingle();
+      if (existing) return errJson("Ruolo già assegnato a un altro prodotto", 409);
+    }
+
+    const schema = await resolveProductSchema(supabase);
+    const quantity = body.quantity !== undefined && body.quantity !== null
+      ? Math.max(0, Number(body.quantity) || 0)
+      : 0;
+    const threshold = body.threshold !== undefined && body.threshold !== null
+      ? Math.max(0, Number(body.threshold) || 0)
+      : 0;
+    const unit = typeof body.unit === "string" && body.unit.trim() ? body.unit.trim() : "pz";
+    const category = typeof body.category === "string" && body.category.trim()
+      ? body.category.trim()
+      : (linenRole ? "Lenzuola e coperte" : "Generale");
+
+    const record: Record<string, unknown> = {
+      organization_id: organizationId,
+      name,
+      category,
+      unit,
+      threshold,
+      linen_role: linenRole,
+    };
+
+    record[schema.quantityColumn] = quantity;
+    record.max_qty = quantity;
+
+    if (schema.idColumn === "sku") {
+      record.sku = generateSku(name);
+    }
+
+    const { data: created, error } = await supabase
+      .from("products")
+      .insert(record)
+      .select(`${schema.idColumn}, name, linen_role, category, unit`)
+      .single();
+
+    if (error) {
+      if (error.code === "23505") return errJson("Prodotto già esistente", 409);
+      return errJson(error.message, 400);
+    }
+
+    await syncShoppingAction(organizationId);
+    return okJson({ product: created }, 201);
+  } catch (e: unknown) {
+    console.error("[POST /api/products]", e);
     return errJson("Errore interno del server", 500);
   }
 }
