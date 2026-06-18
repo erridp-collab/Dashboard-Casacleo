@@ -8,7 +8,6 @@ import { getRefillState, isMonitoredRefillProduct, isStatusManagedRefillProduct,
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
-import * as XLSX from "xlsx";
 
 function StockBar({ quantity, initialQuantity, state }: { quantity: number; initialQuantity: number; state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE" }) {
   const pct = initialQuantity > 0 ? Math.min(100, Math.max(0, (quantity / initialQuantity) * 100)) : 0;
@@ -359,7 +358,8 @@ export default function InventoryPage() {
     URL.revokeObjectURL(url);
   }
 
-  function downloadTemplateXlsx() {
+  async function downloadTemplateXlsx() {
+    const XLSX = await import("xlsx");
     const headers = ["id", "prodotto", "qty", "threshold", "max_qty", "consumption_per_checkout"];
     const rows = products.map((p) => [
       p.id,
@@ -375,7 +375,8 @@ export default function InventoryPage() {
     XLSX.writeFile(wb, "magazzino_template.xlsx");
   }
 
-  function parseXlsxBuffer(buffer: ArrayBuffer): { headers: string[]; rows: string[][] } {
+  async function parseXlsxBuffer(buffer: ArrayBuffer): Promise<{ headers: string[]; rows: string[][] }> {
+    const XLSX = await import("xlsx");
     const workbook = XLSX.read(buffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
@@ -391,9 +392,9 @@ export default function InventoryPage() {
     setCsvPreview([]);
     const isExcel = /\.(xlsx|xls)$/i.test(file.name);
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const { headers, rows } = isExcel
-        ? parseXlsxBuffer(reader.result as ArrayBuffer)
+        ? await parseXlsxBuffer(reader.result as ArrayBuffer)
         : parseCsv(String(reader.result ?? ""));
       const headerIndex = new Map(headers.map((h, idx) => [h, idx]));
       const alias = (keys: string[]) => keys.find((key) => headerIndex.has(key)) ?? null;

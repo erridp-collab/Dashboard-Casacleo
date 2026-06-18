@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutDashboard } from "lucide-react";
-import CalendarClient from "@/app/calendar/calendar-client";
+import dynamic from "next/dynamic";
+
+const CalendarClient = dynamic(() => import("@/app/calendar/calendar-client"), { ssr: false });
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import { KpiCard } from "@/components/kpi-card";
