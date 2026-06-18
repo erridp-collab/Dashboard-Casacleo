@@ -30,15 +30,15 @@ create unique index products_linen_role_org_unique
 update public.products set linen_role = 'set_estivo'
   where linen_role is null
     and (
-      lower(trim(coalesce(sku, ''))) in ('set_letto_estivo', 'completi_letto')
-      or lower(trim(coalesce(name, ''))) in ('set letto estivo', 'completi letto completi')
+      lower(trim(coalesce(sku, ''))) = 'set_letto_estivo'
+      or lower(trim(coalesce(name, ''))) = 'set letto estivo'
     );
 
 update public.products set linen_role = 'set_invernale'
   where linen_role is null
     and (
-      lower(trim(coalesce(sku, ''))) in ('set_letto_invernale', 'copripiumini_federe')
-      or lower(trim(coalesce(name, ''))) in ('set letto invernale', 'copripiumini + federe')
+      lower(trim(coalesce(sku, ''))) = 'set_letto_invernale'
+      or lower(trim(coalesce(name, ''))) = 'set letto invernale'
     );
 
 update public.products set linen_role = 'asciugamano_corpo'
