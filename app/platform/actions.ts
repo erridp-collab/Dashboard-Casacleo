@@ -15,7 +15,6 @@ import {
 } from "@/lib/platformAdmin";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { supabaseAuthClient } from "@/lib/supabaseAuth";
 import { sendWelcomeEmail } from "@/lib/email/resend";
 
 type SignupRequestRecord = {
@@ -262,12 +261,26 @@ export async function resendAccountResetLinkAction(formData: FormData): Promise<
     buildAccountsRedirect({ email, error: "reset-unavailable" });
   }
 
-  const authClient = supabaseAuthClient();
-  const result = await authClient.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/reset-password`,
-  });
+  try {
+    const { data: linkData, error: linkError } = await supabaseAdmin().auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo: `${siteUrl}/reset-password` },
+    });
 
-  if (result.error) {
+    if (linkError || !linkData?.properties?.action_link) {
+      throw new Error(linkError?.message ?? "Impossibile generare il link di reset");
+    }
+
+    await sendWelcomeEmail({
+      email,
+      fullName: null,
+      organizationName: "",
+      setPasswordUrl: linkData.properties.action_link,
+      siteUrl,
+    });
+  } catch (err) {
+    console.error("[resendAccountResetLinkAction]", err);
     buildAccountsRedirect({ email, error: "reset-failed" });
   }
 

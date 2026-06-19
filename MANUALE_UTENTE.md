@@ -36,14 +36,58 @@ La password deve avere almeno 8 caratteri.
 
 ### 1.3 Onboarding iniziale
 
-Al primo login vieni portato automaticamente alla pagina di configurazione del workspace. Compila:
+Al primo login vieni portato automaticamente alla pagina di configurazione del workspace. È divisa in due blocchi.
+
+**Blocco 1 — Dati base organizzazione**
+
+Compila:
 
 - **Nome workspace** — es. "Casa Cleo"
 - **Valuta** — es. EUR
 - **Fuso orario** — es. Europe/Rome
 - **Referente** — il tuo nome o il nome del gestore
 
-Clicca **Completa configurazione**. Verrai portato alla dashboard.
+Clicca **Completa configurazione**. Il blocco si salva e puoi passare al secondo.
+
+**Blocco 2 — Prodotti & Biancheria**
+
+Qui configuri il catalogo prodotti usato dall'inventario e dall'automazione delle prenotazioni. Il catalogo ha due tab:
+
+**Tab Biancheria**
+
+Aggiungi ogni tipo di biancheria che usi (set letto, asciugamani, tappetini, strofinacci). Per ogni articolo:
+
+1. Clicca **Aggiungi biancheria**
+2. Inserisci il **nome** (es. "Asciugamani Grandi")
+3. Scegli il **ruolo automazione** — determina quante unità il sistema scala automaticamente per ogni prenotazione:
+
+| Ruolo | Consumo automatico |
+|---|---|
+| Set letto estivo | 1 ogni 2 ospiti |
+| Set letto invernale | 1 ogni 2 ospiti |
+| Asciugamano corpo | 1 per ospite |
+| Asciugamano doccia | 1 per ospite |
+| Asciugamano bidet | 1 per ospite |
+| Asciugamano viso | 1 per ospite |
+| Tappetino doccia | 1 fisso per prenotazione |
+| Strofinacci | 1 fisso per prenotazione |
+
+> Ogni ruolo può essere assegnato a **un solo prodotto**. Se un ruolo è già assegnato appare disabilitato nel menu. Puoi aggiungere articoli senza ruolo — verranno tracciati a quantità ma senza consumo automatico.
+
+4. Inserisci la **quantità iniziale** (quante unità hai in casa), l'**unità di misura** e la **soglia minima** (sotto cui il sistema ti avvisa di rifornire)
+5. Clicca **Salva**
+
+**Tab Consumabili**
+
+Aggiungi i prodotti di consumo (saponi, detersivi, carta igienica, ecc.). Per ogni articolo:
+
+1. Clicca **Aggiungi consumabile**
+2. Inserisci **nome**, **categoria** (es. Pulizia, Cucina, Bagno) e **unità di misura**
+3. Clicca **Salva**
+
+I consumabili non hanno consumo automatico — vengono tracciati a 3 stati: **Pieno / A metà / Finito**, aggiornati manualmente durante le azioni operative.
+
+Puoi aggiungere, modificare ed eliminare prodotti in qualsiasi momento anche da **Impostazioni → Catalogo prodotti**.
 
 ---
 
@@ -302,30 +346,15 @@ Salva con **Aggiorna impostazioni**.
 
 ### 8.2 Catalogo prodotti
 
-Nella stessa pagina trovi la sezione **Catalogo prodotti**, divisa in due tab:
+Nella stessa pagina trovi la sezione **Catalogo prodotti**, divisa in due tab: **Biancheria** e **Consumabili**. Il funzionamento è identico a quello dell'onboarding (vedi [§1.3](#13-onboarding-iniziale) per la guida completa con la tabella dei ruoli).
 
-**Biancheria**
+Operazioni disponibili:
 
-Ogni articolo di biancheria può avere un **ruolo automazione** che indica al sistema quante unità consumare per ogni prenotazione:
+- **Aggiungere** un articolo: clicca **Aggiungi biancheria** / **Aggiungi consumabile**
+- **Modificare** un articolo esistente (inclusi nome, ruolo e quantità totale): clicca l'icona **matita**
+- **Eliminare** un articolo: clicca l'icona **cestino** e conferma
 
-| Ruolo | Consumo automatico |
-|---|---|
-| Set letto estivo / invernale | 1 ogni 2 ospiti |
-| Asciugamano corpo / doccia / bidet / viso | 1 per ospite |
-| Tappetino doccia | 1 fisso per prenotazione |
-| Strofinacci | 1 fisso per prenotazione |
-
-Ogni ruolo può essere assegnato a un solo prodotto. Puoi anche aggiungere articoli senza ruolo (solo tracciati a quantità).
-
-Per aggiungere un articolo: clicca **Aggiungi biancheria**, compila nome, ruolo (opzionale), quantità totale, unità e soglia minima.
-
-Per modificare un articolo esistente (inclusa la quantità totale): clicca l'icona matita.
-
-**Consumabili**
-
-Prodotti tracciati a 3 stati: **Pieno / A metà / Finito**. Nessun consumo automatico — lo stato viene aggiornato manualmente durante le azioni operative.
-
-Per aggiungere un consumabile: clicca **Aggiungi consumabile**, inserisci nome, categoria e unità di misura.
+> Se elimini un articolo di biancheria con ruolo assegnato, l'automazione non consumerà più quel tipo di biancheria nelle prenotazioni future.
 
 ---
 
