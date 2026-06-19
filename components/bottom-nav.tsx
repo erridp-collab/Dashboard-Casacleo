@@ -27,7 +27,11 @@ export function BottomNav() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-sidebar-bg shadow-[0_-2px_16px_rgba(0,0,0,0.2)] md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        willChange: "transform",
+        transform: "translateZ(0)",
+      }}
     >
       <div className="flex items-center justify-around px-2 py-2">
         {NAV_ITEMS.map((item) => {
@@ -37,7 +41,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex min-h-[52px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all ${
+              className={`relative flex min-h-[52px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-colors ${
                 active ? "text-brand" : "text-white/50 hover:bg-white/10 hover:text-white"
               }`}
             >

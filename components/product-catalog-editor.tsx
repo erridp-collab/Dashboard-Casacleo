@@ -202,7 +202,7 @@ export function ProductCatalogEditor() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-1 rounded-[13px] bg-[#f4ede6] p-1">
         <button
-          className={`rounded-[10px] py-2 text-sm font-semibold transition-all ${
+          className={`rounded-[10px] py-2 text-sm font-semibold transition-colors ${
             activeTab === "biancheria"
               ? "bg-surface text-text-primary shadow-sm"
               : "text-text-secondary hover:text-text-primary"
@@ -215,7 +215,7 @@ export function ProductCatalogEditor() {
           </span>
         </button>
         <button
-          className={`rounded-[10px] py-2 text-sm font-semibold transition-all ${
+          className={`rounded-[10px] py-2 text-sm font-semibold transition-colors ${
             activeTab === "consumabili"
               ? "bg-surface text-text-primary shadow-sm"
               : "text-text-secondary hover:text-text-primary"
