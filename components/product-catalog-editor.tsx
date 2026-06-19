@@ -123,7 +123,17 @@ export function ProductCatalogEditor() {
     }
     toast(data.id ? "Prodotto aggiornato" : "Prodotto aggiunto", "success");
     setModal({ mode: "closed" });
-    void loadProducts();
+    if (data.id) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === data.id
+            ? { ...p, name: data.name, linen_role: data.linen_role, unit: data.unit, threshold: data.threshold, max_qty: data.quantity }
+            : p,
+        ),
+      );
+    } else {
+      void loadProducts();
+    }
   }
 
   async function handleSaveConsumable(data: {
@@ -151,7 +161,15 @@ export function ProductCatalogEditor() {
     }
     toast(data.id ? "Prodotto aggiornato" : "Prodotto aggiunto", "success");
     setModal({ mode: "closed" });
-    void loadProducts();
+    if (data.id) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === data.id ? { ...p, name: data.name, category: data.category, unit: data.unit } : p,
+        ),
+      );
+    } else {
+      void loadProducts();
+    }
   }
 
   async function handleDelete(product: ProductRow) {
@@ -166,7 +184,7 @@ export function ProductCatalogEditor() {
     }
     toast("Prodotto eliminato", "success");
     setModal({ mode: "closed" });
-    void loadProducts();
+    setProducts((prev) => prev.filter((p) => p.id !== product.id));
   }
 
   return (

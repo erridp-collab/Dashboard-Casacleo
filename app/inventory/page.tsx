@@ -229,10 +229,14 @@ export default function InventoryPage() {
       return;
     }
 
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, quantity: result.data.quantity ?? p.quantity + addQty } : p,
+      ),
+    );
     setSuccess("Rifornimento registrato con successo");
     toast("Rifornimento registrato con successo", "success");
     setDrafts((prev) => ({ ...prev, [id]: { addQty: "", amount: "" } }));
-    await loadProducts();
   }
 
   async function updateProductStatus(id: string, stockStatus: StockStatus) {

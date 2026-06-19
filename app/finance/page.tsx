@@ -60,10 +60,10 @@ export default function FinancePage() {
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  async function loadFinance(signal?: AbortSignal) {
+  async function loadFinance(signal?: AbortSignal, silent = false) {
     const seq = ++requestSeqRef.current;
     setError("");
-    setLoading(true);
+    if (!silent) setLoading(true);
     const result = await clientFetchJson<FinanceResponse>(`/api/finance?months=${months}&month=${selectedMonth}`, { signal });
     if (seq !== requestSeqRef.current) return;
     setLoading(false);
@@ -115,14 +115,14 @@ export default function FinancePage() {
     setFormAmount("");
     setFormDescription("");
     setShowForm(false);
-    void loadFinance();
+    void loadFinance(undefined, true);
   }
 
   async function deleteExpense(id: string) {
     if (!confirm("Eliminare questa spesa?")) return;
     const result = await clientFetchJson<{ ok: boolean }>(`/api/finance?id=${id}`, { method: "DELETE" });
     if (result.ok) {
-      void loadFinance();
+      void loadFinance(undefined, true);
       return;
     }
     setError(result.error ?? "Errore eliminazione");
