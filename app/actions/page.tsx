@@ -37,6 +37,7 @@ function monthRange(startDate: string) {
 type LinenDraft = {
   sets_estivo: string;
   sets_invernale: string;
+  towels_corpo: string;
   towels_bidet: string;
   towels_viso: string;
   towels_doccia: string;
@@ -47,6 +48,7 @@ type LinenDraft = {
 type LaundryDraft = {
   sets_estivo: string;
   sets_invernale: string;
+  towels_corpo: string;
   towels_bidet: string;
   towels_viso: string;
   towels_doccia: string;
@@ -75,6 +77,7 @@ type QuantityField<T extends string> = {
 const LINEN_FIELDS: QuantityField<keyof LinenDraft>[] = [
   { key: "sets_estivo", label: "Set letto estivo" },
   { key: "sets_invernale", label: "Set letto invernale" },
+  { key: "towels_corpo", label: "Asciugamani corpo" },
   { key: "towels_bidet", label: "Asciugamani bidet" },
   { key: "towels_viso", label: "Asciugamani viso" },
   { key: "towels_doccia", label: "Asciugamani doccia" },
@@ -85,6 +88,7 @@ const LINEN_FIELDS: QuantityField<keyof LinenDraft>[] = [
 const LAUNDRY_FIELDS: QuantityField<keyof LaundryDraft>[] = [
   { key: "sets_estivo", label: "Set letto estivo" },
   { key: "sets_invernale", label: "Set letto invernale" },
+  { key: "towels_corpo", label: "Asciugamani corpo" },
   { key: "towels_bidet", label: "Asciugamani bidet" },
   { key: "towels_viso", label: "Asciugamani viso" },
   { key: "towels_doccia", label: "Asciugamani doccia" },
@@ -98,6 +102,7 @@ function buildLinenSuggestion(guests: number): LinenDraft {
   return {
     sets_estivo: String(sets),
     sets_invernale: "0",
+    towels_corpo: String(safeGuests),
     towels_bidet: String(safeGuests),
     towels_viso: String(safeGuests),
     towels_doccia: String(safeGuests),
@@ -110,6 +115,7 @@ function buildLaundryDraft(): LaundryDraft {
   return {
     sets_estivo: "0",
     sets_invernale: "0",
+    towels_corpo: "0",
     towels_bidet: "0",
     towels_viso: "0",
     towels_doccia: "0",
@@ -145,6 +151,7 @@ function fillLinenDraft(base: LinenDraft, values?: Partial<Record<keyof LinenDra
   return {
     sets_estivo: toDraftValue(values.sets_estivo, base.sets_estivo),
     sets_invernale: toDraftValue(values.sets_invernale, base.sets_invernale),
+    towels_corpo: toDraftValue(values.towels_corpo, base.towels_corpo),
     towels_bidet: toDraftValue(values.towels_bidet, base.towels_bidet),
     towels_viso: toDraftValue(values.towels_viso, base.towels_viso),
     towels_doccia: toDraftValue(values.towels_doccia, base.towels_doccia),
@@ -158,6 +165,7 @@ function fillLaundryDraft(base: LaundryDraft, values?: Partial<Record<keyof Laun
   return {
     sets_estivo: toDraftValue(values.sets_estivo, base.sets_estivo),
     sets_invernale: toDraftValue(values.sets_invernale, base.sets_invernale),
+    towels_corpo: toDraftValue(values.towels_corpo, base.towels_corpo),
     towels_bidet: toDraftValue(values.towels_bidet, base.towels_bidet),
     towels_viso: toDraftValue(values.towels_viso, base.towels_viso),
     towels_doccia: toDraftValue(values.towels_doccia, base.towels_doccia),
@@ -376,6 +384,7 @@ export default function ActionsPage() {
     const values = {
       sets_estivo: toNumber(linenDraft.sets_estivo),
       sets_invernale: toNumber(linenDraft.sets_invernale),
+      towels_corpo: toNumber(linenDraft.towels_corpo),
       towels_bidet: toNumber(linenDraft.towels_bidet),
       towels_viso: toNumber(linenDraft.towels_viso),
       towels_doccia: toNumber(linenDraft.towels_doccia),
@@ -419,6 +428,7 @@ export default function ActionsPage() {
     const values = {
       sets_estivo: toNumber(laundryDraft.sets_estivo),
       sets_invernale: toNumber(laundryDraft.sets_invernale),
+      towels_corpo: toNumber(laundryDraft.towels_corpo),
       towels_bidet: toNumber(laundryDraft.towels_bidet),
       towels_viso: toNumber(laundryDraft.towels_viso),
       towels_doccia: toNumber(laundryDraft.towels_doccia),

@@ -17,6 +17,7 @@ export type CleaningCompletion = {
 export type LinenCompletion = {
   sets_estivo?: number | null;
   sets_invernale?: number | null;
+  towels_corpo?: number | null;
   towels_bidet?: number | null;
   towels_viso?: number | null;
   towels_doccia?: number | null;
@@ -29,6 +30,7 @@ export type LinenCompletion = {
 export type LaundryCompletion = {
   sets_estivo?: number | null;
   sets_invernale?: number | null;
+  towels_corpo?: number | null;
   towels_bidet?: number | null;
   towels_viso?: number | null;
   towels_doccia?: number | null;
@@ -437,6 +439,7 @@ function buildLinenQuantityItems(linen: LinenCompletion): QuantityItem[] {
   return [
     { key: "sets_estivo",    linen_role: "set_estivo",          names: ["set letto estivo", "completi letto completi"],              qty: toNumber(linen.sets_estivo) },
     { key: "sets_invernale", linen_role: "set_invernale",        names: ["set letto invernale", "copripiumini + federe"],             qty: toNumber(linen.sets_invernale) },
+    { key: "towels_corpo",   linen_role: "asciugamano_corpo",    names: ["asciugamano corpo", "asciugamani corpo"],                  qty: toNumber(linen.towels_corpo) },
     { key: "towels_bidet",   linen_role: "asciugamano_bidet",    names: ["asciugamano bidet", "asciugamani bidet"],                  qty: toNumber(linen.towels_bidet) },
     { key: "towels_viso",    linen_role: "asciugamano_viso",     names: ["asciugamano viso", "asciugamani viso"],                    qty: toNumber(linen.towels_viso) },
     { key: "towels_doccia",  linen_role: "asciugamano_doccia",   names: ["asciugamano doccia", "asciugamani doccia"],                qty: toNumber(linen.towels_doccia) },
@@ -451,6 +454,7 @@ function buildLaundryQuantityItems(laundry: LaundryCompletion): QuantityItem[] {
   return [
     { key: "sets_estivo",    linen_role: "set_estivo",          names: ["set letto estivo", "completi letto completi"],      qty: toNumber(laundry.sets_estivo) },
     { key: "sets_invernale", linen_role: "set_invernale",        names: ["set letto invernale", "copripiumini + federe"],     qty: toNumber(laundry.sets_invernale) },
+    { key: "towels_corpo",   linen_role: "asciugamano_corpo",    names: ["asciugamano corpo", "asciugamani corpo"],          qty: toNumber(laundry.towels_corpo) },
     { key: "towels_bidet",   linen_role: "asciugamano_bidet",    names: ["asciugamano bidet", "asciugamani bidet"],          qty: toNumber(laundry.towels_bidet) },
     { key: "towels_viso",    linen_role: "asciugamano_viso",     names: ["asciugamano viso", "asciugamani viso"],            qty: toNumber(laundry.towels_viso) },
     { key: "towels_doccia",  linen_role: "asciugamano_doccia",   names: ["asciugamano doccia", "asciugamani doccia"],        qty: toNumber(laundry.towels_doccia) },
@@ -534,6 +538,7 @@ function toLinenCompletion(applied: Record<string, number>): LinenCompletion {
   return {
     sets_estivo: applied.sets_estivo ?? 0,
     sets_invernale: applied.sets_invernale ?? 0,
+    towels_corpo: applied.towels_corpo ?? 0,
     towels_bidet: applied.towels_bidet ?? 0,
     towels_viso: applied.towels_viso ?? 0,
     towels_doccia: applied.towels_doccia ?? 0,
@@ -548,6 +553,7 @@ function toLaundryCompletion(applied: Record<string, number>): LaundryCompletion
   return {
     sets_estivo: applied.sets_estivo ?? 0,
     sets_invernale: applied.sets_invernale ?? 0,
+    towels_corpo: applied.towels_corpo ?? 0,
     towels_bidet: applied.towels_bidet ?? 0,
     towels_viso: applied.towels_viso ?? 0,
     towels_doccia: applied.towels_doccia ?? 0,

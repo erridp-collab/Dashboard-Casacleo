@@ -16,6 +16,7 @@ const UUID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 const LINEN_KEYS = [
   "sets_estivo",
   "sets_invernale",
+  "towels_corpo",
   "towels_bidet",
   "towels_viso",
   "towels_doccia",
