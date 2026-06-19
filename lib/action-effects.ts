@@ -3,6 +3,7 @@ import { resolveOrganizationId } from "@/lib/organizationContext";
 import { applyProductQuantityDeltas } from "@/lib/product-quantity";
 import { syncShoppingAction } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import type { LinenRole } from "@/lib/linen-roles";
 
 export type CleaningCompletion = {
   mode?: "SELF" | "EXTERNAL" | "SPESA" | "BIANCHERIA" | "LAVATRICI";
@@ -44,6 +45,7 @@ type StoredActionDetails = {
 
 type QuantityItem = {
   key: string;
+  linen_role?: LinenRole | null;
   names: string[];
   qty: number;
 };
@@ -433,27 +435,27 @@ function parseAppliedLaundryDetails(details: string | null): LaundryCompletion |
 
 function buildLinenQuantityItems(linen: LinenCompletion): QuantityItem[] {
   return [
-    { key: "sets_estivo", names: ["set letto estivo", "completi letto completi"], qty: toNumber(linen.sets_estivo) },
-    { key: "sets_invernale", names: ["set letto invernale", "copripiumini + federe"], qty: toNumber(linen.sets_invernale) },
-    { key: "towels_bidet", names: ["asciugamani bidet"], qty: toNumber(linen.towels_bidet) },
-    { key: "towels_viso", names: ["asciugamani viso"], qty: toNumber(linen.towels_viso) },
-    { key: "towels_doccia", names: ["asciugamani doccia"], qty: toNumber(linen.towels_doccia) },
-    { key: "tappetino", names: ["tappetini doccia"], qty: toNumber(linen.tappetino) },
-    { key: "mappine", names: ["mappine cucina"], qty: toNumber(linen.mappine) },
-    { key: "carta_igienica", names: ["carta igienica"], qty: toNumber(linen.carta_igienica) },
-    { key: "spugne_piatti", names: ["spugnette lavapiatti"], qty: toNumber(linen.spugne_piatti) },
+    { key: "sets_estivo",    linen_role: "set_estivo",          names: ["set letto estivo", "completi letto completi"],              qty: toNumber(linen.sets_estivo) },
+    { key: "sets_invernale", linen_role: "set_invernale",        names: ["set letto invernale", "copripiumini + federe"],             qty: toNumber(linen.sets_invernale) },
+    { key: "towels_bidet",   linen_role: "asciugamano_bidet",    names: ["asciugamano bidet", "asciugamani bidet"],                  qty: toNumber(linen.towels_bidet) },
+    { key: "towels_viso",    linen_role: "asciugamano_viso",     names: ["asciugamano viso", "asciugamani viso"],                    qty: toNumber(linen.towels_viso) },
+    { key: "towels_doccia",  linen_role: "asciugamano_doccia",   names: ["asciugamano doccia", "asciugamani doccia"],                qty: toNumber(linen.towels_doccia) },
+    { key: "tappetino",      linen_role: "tappetino_doccia",     names: ["tappetino doccia", "tappetini doccia"],                    qty: toNumber(linen.tappetino) },
+    { key: "mappine",        linen_role: "mappina_cucina",        names: ["strofinacci", "mappina cucina", "mappine cucina"],         qty: toNumber(linen.mappine) },
+    { key: "carta_igienica",                                       names: ["carta igienica"],                                         qty: toNumber(linen.carta_igienica) },
+    { key: "spugne_piatti",                                        names: ["spugnette lavapiatti", "spugna piatti", "spugne piatti"], qty: toNumber(linen.spugne_piatti) },
   ];
 }
 
 function buildLaundryQuantityItems(laundry: LaundryCompletion): QuantityItem[] {
   return [
-    { key: "sets_estivo", names: ["set letto estivo", "completi letto completi"], qty: toNumber(laundry.sets_estivo) },
-    { key: "sets_invernale", names: ["set letto invernale", "copripiumini + federe"], qty: toNumber(laundry.sets_invernale) },
-    { key: "towels_bidet", names: ["asciugamani bidet"], qty: toNumber(laundry.towels_bidet) },
-    { key: "towels_viso", names: ["asciugamani viso"], qty: toNumber(laundry.towels_viso) },
-    { key: "towels_doccia", names: ["asciugamani doccia"], qty: toNumber(laundry.towels_doccia) },
-    { key: "tappetino", names: ["tappetini doccia"], qty: toNumber(laundry.tappetino) },
-    { key: "mappine", names: ["mappine cucina"], qty: toNumber(laundry.mappine) },
+    { key: "sets_estivo",    linen_role: "set_estivo",          names: ["set letto estivo", "completi letto completi"],      qty: toNumber(laundry.sets_estivo) },
+    { key: "sets_invernale", linen_role: "set_invernale",        names: ["set letto invernale", "copripiumini + federe"],     qty: toNumber(laundry.sets_invernale) },
+    { key: "towels_bidet",   linen_role: "asciugamano_bidet",    names: ["asciugamano bidet", "asciugamani bidet"],          qty: toNumber(laundry.towels_bidet) },
+    { key: "towels_viso",    linen_role: "asciugamano_viso",     names: ["asciugamano viso", "asciugamani viso"],            qty: toNumber(laundry.towels_viso) },
+    { key: "towels_doccia",  linen_role: "asciugamano_doccia",   names: ["asciugamano doccia", "asciugamani doccia"],        qty: toNumber(laundry.towels_doccia) },
+    { key: "tappetino",      linen_role: "tappetino_doccia",     names: ["tappetino doccia", "tappetini doccia"],            qty: toNumber(laundry.tappetino) },
+    { key: "mappine",        linen_role: "mappina_cucina",        names: ["strofinacci", "mappina cucina", "mappine cucina"], qty: toNumber(laundry.mappine) },
   ];
 }
 
@@ -470,13 +472,16 @@ async function applyProductQuantityDelta(
   const schema = await resolveProductSchema(supabase);
   const { data, error } = await supabase
     .from("products")
-    .select(`${schema.idColumn}, name, ${schema.quantityColumn}, max_qty`)
+    .select(`${schema.idColumn}, name, linen_role, ${schema.quantityColumn}, max_qty`)
     .eq("organization_id", resolvedOrganizationId);
   if (error) throw new Error(error.message);
 
+  const byLinenRole = new Map<string, ProductRow>();
   const byName = new Map<string, ProductRow[]>();
   for (const raw of data ?? []) {
     const row = raw as ProductRow;
+    const role = String(row.linen_role ?? "");
+    if (role) byLinenRole.set(role, row);
     const normalized = normalizeName(String(row.name ?? ""));
     const existing = byName.get(normalized);
     if (existing) {
@@ -491,7 +496,9 @@ async function applyProductQuantityDelta(
 
   for (const item of items) {
     if (item.qty <= 0) continue;
-    const row = selectPreferredProductRow(byName, item.names, schema.quantityColumn);
+    const row =
+      (item.linen_role ? byLinenRole.get(item.linen_role) ?? null : null) ??
+      selectPreferredProductRow(byName, item.names, schema.quantityColumn);
     if (!row) continue;
 
     const id = getProductId(row, schema);

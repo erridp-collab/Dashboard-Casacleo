@@ -294,12 +294,12 @@ export function ProductCatalogEditor() {
       {/* Modal overlay */}
       {modal.mode !== "closed" && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center"
           onClick={(e) => { if (e.target === e.currentTarget) setModal({ mode: "closed" }); }}
         >
           <div
             className="w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
-            style={{ maxHeight: "90svh", paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
+            style={{ maxHeight: "90dvh", paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
           >
             {/* Drag handle — visible only on mobile bottom sheet */}
             <div className="mb-4 flex justify-center sm:hidden">
