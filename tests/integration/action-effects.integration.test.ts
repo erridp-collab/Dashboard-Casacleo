@@ -2,10 +2,22 @@
  * Integration tests: action status changes → expenses and stock effects.
  * Tests PULIZIA (external expense), BIANCHERIA (linen consumption), SPESA (restock + expense).
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { applyActionStatusEffects } from "../../lib/action-effects";
 import { getProductId, getProductQuantity, resolveProductSchema } from "../../lib/products-schema";
-import { addDays, supabaseTest, today } from "./helpers";
+import { addDays, cleanupOrg, createTestOrg, supabaseTest, today } from "./helpers";
+
+const supabaseForSetup = supabaseTest();
+let testOrgId: string;
+
+beforeAll(async () => {
+  const org = await createTestOrg(supabaseForSetup, "action-effects");
+  testOrgId = org.id;
+});
+
+afterAll(async () => {
+  await cleanupOrg(supabaseForSetup, testOrgId);
+});
 
 type CreatedIds = {
   actionIds: string[];
@@ -27,12 +39,14 @@ async function insertAction(
   actionType: string,
   actionDate: string,
   details: string | null = null,
+  orgId?: string,
 ): Promise<string> {
+  const org = orgId ?? testOrgId;
   const payloads = [
-    { action_type: actionType, action_date: actionDate, status: "DA_FARE", details, booking_id: null, amount: 0 },
-    { action_type: actionType, action_date: actionDate, status: "DA_FARE", details, booking_id: null },
-    { action_type: actionType, action_date: actionDate, status: "DA_FARE", details },
-    { action_type: actionType, action_date: actionDate, status: "DA_FARE" },
+    { organization_id: org, action_type: actionType, action_date: actionDate, status: "DA_FARE", details, booking_id: null, amount: 0 },
+    { organization_id: org, action_type: actionType, action_date: actionDate, status: "DA_FARE", details, booking_id: null },
+    { organization_id: org, action_type: actionType, action_date: actionDate, status: "DA_FARE", details },
+    { organization_id: org, action_type: actionType, action_date: actionDate, status: "DA_FARE" },
   ];
 
   let lastError = "";
@@ -77,7 +91,7 @@ describe("action effects — PULIZIA integration", () => {
       mode: "EXTERNAL",
       external_amount: 80,
       note: "Test pulizia esterna",
-    });
+    }, testOrgId);
 
     const expenses = await getExpensesForAction(supabase, actionId);
     if (expenses.length > 0) {
@@ -94,7 +108,7 @@ describe("action effects — PULIZIA integration", () => {
     const actionId = await insertAction(supabase, "PULIZIA", actionDate);
     ids.actionIds.push(actionId);
 
-    await applyActionStatusEffects(actionId, "FATTO", { mode: "SELF" });
+    await applyActionStatusEffects(actionId, "FATTO", { mode: "SELF" }, testOrgId);
 
     const expenses = await getExpensesForAction(supabase, actionId);
     expect(expenses.length).toBe(0);
@@ -109,10 +123,10 @@ describe("action effects — PULIZIA integration", () => {
     await applyActionStatusEffects(actionId, "FATTO", {
       mode: "EXTERNAL",
       external_amount: 60,
-    });
+    }, testOrgId);
 
     // Revert
-    await applyActionStatusEffects(actionId, "DA_FARE");
+    await applyActionStatusEffects(actionId, "DA_FARE", undefined, testOrgId);
 
     const expenses = await getExpensesForAction(supabase, actionId);
     // After revert, the cleaning expense should be deleted
@@ -125,6 +139,8 @@ describe("action effects — BIANCHERIA integration", () => {
   const supabase = supabaseTest();
   const ids: CreatedIds = { actionIds: [], expenseIds: [] };
   let productSnapshots: Array<{ id: string; qty: number }> = [];
+  // Use the real (default) org for BIANCHERIA tests so products are found
+  let biancheriaOrgId: string;
 
   async function snapshotLinenQty(): Promise<Array<{ id: string; qty: number }>> {
     const schema = await resolveProductSchema(supabase);
@@ -135,7 +151,7 @@ describe("action effects — BIANCHERIA integration", () => {
       "set letto estivo",
       "completi letto completi",
     ];
-    const { data } = await supabase.from("products").select(`${schema.idColumn}, name, ${schema.quantityColumn}`);
+    const { data } = await supabase.from("products").select(`${schema.idColumn}, name, ${schema.quantityColumn}`).eq("organization_id", biancheriaOrgId);
     const result: Array<{ id: string; qty: number }> = [];
     for (const raw of data ?? []) {
       const row = raw as Record<string, unknown>;
@@ -152,6 +168,17 @@ describe("action effects — BIANCHERIA integration", () => {
       await supabase.from("products").update({ [schema.quantityColumn]: snap.qty }).eq(schema.idColumn, snap.id);
     }
   }
+
+  beforeAll(async () => {
+    // Resolve the oldest org (the real one with products) for BIANCHERIA tests
+    const { data } = await supabase
+      .from("organizations")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    biancheriaOrgId = data ? String(data.id) : testOrgId;
+  });
 
   beforeEach(async () => {
     productSnapshots = await snapshotLinenQty();
@@ -183,10 +210,10 @@ describe("action effects — BIANCHERIA integration", () => {
     const actionDate = addDays(today(), 40);
     const linen = { sets_estivo: 1, towels_bidet: 2, towels_doccia: 2 };
     const linenDetails = JSON.stringify({ linen });
-    const actionId = await insertAction(supabase, "BIANCHERIA", actionDate, linenDetails);
+    const actionId = await insertAction(supabase, "BIANCHERIA", actionDate, linenDetails, biancheriaOrgId);
     ids.actionIds.push(actionId);
 
-    await applyActionStatusEffects(actionId, "FATTO", { linen });
+    await applyActionStatusEffects(actionId, "FATTO", { linen }, biancheriaOrgId);
 
     const afterSnapshots = await snapshotLinenQty();
     let anyDecremented = false;
@@ -206,11 +233,11 @@ describe("action effects — BIANCHERIA integration", () => {
     const actionDate = addDays(today(), 41);
     const linen = { sets_estivo: 1, towels_bidet: 2, towels_doccia: 2 };
     const linenDetails = JSON.stringify({ linen });
-    const actionId = await insertAction(supabase, "BIANCHERIA", actionDate, linenDetails);
+    const actionId = await insertAction(supabase, "BIANCHERIA", actionDate, linenDetails, biancheriaOrgId);
     ids.actionIds.push(actionId);
 
-    await applyActionStatusEffects(actionId, "FATTO", { linen });
-    await applyActionStatusEffects(actionId, "DA_FARE");
+    await applyActionStatusEffects(actionId, "FATTO", { linen }, biancheriaOrgId);
+    await applyActionStatusEffects(actionId, "DA_FARE", undefined, biancheriaOrgId);
 
     const afterSnapshots = await snapshotLinenQty();
     for (const after of afterSnapshots) {
@@ -236,7 +263,7 @@ describe("action effects — SPESA integration", () => {
     const actionId = await insertAction(supabase, "SPESA", actionDate, "Prodotti da reintegrare:\n- Caffe: 0");
     ids.actionIds.push(actionId);
 
-    await applyActionStatusEffects(actionId, "FATTO", { amount: 45.5 });
+    await applyActionStatusEffects(actionId, "FATTO", { amount: 45.5 }, testOrgId);
 
     const expenses = await getExpensesForAction(supabase, actionId);
     if (expenses.length > 0) {
@@ -252,7 +279,7 @@ describe("action effects — SPESA integration", () => {
     const actionId = await insertAction(supabase, "SPESA", actionDate, null);
     ids.actionIds.push(actionId);
 
-    await applyActionStatusEffects(actionId, "FATTO", { amount: 0 });
+    await applyActionStatusEffects(actionId, "FATTO", { amount: 0 }, testOrgId);
 
     const expenses = await getExpensesForAction(supabase, actionId);
     expect(expenses.length).toBe(0);

@@ -33,15 +33,17 @@ export async function proxy(request: NextRequest) {
     clearAuthCookies(response.cookies);
   }
 
-  if (!isAuthenticated && !isPublicPage) {
+  if (!isAuthenticated) {
     if (isApiRoute) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
-    if (tokens?.accessToken) {
-      clearAuthCookies(redirectResponse.cookies);
+    if (!isPublicPage) {
+      const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
+      if (tokens?.accessToken) {
+        clearAuthCookies(redirectResponse.cookies);
+      }
+      return redirectResponse;
     }
-    return redirectResponse;
   }
 
   if (isAuthenticated && (isLoginPage || isSignupPage)) {

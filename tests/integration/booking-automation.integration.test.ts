@@ -2,12 +2,13 @@
  * Integration tests: booking creation → pulizie/biancheria/checklist generated.
  * Uses the real Supabase DB. All test data is inserted and cleaned up per test.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { syncBookingAutomations } from "../../lib/booking-automation";
-import { addDays, supabaseTest, today } from "./helpers";
+import { addDays, cleanupOrg, createTestOrg, supabaseTest, today } from "./helpers";
 
 // Track IDs created in each test for cleanup
 let createdBookingIds: string[] = [];
+let testOrgId: string;
 
 async function cleanup(supabase: ReturnType<typeof supabaseTest>) {
   if (createdBookingIds.length === 0) return;
@@ -36,7 +37,7 @@ async function insertBooking(
 ): Promise<string> {
   const { data, error } = await supabase
     .from("bookings")
-    .insert({ check_in: checkIn, check_out: checkOut, guests })
+    .insert({ check_in: checkIn, check_out: checkOut, guests, organization_id: testOrgId })
     .select("id")
     .single();
   if (error) throw new Error(`insertBooking: ${error.message}`);
@@ -48,6 +49,15 @@ async function insertBooking(
 describe("syncBookingAutomations — integration", () => {
   const supabase = supabaseTest();
   const base = today();
+
+  beforeAll(async () => {
+    const org = await createTestOrg(supabase, "booking-auto");
+    testOrgId = org.id;
+  });
+
+  afterAll(async () => {
+    await cleanupOrg(supabase, testOrgId);
+  });
 
   beforeEach(() => {
     createdBookingIds = [];
@@ -62,7 +72,7 @@ describe("syncBookingAutomations — integration", () => {
     const checkOut = addDays(base, 33);
 
     await insertBooking(supabase, checkIn, checkOut);
-    await syncBookingAutomations();
+    await syncBookingAutomations(testOrgId);
 
     const { data: actions, error } = await supabase
       .from("actions")
@@ -96,7 +106,7 @@ describe("syncBookingAutomations — integration", () => {
     await insertBooking(supabase, b2In, b2Out);
     await insertBooking(supabase, b3In, b3Out);
 
-    await syncBookingAutomations();
+    await syncBookingAutomations(testOrgId);
 
     // Verify that sync ran and created at least PULIZIA for each of our 3 bookings
     const { data: actions, error } = await supabase
@@ -121,7 +131,7 @@ describe("syncBookingAutomations — integration", () => {
     await insertBooking(supabase, b1In, b1Out);
     const b2 = await insertBooking(supabase, b2In, b2Out);
 
-    await syncBookingAutomations();
+    await syncBookingAutomations(testOrgId);
 
     const { data: actions } = await supabase
       .from("actions")
@@ -149,7 +159,7 @@ describe("syncBookingAutomations — integration", () => {
     await insertBooking(supabase, b1In, b1Out);
     const b2 = await insertBooking(supabase, b2In, b2Out);
 
-    await syncBookingAutomations();
+    await syncBookingAutomations(testOrgId);
 
     const { data: actions } = await supabase
       .from("actions")
@@ -168,7 +178,7 @@ describe("syncBookingAutomations — integration", () => {
     const checkOut = addDays(base, 83);
 
     await insertBooking(supabase, checkIn, checkOut);
-    await syncBookingAutomations();
+    await syncBookingAutomations(testOrgId);
 
     const { data: actions } = await supabase
       .from("actions")
@@ -195,7 +205,7 @@ describe("syncBookingAutomations — integration", () => {
     const checkOut = addDays(base, 93);
 
     const bookingId = await insertBooking(supabase, checkIn, checkOut);
-    await syncBookingAutomations();
+    await syncBookingAutomations(testOrgId);
 
     // Verify actions exist
     const { data: before } = await supabase
@@ -208,7 +218,7 @@ describe("syncBookingAutomations — integration", () => {
     await supabase.from("bookings").delete().eq("id", bookingId);
     createdBookingIds = createdBookingIds.filter((id) => id !== bookingId);
 
-    await syncBookingAutomations();
+    await syncBookingAutomations(testOrgId);
 
     const { data: after } = await supabase
       .from("actions")

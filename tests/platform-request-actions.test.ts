@@ -38,6 +38,10 @@ vi.mock("@/lib/supabaseAuth", () => ({
   supabaseAuthClient: mockSupabaseAuthClient,
 }));
 
+vi.mock("@/lib/email/resend", () => ({
+  sendWelcomeEmail: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("platform request actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -111,6 +115,10 @@ describe("platform request actions", () => {
       },
       error: null,
     });
+    const generateLink = vi.fn().mockResolvedValue({
+      data: { properties: { action_link: "https://example.com/set-password" } },
+      error: null,
+    });
 
     const from = vi.fn((table: string) => {
       if (table === "signup_requests") {
@@ -140,16 +148,10 @@ describe("platform request actions", () => {
           listUsers,
           getUserById,
           createUser,
+          generateLink,
         },
       },
     };
-
-    const resetPasswordForEmail = vi.fn().mockResolvedValue({ error: null });
-    mockSupabaseAuthClient.mockReturnValue({
-      auth: {
-        resetPasswordForEmail,
-      },
-    });
 
     const supabaseAdminModule = await import("@/lib/supabaseAdmin");
     vi.mocked(supabaseAdminModule.supabaseAdmin).mockReturnValue(supabase as never);
@@ -173,8 +175,10 @@ describe("platform request actions", () => {
       },
       { onConflict: "organization_id,user_id" },
     );
-    expect(resetPasswordForEmail).toHaveBeenCalledWith("owner@example.com", {
-      redirectTo: "http://localhost:3000/reset-password",
+    expect(generateLink).toHaveBeenCalledWith({
+      type: "recovery",
+      email: "owner@example.com",
+      options: { redirectTo: "http://localhost:3000/reset-password" },
     });
     expect(requestUpdate).toHaveBeenLastCalledWith(
       expect.objectContaining({
