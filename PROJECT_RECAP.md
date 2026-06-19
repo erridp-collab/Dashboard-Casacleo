@@ -36,7 +36,7 @@ L'app era nata come strumento single-tenant per uso interno. Ora e stata portata
 
 | Campo | Valore |
 |---|---|
-| URL | `https://dashboard-casacleo.vercel.app` |
+| URL | `https://host.alva.land` |
 | Repo GitHub | `https://github.com/erridp-collab/Dashboard-Casacleo.git` |
 | Branch produzione | `main` |
 | Vercel project | `dashboard-casacleo` |
@@ -68,6 +68,7 @@ Quello che esiste davvero oggi:
 - bookings CRUD
 - actions CRUD/parziale workflow
 - stock management
+- catalogo prodotti con editor biancheria/consumabili (linen_role system)
 - finance tracking
 - sync automatiche di dominio su prenotazioni e shopping list
 - cron endpoint reminder pulizie (`/api/cron/cleaning-reminder`) via Resend
@@ -323,6 +324,7 @@ API principali:
 - `app/api/actions/checklist/route.ts`
 - `app/api/actions/[id]/checklist/route.ts`
 - `app/api/products/route.ts`
+- `app/api/products/[id]/route.ts`
 - `app/api/products/bulk/route.ts`
 - `app/api/products/restock/route.ts`
 - `app/api/products/stock-status/route.ts`
@@ -375,8 +377,16 @@ Responsabilita:
 - lettura prodotti
 - soglie e stock status
 - rifornimento
-- consumo automatico su soggiorni
+- consumo automatico su soggiorni (basato su linen_role)
 - shopping action automatica
+- catalogo prodotti CRUD (biancheria con ruoli, consumabili a 3 stati)
+- modifica quantità totale (max_qty) post-creazione
+
+Sistema linen_role:
+
+- 8 ruoli predefiniti in `lib/linen-roles.ts` con formule di consumo
+- vincolo DB: un solo prodotto per ruolo per organizzazione
+- consumo automatico su create/delete prenotazione via `applyBookingConsumptionDelta()`
 
 File chiave:
 
@@ -384,6 +394,8 @@ File chiave:
 - `lib/stock.ts`
 - `lib/product-quantity.ts`
 - `lib/products-schema.ts`
+- `lib/linen-roles.ts`
+- `components/product-catalog-editor.tsx`
 
 ### Finance
 
@@ -421,6 +433,8 @@ Tutte le migration sono state applicate al database hosted il 2026-05-25.
 - `20260508140000_add_signup_requests.sql`
 - `20260509000000_add_fk_expenses_source_action.sql`
 - `20260509010000_add_bulk_product_update_atomic.sql`
+- `20260618100000_add_linen_role.sql`
+- `20260618110000_update_delete_booking_atomic.sql`
 
 ## Ambiente di sviluppo
 
@@ -449,7 +463,7 @@ Migration: nuove migration vanno create in `supabase/migrations/` e applicate ma
 
 ## Verification Status
 
-Ultimo stato verde verificato (2026-06-04):
+Ultimo stato verde verificato (2026-06-19):
 
 - `npx tsc --noEmit` — verde
 - `npm run lint` — verde
@@ -458,6 +472,10 @@ Ultimo stato verde verificato (2026-06-04):
 - UI polish completo (12 task: CSS tokens, Card, KpiCard, TopBar/BottomNav, ActionBadges, page headers, btn-*/input-base su tutte le pagine, calendar amber, Recharts brand colors, dashboard KPI-first)
 - mobile UX completato (card prenotazioni compatte, FAB, tab inventario, import collassato, rimozione testo ridondante)
 - remote git: solo `casacleo` → `Dashboard-Casacleo` (remote `alva` rimosso)
+- linen_role system attivo: 8 ruoli, vincolo univocità DB, consumo automatico su prenotazioni
+- ProductCatalogEditor in settings e onboarding (biancheria con ruoli + consumabili a 3 stati)
+- quantità biancheria modificabile anche post-creazione via edit form (max_qty via PATCH)
+- label "Strofinacci" (era "Mappina cucina") — valore DB `mappina_cucina` invariato
 
 Suite rilevanti ora coperte:
 
@@ -616,34 +634,21 @@ Chiuso con refactor `e09ce53`.
 
 Chiuso con `e22fb71 test: add tenant isolation integration tests`.
 
-### BT-6: Hardening email beta-safe (APERTO)
+### ~~BT-6: Hardening email beta-safe~~ DONE
 
-Il flusso email va reso piu robusto prima di aprire la beta esterna.
+Chiuso il 2026-06-13. Configurazione confermata funzionante in produzione.
 
-Decisioni congelate:
-
-- sender automatico: `no-reply@auth.<dominio>` oppure `no-reply@<dominio>`
-- inbox operativa umana: `support@<dominio>`
-- `reply-to`: `support@<dominio>`
-- provider transazionale: `Resend` (gia integrato in `lib/email/resend.ts`)
-- Supabase Auth resta il motore dei flussi auth, ma dietro custom SMTP/provider dedicato
-
-Fix da fare:
-
-- configurare dominio o sottodominio auth, SPF/DKIM/DMARC
-- collegare Supabase Auth a Resend come SMTP custom
-- valutare notifica email a `support@...` per nuove `signup_requests`
-
-Vincolo: eseguire BT-6 prima dell'apertura beta a utenti esterni.
-
-File / aree: `app/actions/auth.ts`, `app/platform/actions.ts`, configurazione Supabase Auth SMTP, DNS dominio.
+- sender verificato: `Alva Host Manager <noreply@mail.alva.land>` (dominio verificato su Resend con SPF/DKIM)
+- `RESEND_FROM_EMAIL`, `ADMIN_NOTIFICATION_EMAIL`, `NEXT_PUBLIC_SITE_URL` corretti su Vercel
+- `sendWelcomeEmail` inviata al nuovo utente all'approvazione (fire-and-forget)
+- `sendSignupRequestNotification` inviata all'admin (`erri.dp@gmail.com`) per ogni nuova richiesta
+- test email reale inviato e ricevuto correttamente
 
 ### Prossimi passi
 
 ```
-1. BT-6  Hardening email beta-safe    <- prima di aprire la beta esterna
-2. U1–U3 Miglioramenti UX (vedi sezione dedicata)
-3. F1–F4 Miglioramenti funzionali (vedi sezione dedicata)
+1. U1–U3 Miglioramenti UX (vedi sezione dedicata)
+2. F1–F4 Miglioramenti funzionali (vedi sezione dedicata)
 ```
 
 Dopo ogni modifica: `npm test` + `npx tsc --noEmit` + `npm run lint` devono passare tutti.
@@ -689,6 +694,39 @@ Runbook admin:
 
 ---
 
+## Integrazioni Future Pianificate
+
+### Sync prenotazioni da Airbnb via iCal
+
+Airbnb non espone API pubbliche per singoli host. L'unico metodo disponibile è il link iCal che Airbnb genera nel pannello host (si aggiorna ogni ~15-30 minuti).
+
+Piano:
+- polling periodico del link iCal via cron (es. `/api/cron/ical-sync`)
+- parsing eventi iCal → `bookings` nel DB
+- gestione upsert con deduplicazione su `uid` iCal
+- nessun dato critico perso: il link iCal è read-only, non modifica Airbnb
+- prerequisito: salvare il link iCal dell'host in `organizations.settings`
+
+Impatto: elimina l'inserimento manuale delle prenotazioni Airbnb — dato operativamente più significativo.
+
+### Portale Alloggiati Web — registrazione ospiti automatica
+
+Il Ministero dell'Interno (Polizia di Stato) richiede la comunicazione dei dati degli ospiti entro 24h dall'arrivo tramite il portale [alloggiatiweb.poliziadistato.it](https://alloggiatiweb.poliziadistato.it).
+
+Il portale espone un'API SOAP ufficiale che i PMS italiani usano per l'invio automatico.
+
+Piano:
+- credenziali API ottenibili dalla questura locale (username + password + codice struttura)
+- client SOAP/XML in `lib/alloggiatiWeb.ts`
+- trigger: check-in registrato → dati ospite già presenti nella prenotazione → invio automatico
+- dati richiesti per ogni ospite: nome, cognome, data nascita, nazionalità, tipo documento, numero documento, data arrivo, data partenza
+- oggi i dati ospite non sono ancora nel form prenotazione → il form va esteso con i campi anagrafici
+- risposta API: conferma o errore → salvare stato invio su `bookings`
+
+Impatto: elimina la compilazione manuale sul portale, operazione oggi fatta a mano entro 24h da ogni check-in.
+
+---
+
 ## What Is Not Done Yet
 
 Mancanze consapevoli:
@@ -730,7 +768,11 @@ Aprire subito questi file per riprendere:
 - `lib/action-effects.ts`
 - `lib/stock.ts`
 - `lib/product-quantity.ts`
+- `lib/linen-roles.ts`
+- `components/product-catalog-editor.tsx`
+- `app/api/products/[id]/route.ts`
 - `supabase/migrations/20260507150000_add_multi_tenant_foundation.sql`
+- `supabase/migrations/20260618100000_add_linen_role.sql`
 - `tests/integration/helpers.ts`
 
 ## Bottom Line
@@ -739,14 +781,15 @@ La produzione e live. Database migrato, auth nuovo attivo, UI polish completo, m
 
 Stato attuale:
 
-- `dashboard-casacleo.vercel.app` serve il codice aggiornato
-- Supabase hosted ha tutte le 19 migration applicate
+- `host.alva.land` serve il codice aggiornato
+- Supabase hosted ha tutte le 21 migration applicate
 - organizzazione "Casa Cleo" configurata con owner `erri.dp@gmail.com`
 - repo di riferimento: `Dashboard-Casacleo/main` su GitHub (watched da Vercel)
 - remote git locale: solo `casacleo` (alva rimosso)
-- backlog tecnico BT-1/2/3/4/5 tutti chiusi
+- backlog tecnico BT-1/2/3/4/5/6 tutti chiusi
+- email transazionale attiva: `noreply@mail.alva.land` via Resend, dominio verificato
+- linen_role system e ProductCatalogEditor live (2026-06-18/19)
 
 Prossimi passi in ordine:
 
-1. BT-6 — hardening email prima della beta esterna
-2. U1–U3 / F1–F4 — miglioramenti UX e funzionali low effort (vedi sezione dedicata)
+1. U1–U3 / F1–F4 — miglioramenti UX e funzionali low effort (vedi sezione dedicata)
