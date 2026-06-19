@@ -365,12 +365,12 @@ export default function BookingsPage() {
                   {/* Form modifica inline (solo quando isEditing) */}
                   {isEditing && (
                     <div className="mt-3 grid gap-2">
-                      <input name={`check_in_m_${b.id}`} className="input-base text-sm" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
-                      <input name={`check_out_m_${b.id}`} className="input-base text-sm" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
-                      <input name={`guests_m_${b.id}`} className="input-base text-sm" type="number" value={b.guests} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
-                      <input name={`channel_m_${b.id}`} className="input-base text-sm" value={b.channel ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
-                      <input name={`total_amount_m_${b.id}`} className="input-base text-sm" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
-                      <input name={`notes_m_${b.id}`} className="input-base text-sm" value={b.notes ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
+                      <input name={`check_in_m_${b.id}`} className="input-base" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
+                      <input name={`check_out_m_${b.id}`} className="input-base" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
+                      <input name={`guests_m_${b.id}`} className="input-base" type="number" value={b.guests} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
+                      <input name={`channel_m_${b.id}`} className="input-base" value={b.channel ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
+                      <input name={`total_amount_m_${b.id}`} className="input-base" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
+                      <input name={`notes_m_${b.id}`} className="input-base" value={b.notes ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
                     </div>
                   )}
 

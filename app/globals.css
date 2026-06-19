@@ -78,6 +78,7 @@ body {
   @media (min-width: 640px) {
     .input-base {
       font-size: 0.875rem;
+      line-height: 1.25rem;
     }
   }
   .label-base {
