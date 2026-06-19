@@ -80,6 +80,17 @@ export function ProductCatalogEditor() {
     return () => ctrl.abort();
   }, []);
 
+  useEffect(() => {
+    if (modal.mode !== "closed") {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [modal.mode]);
+
   const linenProducts = products.filter(isLinenProduct);
   const consumableProducts = products.filter((p) => !isLinenProduct(p));
   const assignedRoles = new Set(products.map((p) => p.linen_role).filter(Boolean));
