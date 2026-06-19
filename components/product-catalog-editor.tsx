@@ -286,7 +286,15 @@ export function ProductCatalogEditor() {
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
           onClick={(e) => { if (e.target === e.currentTarget) setModal({ mode: "closed" }); }}
         >
-          <div className="w-full max-w-md rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl">
+          <div
+            className="w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
+            style={{ maxHeight: "90svh", paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
+          >
+            {/* Drag handle — visible only on mobile bottom sheet */}
+            <div className="mb-4 flex justify-center sm:hidden">
+              <div className="h-1 w-10 rounded-full bg-zinc-300" />
+            </div>
+
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-semibold text-zinc-900">
                 {modal.mode === "add-linen" && "Aggiungi biancheria"}
