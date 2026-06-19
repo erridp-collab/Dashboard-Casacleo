@@ -145,7 +145,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
   if (!actionId) return null;
 
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-zinc-900/30 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-zinc-900/50 p-4">
       <div className="mx-auto my-6 max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
           <h3 className="text-base font-semibold text-zinc-900">Check pulizie</h3>
