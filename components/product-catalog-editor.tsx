@@ -102,6 +102,7 @@ export function ProductCatalogEditor() {
             linen_role: data.linen_role,
             unit: data.unit,
             threshold: data.threshold,
+            max_qty: data.quantity,
           }),
         })
       : await clientFetchJson<{ product: unknown }>("/api/products", {
@@ -389,19 +390,19 @@ function LinenForm({
         <p className="mt-1 text-xs text-blue-600">{formulaLabel}</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        {!product && (
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-700">Qtà iniziale</label>
-            <input
-              className="input-base w-full"
-              type="number"
-              min="0"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder="0"
-            />
-          </div>
-        )}
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-zinc-700">
+            {product ? "Qtà totale" : "Qtà iniziale"}
+          </label>
+          <input
+            className="input-base w-full"
+            type="number"
+            min="0"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="0"
+          />
+        </div>
         <div>
           <label className="mb-1.5 block text-xs font-medium text-zinc-700">Unità</label>
           <input

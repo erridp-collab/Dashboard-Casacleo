@@ -73,7 +73,7 @@ export const LINEN_ROLES: LinenRoleInfo[] = [
   },
   {
     value: "mappina_cucina",
-    label: "Mappina cucina",
+    label: "Strofinacci",
     formulaLabel: "1 fisso per prenotazione",
     consumption: () => 1,
   },
