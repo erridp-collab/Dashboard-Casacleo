@@ -127,7 +127,7 @@ export default function DashboardPage() {
 
       <Card className="p-4">
         <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
-        <CalendarClient />
+        <CalendarClient bookings={bookings} />
         <div className="calendar-legend mt-4">
           <span className="calendar-legend-label">Legenda</span>
           <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#3b82f6]" />

@@ -17,10 +17,6 @@ type CalendarEvent = {
   color: string;
 };
 
-type BookingsResponse = {
-  bookings?: Booking[];
-};
-
 type ActionsResponse = {
   actions?: Action[];
 };
@@ -34,9 +30,9 @@ function getActionInitial(actionType: string): string {
   return "S";
 }
 
-export default function CalendarClient() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
+export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
   const [actions, setActions] = useState<Action[]>([]);
+  const [range, setRange] = useState<{ from: string; to: string }>({ from: "", to: "" });
   const [error, setError] = useState("");
   const rangeRef = useRef<{ from: string; to: string }>({ from: "", to: "" });
   const requestSeqRef = useRef(0);
@@ -50,29 +46,18 @@ export default function CalendarClient() {
     abortRef.current = ctrl;
 
     try {
-      const [bookingsRes, actionsRes] = await Promise.all([
-        clientFetchJson<BookingsResponse>("/api/bookings", { signal: ctrl.signal }),
-        clientFetchJson<ActionsResponse>(`/api/actions?from=${nextFrom}&to=${nextTo}`, { signal: ctrl.signal }),
-      ]);
+      const actionsRes = await clientFetchJson<ActionsResponse>(`/api/actions?from=${nextFrom}&to=${nextTo}`, { signal: ctrl.signal });
 
       if (seq !== requestSeqRef.current) return;
 
-      if (!bookingsRes.ok) {
-        if (bookingsRes.aborted) return;
-        setError(bookingsRes.error || "Errore bookings");
-        return;
-      }
       if (!actionsRes.ok) {
         if (actionsRes.aborted) return;
         setError(actionsRes.error || "Errore actions");
         return;
       }
 
-      const filteredBookings = (bookingsRes.data.bookings ?? []).filter(
-        (b: Booking) => b.check_in <= nextTo && b.check_out >= nextFrom,
-      );
-      setBookings(filteredBookings);
       setActions(actionsRes.data.actions ?? []);
+      setRange({ from: nextFrom, to: nextTo });
     } catch (e: unknown) {
       console.error("Calendar load failed", e);
       setError("Errore caricamento");
@@ -93,8 +78,13 @@ export default function CalendarClient() {
     };
   }, []);
 
+  const visibleBookings = useMemo(
+    () => bookings.filter((b) => b.check_in <= range.to && b.check_out >= range.from),
+    [bookings, range],
+  );
+
   const events = useMemo<CalendarEvent[]>(() => {
-    const bookingEvents: CalendarEvent[] = bookings.map((b) => ({
+    const bookingEvents: CalendarEvent[] = visibleBookings.map((b) => ({
       id: `booking-${b.id}`,
       title: `Prenotazione · ${b.guests} ospiti`,
       start: b.check_in,
@@ -125,7 +115,7 @@ export default function CalendarClient() {
     });
 
     return [...bookingEvents, ...actionEvents];
-  }, [actions, bookings]);
+  }, [actions, visibleBookings]);
 
   return (
     <div className="calendar-modern space-y-4">

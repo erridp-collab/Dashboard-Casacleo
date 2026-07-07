@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useActionState } from "react";
-import { BookOpen, ClipboardList, Euro, Home, LogOut, Plus, Settings, Warehouse } from "lucide-react";
+import { ClipboardList, Euro, Home, LogOut, Plus, Settings, Warehouse } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 
 const NAV_ITEMS = [
@@ -31,9 +32,7 @@ export function TopBar() {
     <header className="border-b border-white/10 bg-[#5c1526] shadow-sm">
       <div className="mx-auto flex w-full max-w-[1200px] items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5 rounded-xl px-2 py-1 text-white hover:bg-white/10">
-          <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[7px] bg-brand">
-            <BookOpen className="h-3.5 w-3.5 text-sidebar-bg" />
-          </div>
+          <Image src="/alva-logo.png" alt="" width={28} height={28} className="h-7 w-7 shrink-0" priority />
           <div className="leading-none">
             <div className="text-[13px] font-bold">Alva Host</div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-brand/70">Manager</div>

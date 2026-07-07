@@ -1,3 +1,14 @@
+// Activate a newly installed service worker immediately instead of leaving
+// it "waiting" until every open tab/PWA instance is closed — otherwise
+// deployed updates can go unseen for days on installed PWAs.
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("fetch", (event) => {
   event.respondWith(fetch(event.request));
 });
