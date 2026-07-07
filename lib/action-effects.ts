@@ -65,6 +65,10 @@ function isMissingColumn(error: DbError, column?: string): boolean {
   return column ? msg.includes(column) : true;
 }
 
+function isUniqueViolation(error: DbError): boolean {
+  return !!error && String(error.code) === "23505";
+}
+
 async function tryInsertExpense(payloads: Record<string, unknown>[]): Promise<void> {
   const supabase = supabaseAdmin();
   let lastError: DbError = null;
@@ -109,6 +113,64 @@ function isShoppingAction(actionType: string): boolean {
   return String(actionType ?? "").toUpperCase() === "SPESA";
 }
 
+/**
+ * Inserts the automatic expense linked to an action. If a row for this
+ * (organization, action, origin) already exists — because a concurrent
+ * request created it, or because it was left over from a previous run —
+ * the unique index on expenses(organization_id, source_action_id, origin)
+ * makes the insert fail with 23505, and we fall back to updating that row
+ * instead of leaving a duplicate or throwing.
+ */
+async function upsertActionExpense(
+  actionId: string,
+  actionDate: string,
+  amount: number,
+  organizationId: string,
+  origin: string,
+  category: string,
+  description: string,
+) {
+  const supabase = supabaseAdmin();
+  const fullPayload = {
+    expense_date: actionDate,
+    amount,
+    category,
+    description,
+    origin,
+    source_action_id: actionId,
+    organization_id: organizationId,
+  };
+  const fallbackPayloads = [
+    { expense_date: actionDate, amount, category, description },
+    { date: actionDate, amount, category, description },
+  ];
+
+  const insertResult = await supabase.from("expenses").insert(fullPayload);
+  if (!insertResult.error) return;
+
+  if (isUniqueViolation(insertResult.error)) {
+    const existing = await supabase
+      .from("expenses")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("source_action_id", actionId)
+      .eq("origin", origin)
+      .maybeSingle();
+    if (existing.data?.id) {
+      const updated = await tryUpdateExpense(existing.data.id, [fullPayload, ...fallbackPayloads], organizationId);
+      if (updated) return;
+    }
+    throw new Error(insertResult.error.message);
+  }
+
+  if (isMissingColumn(insertResult.error)) {
+    await tryInsertExpense(fallbackPayloads);
+    return;
+  }
+
+  throw new Error(insertResult.error.message);
+}
+
 async function upsertCleaningExpense(
   actionId: string,
   actionDate: string,
@@ -116,51 +178,9 @@ async function upsertCleaningExpense(
   organizationId: string,
   note?: string | null,
 ) {
-  const supabase = supabaseAdmin();
   const baseLabel = `Pulizia esterna - €${amount.toFixed(2)}`;
-  const description = note?.trim()
-    ? `${baseLabel} (${note.trim()})`
-    : baseLabel;
-
-  const payloads = [
-    {
-      expense_date: actionDate,
-      amount,
-      category: "Pulizie",
-      description,
-      origin: "automatica_da_pulizia",
-      source_action_id: actionId,
-      organization_id: organizationId,
-    },
-    {
-      expense_date: actionDate,
-      amount,
-      category: "Pulizie",
-      description,
-    },
-    {
-      date: actionDate,
-      amount,
-      category: "Pulizie",
-      description,
-    },
-  ];
-
-  // Try to find existing record (column may not exist — ignore errors).
-  const existing = await supabase
-    .from("expenses")
-    .select("id")
-    .eq("organization_id", organizationId)
-    .eq("source_action_id", actionId)
-    .eq("origin", "automatica_da_pulizia")
-    .maybeSingle();
-
-  if (!existing.error && existing.data?.id) {
-    const updated = await tryUpdateExpense(existing.data.id, payloads, organizationId);
-    if (updated) return;
-  }
-
-  await tryInsertExpense(payloads);
+  const description = note?.trim() ? `${baseLabel} (${note.trim()})` : baseLabel;
+  await upsertActionExpense(actionId, actionDate, amount, organizationId, "automatica_da_pulizia", "Pulizie", description);
 }
 
 async function deleteCleaningExpense(actionId: string, organizationId: string) {
@@ -175,46 +195,8 @@ async function deleteCleaningExpense(actionId: string, organizationId: string) {
 }
 
 async function upsertLaundryExpense(actionId: string, actionDate: string, amount: number, organizationId: string) {
-  const supabase = supabaseAdmin();
   const description = `Lavanderia - €${amount.toFixed(2)}`;
-  const payloads = [
-    {
-      expense_date: actionDate,
-      amount,
-      category: "Lavanderia",
-      description,
-      origin: "automatica_da_lavatrici",
-      source_action_id: actionId,
-      organization_id: organizationId,
-    },
-    {
-      expense_date: actionDate,
-      amount,
-      category: "Lavanderia",
-      description,
-    },
-    {
-      date: actionDate,
-      amount,
-      category: "Lavanderia",
-      description,
-    },
-  ];
-
-  const existing = await supabase
-    .from("expenses")
-    .select("id")
-    .eq("organization_id", organizationId)
-    .eq("source_action_id", actionId)
-    .eq("origin", "automatica_da_lavatrici")
-    .maybeSingle();
-
-  if (!existing.error && existing.data?.id) {
-    const updated = await tryUpdateExpense(existing.data.id, payloads, organizationId);
-    if (updated) return;
-  }
-
-  await tryInsertExpense(payloads);
+  await upsertActionExpense(actionId, actionDate, amount, organizationId, "automatica_da_lavatrici", "Lavanderia", description);
 }
 
 async function deleteLaundryExpense(actionId: string, organizationId: string) {
@@ -298,46 +280,8 @@ async function upsertShoppingExpense(
   organizationId: string,
   note?: string | null,
 ) {
-  const supabase = supabaseAdmin();
   const description = note?.trim() ? `Rifornimento - ${note.trim()}` : "Rifornimento";
-  const payloads = [
-    {
-      expense_date: actionDate,
-      amount,
-      category: "Rifornimento",
-      description,
-      origin: "automatica_da_rifornimento",
-      source_action_id: actionId,
-      organization_id: organizationId,
-    },
-    {
-      expense_date: actionDate,
-      amount,
-      category: "Rifornimento",
-      description,
-    },
-    {
-      date: actionDate,
-      amount,
-      category: "Rifornimento",
-      description,
-    },
-  ];
-
-  const existing = await supabase
-    .from("expenses")
-    .select("id")
-    .eq("organization_id", organizationId)
-    .eq("source_action_id", actionId)
-    .eq("origin", "automatica_da_rifornimento")
-    .maybeSingle();
-
-  if (!existing.error && existing.data?.id) {
-    const updated = await tryUpdateExpense(existing.data.id, payloads, organizationId);
-    if (updated) return;
-  }
-
-  await tryInsertExpense(payloads);
+  await upsertActionExpense(actionId, actionDate, amount, organizationId, "automatica_da_rifornimento", "Rifornimento", description);
 }
 
 async function deleteShoppingExpense(actionId: string, organizationId: string) {

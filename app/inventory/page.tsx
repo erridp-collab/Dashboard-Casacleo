@@ -132,6 +132,7 @@ export default function InventoryPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const restockInFlightRef = useRef<Set<string>>(new Set());
   const [savingStatusId, setSavingStatusId] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [csvFileName, setCsvFileName] = useState("");
@@ -196,6 +197,11 @@ export default function InventoryPage() {
   }
 
   async function restockProduct(id: string) {
+    // Synchronous guard against double-click/double-submit: React state
+    // updates (setLoading) are async, so relying on `loading` alone still
+    // lets a second click through before the re-render disables the button.
+    if (restockInFlightRef.current.has(id)) return;
+
     const draft = drafts[id] ?? { addQty: "", amount: "" };
     const addQty = toNum(draft.addQty.replace(",", "."), NaN);
     const amount = draft.amount.trim() === "" ? null : toNum(draft.amount.replace(",", "."), NaN);
@@ -209,34 +215,39 @@ export default function InventoryPage() {
       return;
     }
 
+    restockInFlightRef.current.add(id);
     setLoading(true);
     setError("");
     setSuccess("");
-    const result = await clientFetchJson<{ ok?: boolean; quantity?: number }>("/api/products/restock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id,
-        add_quantity: addQty,
-        amount,
-      }),
-    });
-    setLoading(false);
-    if (!result.ok) {
-      const msg = result.error ?? "Errore rifornimento";
-      setError(msg);
-      toast(msg, "error");
-      return;
-    }
+    try {
+      const result = await clientFetchJson<{ ok?: boolean; quantity?: number }>("/api/products/restock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          add_quantity: addQty,
+          amount,
+        }),
+      });
+      if (!result.ok) {
+        const msg = result.error ?? "Errore rifornimento";
+        setError(msg);
+        toast(msg, "error");
+        return;
+      }
 
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, quantity: result.data.quantity ?? p.quantity + addQty } : p,
-      ),
-    );
-    setSuccess("Rifornimento registrato con successo");
-    toast("Rifornimento registrato con successo", "success");
-    setDrafts((prev) => ({ ...prev, [id]: { addQty: "", amount: "" } }));
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, quantity: result.data.quantity ?? p.quantity + addQty } : p,
+        ),
+      );
+      setSuccess("Rifornimento registrato con successo");
+      toast("Rifornimento registrato con successo", "success");
+      setDrafts((prev) => ({ ...prev, [id]: { addQty: "", amount: "" } }));
+    } finally {
+      restockInFlightRef.current.delete(id);
+      setLoading(false);
+    }
   }
 
   async function updateProductStatus(id: string, stockStatus: StockStatus) {

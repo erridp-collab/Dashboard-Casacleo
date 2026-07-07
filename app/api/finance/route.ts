@@ -271,11 +271,8 @@ export async function DELETE(req: Request) {
     if (!id) return errJson("Missing id", 400);
 
     const supabase = supabaseAdmin();
-    const result = await supabase.from("expenses").delete().eq("organization_id", organizationId).eq("id", id).eq("origin", "manuale");
+    const result = await supabase.from("expenses").delete().eq("organization_id", organizationId).eq("id", id);
     const { error } = result;
-    if (error && String(error.code) === "42703" && String(error.message).includes("origin")) {
-      return errJson("La colonna expenses.origin non esiste nel database. Applica la migration prima di eliminare spese manuali in sicurezza.", 409);
-    }
     if (error) {
       console.error("[DELETE /api/finance] db error", error);
       return errJson("Errore nell'eliminazione della spesa", 400);

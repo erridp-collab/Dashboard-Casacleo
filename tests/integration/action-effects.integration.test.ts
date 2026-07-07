@@ -114,6 +114,28 @@ describe("action effects — PULIZIA integration", () => {
     expect(expenses.length).toBe(0);
   });
 
+  it("non crea spese duplicate quando FATTO viene applicato in concorrenza", async () => {
+    const actionDate = addDays(today(), 33);
+    const actionId = await insertAction(supabase, "PULIZIA", actionDate);
+    ids.actionIds.push(actionId);
+
+    const completion = { mode: "EXTERNAL" as const, external_amount: 80, note: "Race test" };
+    const results = await Promise.allSettled([
+      applyActionStatusEffects(actionId, "FATTO", completion, testOrgId),
+      applyActionStatusEffects(actionId, "FATTO", completion, testOrgId),
+    ]);
+
+    for (const result of results) {
+      expect(result.status).toBe("fulfilled");
+    }
+
+    const expenses = await getExpensesForAction(supabase, actionId);
+    for (const expense of expenses) ids.expenseIds.push(expense.id);
+    if (expenses.length > 0) {
+      expect(expenses.length).toBe(1);
+    }
+  });
+
   it("elimina la spesa quando torna a DA_FARE", async () => {
     const actionDate = addDays(today(), 32);
     const actionId = await insertAction(supabase, "PULIZIA", actionDate);
