@@ -3,6 +3,7 @@ import { resolveOrganizationId } from "@/lib/organizationContext";
 import { applyProductQuantityDeltas } from "@/lib/product-quantity";
 import { syncShoppingAction } from "@/lib/stock";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { todayLocalIT } from "@/lib/localDate";
 import type { LinenRole } from "@/lib/linen-roles";
 
 export type CleaningCompletion = {
@@ -582,7 +583,7 @@ export async function applyActionStatusEffects(
       const mode = completion?.mode ?? "SELF";
       const amount = Number(completion?.external_amount ?? 0);
       if (mode === "EXTERNAL" && Number.isFinite(amount) && amount > 0) {
-        await upsertCleaningExpense(actionId, String(actionRow.action_date), amount, resolvedOrganizationId, completion?.note);
+        await upsertCleaningExpense(actionId, todayLocalIT(), amount, resolvedOrganizationId, completion?.note);
       }
     } else {
       await deleteCleaningExpense(actionId, resolvedOrganizationId);
@@ -599,7 +600,7 @@ export async function applyActionStatusEffects(
       }
       const laundryAmount = Number(completion?.amount ?? 1.5);
       if (Number.isFinite(laundryAmount) && laundryAmount > 0) {
-        await upsertLaundryExpense(actionId, String(actionRow.action_date), laundryAmount, resolvedOrganizationId);
+        await upsertLaundryExpense(actionId, todayLocalIT(), laundryAmount, resolvedOrganizationId);
       }
     } else {
       const laundry = parseAppliedLaundryDetails(actionRow.details);
@@ -635,7 +636,7 @@ export async function applyActionStatusEffects(
       await applyShoppingRestock(actionId, String(actionRow.details ?? ""), resolvedOrganizationId);
       const amount = Number(completion?.amount ?? 0);
       if (Number.isFinite(amount) && amount > 0) {
-        await upsertShoppingExpense(actionId, String(actionRow.action_date), amount, resolvedOrganizationId, completion?.note);
+        await upsertShoppingExpense(actionId, todayLocalIT(), amount, resolvedOrganizationId, completion?.note);
       }
     } else {
       await deleteShoppingExpense(actionId, resolvedOrganizationId);

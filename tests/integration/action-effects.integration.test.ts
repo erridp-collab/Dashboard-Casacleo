@@ -61,11 +61,11 @@ async function insertAction(
 async function getExpensesForAction(
   supabase: ReturnType<typeof supabaseTest>,
   actionId: string,
-): Promise<Array<{ id: string; amount: number; category: string; origin: string | null }>> {
+): Promise<Array<{ id: string; amount: number; category: string; origin: string | null; expense_date: string | null }>> {
   // Try with source_action_id column (may not exist)
   const result = await supabase
     .from("expenses")
-    .select("id, amount, category, origin")
+    .select("id, amount, category, origin, expense_date")
     .eq("source_action_id", actionId);
 
   if (!result.error) return result.data ?? [];
@@ -100,6 +100,25 @@ describe("action effects — PULIZIA integration", () => {
       expect(expense.amount).toBe(80);
       expect(expense.category).toBe("Pulizie");
       ids.expenseIds.push(expense.id);
+    }
+  });
+
+  it("data la spesa con il giorno reale del completamento, non con la data futura programmata dell'azione", async () => {
+    const actionDate = addDays(today(), 30); // scheduled far in the future (e.g. a booking checkout)
+    const actionId = await insertAction(supabase, "PULIZIA", actionDate);
+    ids.actionIds.push(actionId);
+
+    await applyActionStatusEffects(actionId, "FATTO", {
+      mode: "EXTERNAL",
+      external_amount: 42,
+    }, testOrgId);
+
+    const expenses = await getExpensesForAction(supabase, actionId);
+    if (expenses.length > 0) {
+      const expense = expenses[0];
+      ids.expenseIds.push(expense.id);
+      expect(expense.expense_date).toBe(today());
+      expect(expense.expense_date).not.toBe(actionDate);
     }
   });
 
