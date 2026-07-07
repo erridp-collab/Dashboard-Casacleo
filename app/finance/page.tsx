@@ -8,7 +8,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { KpiCardSkeleton, Skeleton } from "@/components/skeleton";
 import { monthLabel } from "@/lib/format";
 import { todayLocalIT } from "@/lib/localDate";
-import { Plus, TrendingUp, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, TrendingUp, Trash2 } from "lucide-react";
 import type { MonthlyFinancePoint } from "@/types/db";
 
 // Recharts is a heavy dependency (~390 KB) used only by these two charts —
@@ -37,6 +37,7 @@ type FinanceEntry = {
   description: string;
   amount: number;
   origin: string;
+  detail?: string | null;
 };
 
 type FinanceResponse = {
@@ -65,6 +66,7 @@ export default function FinancePage() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey());
   const [data, setData] = useState<FinanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const requestSeqRef = useRef(0);
@@ -391,15 +393,31 @@ export default function FinancePage() {
                     <span className="shrink-0 text-sm font-semibold text-rose-700">
                       - EUR {row.amount.toFixed(2)}
                     </span>
+                    {row.detail && (
+                      <button
+                        onClick={() => setExpandedExpenseId((v) => (v === row.id ? null : row.id))}
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                        title="Dettagli rifornimento"
+                      >
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 transition-transform ${expandedExpenseId === row.id ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    )}
                     <button
                       onClick={() => void deleteExpense(row.id, row.origin)}
-                      className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-rose-600"
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-rose-600"
                       title="Elimina"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
+                {row.detail && expandedExpenseId === row.id && (
+                  <p className="mt-2 whitespace-pre-line rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
+                    {row.detail}
+                  </p>
+                )}
               </div>
             ))}
           </div>

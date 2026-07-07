@@ -12,6 +12,7 @@ type FinanceEntry = {
   description: string;
   amount: number;
   origin: string;
+  detail?: string | null;
 };
 
 function getMonthWindow(months: number, endingMonthDate = new Date()) {
@@ -102,6 +103,30 @@ export async function GET(req: Request) {
       return errJson("Errore nel recupero dei dati finanziari", 400);
     }
 
+    // Rifornimenti automatici store the restocked product list on the
+    // linked action's `details` column, not on the expense itself — fetch
+    // it so the UI can show it collapsed instead of on the main row.
+    const restockActionIds = [
+      ...new Set(
+        (expenses ?? [])
+          .filter((raw) => String((raw as Record<string, unknown>).origin) === "automatica_da_rifornimento")
+          .map((raw) => (raw as Record<string, unknown>).source_action_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    const restockDetailsByActionId = new Map<string, string>();
+    if (restockActionIds.length > 0) {
+      const { data: restockActions } = await supabase
+        .from("actions")
+        .select("id, details")
+        .eq("organization_id", organizationId)
+        .in("id", restockActionIds);
+      for (const raw of restockActions ?? []) {
+        const row = raw as Record<string, unknown>;
+        if (row.details) restockDetailsByActionId.set(String(row.id), String(row.details));
+      }
+    }
+
     const monthPoints: Record<string, { revenue: number; expenses: number; occupiedDays: number; daysInMonth: number }> = {};
 
     for (let i = 0; i < months; i += 1) {
@@ -155,6 +180,9 @@ export async function GET(req: Request) {
       monthPoints[key].expenses += amount;
 
       if (key === selectedMonth && amount > 0) {
+        const sourceActionId = row.source_action_id;
+        const detail =
+          typeof sourceActionId === "string" ? restockDetailsByActionId.get(sourceActionId) ?? null : null;
         entries.push({
           id: String(row.id ?? `expense-${date}-${amount}`),
           date,
@@ -163,6 +191,7 @@ export async function GET(req: Request) {
           description: String(row.description ?? row.category ?? "Spesa"),
           amount: Number(amount.toFixed(2)),
           origin: String(row.origin ?? "manuale"),
+          detail,
         });
       }
     }

@@ -34,6 +34,19 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/manifest.json")).toBe(true);
   });
 
+  it("permette /manifest.webmanifest (path reale servito da Next.js)", () => {
+    expect(isPublicPath("/manifest.webmanifest")).toBe(true);
+  });
+
+  it("permette le icone PWA e il service worker senza sessione (installazione Android/iOS le scarica senza cookie)", () => {
+    expect(isPublicPath("/icon-192.png")).toBe(true);
+    expect(isPublicPath("/icon-512.png")).toBe(true);
+    expect(isPublicPath("/icon-maskable-192.png")).toBe(true);
+    expect(isPublicPath("/apple-touch-icon.png")).toBe(true);
+    expect(isPublicPath("/alva-logo.png")).toBe(true);
+    expect(isPublicPath("/sw.js")).toBe(true);
+  });
+
   it("blocca /", () => {
     expect(isPublicPath("/")).toBe(false);
   });
