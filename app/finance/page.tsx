@@ -395,21 +395,23 @@ export default function FinancePage() {
                     </span>
                     {row.detail && (
                       <button
+                        type="button"
                         onClick={() => setExpandedExpenseId((v) => (v === row.id ? null : row.id))}
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                        className="inline-flex h-8 w-8 shrink-0 leading-none items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
                         title="Dettagli rifornimento"
                       >
                         <ChevronDown
-                          className={`h-3.5 w-3.5 transition-transform ${expandedExpenseId === row.id ? "rotate-180" : ""}`}
+                          className={`h-3.5 w-3.5 shrink-0 transition-transform ${expandedExpenseId === row.id ? "rotate-180" : ""}`}
                         />
                       </button>
                     )}
                     <button
+                      type="button"
                       onClick={() => void deleteExpense(row.id, row.origin)}
-                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-rose-600"
+                      className="inline-flex h-8 w-8 shrink-0 leading-none items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-rose-600"
                       title="Elimina"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5 shrink-0" />
                     </button>
                   </div>
                 </div>

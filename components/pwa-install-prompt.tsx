@@ -18,16 +18,22 @@ export function PwaInstallPrompt() {
     const dismissed = sessionStorage.getItem("pwa-prompt-dismissed");
     if (dismissed) return;
 
+    // Desktop Chrome/Edge also fire beforeinstallprompt for installable PWAs,
+    // but this banner is meant for phones only — skip it outside Android/iOS.
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
+    if (!isAndroid && !isIos) return;
+
+    if (isIos) setShowIosHint(true);
+
+    if (!isAndroid) return;
+
     // Android/Chrome: cattura l'evento prima che sparisca
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", handler);
-
-    // iOS Safari
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
-    if (isIos) setShowIosHint(true);
 
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
