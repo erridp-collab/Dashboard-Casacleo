@@ -20,11 +20,11 @@ const FinanceCharts = dynamic(() => import("./finance-charts"), {
   loading: () => (
     <div className="grid gap-4 xl:grid-cols-2">
       <Card>
-        <CardHeader title="Entrate vs Spese" subtitle="Trend" />
+        <CardHeader title="Entrate vs Spese" subtitle="Andamento" />
         <Skeleton className="h-52 md:h-60" />
       </Card>
       <Card>
-        <CardHeader title="Tasso occupazione" subtitle="Trend" />
+        <CardHeader title="Tasso occupazione" subtitle="Andamento" />
         <Skeleton className="h-52 md:h-60" />
       </Card>
     </div>
@@ -90,7 +90,7 @@ export default function FinancePage() {
     if (seq !== requestSeqRef.current) return;
     setLoading(false);
     if (!result.ok) {
-      if (!result.aborted) setError(result.error ?? "Errore finance");
+      if (!result.aborted) setError(result.error ?? "Non è stato possibile caricare i dati economici");
       return;
     }
     setData(result.data);
@@ -144,7 +144,7 @@ export default function FinancePage() {
     const message =
       origin === "manuale"
         ? "Eliminare questa spesa?"
-        : "Questa spesa e' stata generata automaticamente da un'azione. Eliminandola ora, verra' ricreata se l'azione collegata torna FATTO. Continuare?";
+        : "Questa spesa è stata generata automaticamente da un'azione. Eliminandola ora, verrà ricreata se l'azione collegata torna completata. Continuare?";
     if (!confirm(message)) return;
     const result = await clientFetchJson<{ ok: boolean }>(`/api/finance?id=${id}`, { method: "DELETE" });
     if (result.ok) {
@@ -184,9 +184,9 @@ export default function FinancePage() {
       
         <PageHeader
           title="Spese"
-          subtitle="Mese corrente, lista movimenti e trend di redditivita con un'impostazione piu leggibile."
+          subtitle="Mese corrente, lista movimenti e andamento della redditività, in un'impostazione più leggibile."
           icon={<TrendingUp className="h-5 w-5 text-sidebar-bg" />}
-          eyebrow="Finance"
+          eyebrow="Bilancio"
         />
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
@@ -204,7 +204,7 @@ export default function FinancePage() {
             />
           </label>
           <label className="text-sm text-zinc-600">
-            Analisi trend
+            Confronto nel tempo
             <select
               className="input-base mt-1"
               value={months}

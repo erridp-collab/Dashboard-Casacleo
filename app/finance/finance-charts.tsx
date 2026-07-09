@@ -17,7 +17,7 @@ export default function FinanceCharts({ rows, months }: { rows: ChartRow[]; mont
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <Card>
-        <CardHeader title="Entrate vs Spese" subtitle="Trend" action={<ChartColumn className="h-4 w-4 text-primary" />} />
+        <CardHeader title="Entrate vs Spese" subtitle="Andamento" action={<ChartColumn className="h-4 w-4 text-primary" />} />
         <div className="h-52 md:h-60">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>
@@ -47,7 +47,7 @@ export default function FinanceCharts({ rows, months }: { rows: ChartRow[]; mont
       </Card>
 
       <Card>
-        <CardHeader title="Tasso occupazione" subtitle="Trend" action={<LineChartIcon className="h-4 w-4 text-emerald-600" />} />
+        <CardHeader title="Tasso occupazione" subtitle="Andamento" action={<LineChartIcon className="h-4 w-4 text-emerald-600" />} />
         <div className="h-52 md:h-60">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ bottom: months >= 6 ? 20 : 0 }}>

@@ -413,13 +413,13 @@ function LinenForm({
         />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-700">Ruolo automazione</label>
+        <label className="mb-1.5 block text-xs font-medium text-zinc-700">Collegato a</label>
         <select
           className="input-base w-full"
           value={linenRole ?? ""}
           onChange={(e) => setLinenRole((e.target.value as LinenRole) || null)}
         >
-          <option value="">— nessun ruolo (solo tracciato) —</option>
+          <option value="">— nessun collegamento (solo tracciato) —</option>
           {LINEN_ROLES.map((role) => {
             const alreadyAssigned = assignedRoles.has(role.value) && product?.linen_role !== role.value;
             return (
@@ -570,7 +570,7 @@ function DeleteConfirm({
       </p>
       {product.linen_role && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          ⚠️ Questo prodotto ha un ruolo biancheria ({LINEN_ROLES.find((r) => r.value === product.linen_role)?.label}). Eliminandolo l&apos;automazione non consumerà più questo tipo di biancheria nelle prenotazioni future.
+          ⚠️ Questo prodotto è collegato al rifornimento automatico di {LINEN_ROLES.find((r) => r.value === product.linen_role)?.label}. Eliminandolo, questo tipo di biancheria non verrà più scalato automaticamente dalle prenotazioni future.
         </p>
       )}
       <div className="flex gap-3">

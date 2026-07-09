@@ -15,10 +15,10 @@ type WorkspaceSettingsFormProps = {
 };
 
 const TIMEZONE_OPTIONS = [
-  "Europe/Rome",
-  "Europe/Paris",
-  "Europe/Madrid",
-  "Europe/London",
+  { value: "Europe/Rome", label: "Roma" },
+  { value: "Europe/Paris", label: "Parigi" },
+  { value: "Europe/Madrid", label: "Madrid" },
+  { value: "Europe/London", label: "Londra" },
 ];
 
 const CURRENCY_OPTIONS = ["EUR", "USD", "GBP"];
@@ -29,8 +29,8 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
   const submitLabel = mode === "onboarding" ? "Completa onboarding" : "Salva impostazioni";
   const helperText =
     mode === "onboarding"
-      ? "Partiamo dai dati minimi del workspace: potrai rifinirli piu avanti senza bloccare l'operativita."
-      : "Questi dati definiscono il comportamento base del workspace attivo e si applicano subito.";
+      ? "Partiamo dai dati minimi della tua attività: potrai completarli più avanti senza bloccare l'operatività."
+      : "Questi dati definiscono il comportamento base della tua attività e si applicano subito.";
 
   return (
     <form action={formAction} className="space-y-5">
@@ -41,7 +41,7 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="name" className="mb-2 block label-base">
-            Nome workspace
+            Nome attività
           </label>
           <input
             id="name"
@@ -83,8 +83,8 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
             className="input-base"
           >
             {TIMEZONE_OPTIONS.map((timezone) => (
-              <option key={timezone} value={timezone}>
-                {timezone}
+              <option key={timezone.value} value={timezone.value}>
+                {timezone.label}
               </option>
             ))}
           </select>
@@ -111,7 +111,7 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
         <p className="text-xs text-text-tertiary">
           {mode === "onboarding"
             ? "Puoi modificare questi dati anche dopo, da Impostazioni."
-            : "Le modifiche si applicano subito al workspace attivo."}
+            : "Le modifiche si applicano subito alla tua attività."}
         </p>
         <button
           type="submit"

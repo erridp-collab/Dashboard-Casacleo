@@ -21,7 +21,7 @@ type Props = {
 
 const STATUS_CONFIG: Record<StockStatus, { label: string; bg: string; text: string; dot: string }> = {
   PIENO: { label: "Pieno", bg: "bg-emerald-100", text: "text-emerald-700", dot: "bg-emerald-500" },
-  A_META: { label: "A meta", bg: "bg-amber-100", text: "text-amber-700", dot: "bg-amber-400" },
+  A_META: { label: "A metà", bg: "bg-amber-100", text: "text-amber-700", dot: "bg-amber-400" },
   TERMINATO: { label: "Finito", bg: "bg-rose-100", text: "text-rose-700", dot: "bg-rose-500" },
 };
 
@@ -267,7 +267,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
               onChange={(e) => setMaintenanceNote(e.target.value)}
             />
             {maintenanceNote.trim() ? (
-              <p className="mt-1 text-xs text-amber-600">Verra creata un&apos;azione MANUTENZIONE con questa nota</p>
+              <p className="mt-1 text-xs text-amber-600">Verrà creata una segnalazione di manutenzione con questa nota</p>
             ) : null}
           </div>
 

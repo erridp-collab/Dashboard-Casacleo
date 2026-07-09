@@ -1,4 +1,4 @@
-import { getActionCategory } from "@/lib/actionMeta";
+import { getActionCategory, getActionTypeLabel } from "@/lib/actionMeta";
 import type { ActionStatus } from "@/types/db";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -20,7 +20,7 @@ export function StatusBadge({ status }: { status: ActionStatus }) {
       }`}
     >
       {status === "FATTO" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
-      {status}
+      {status === "FATTO" ? "Completata" : "Da fare"}
     </span>
   );
 }
@@ -82,7 +82,7 @@ export function ActionTypeBadge({ actionType }: { actionType: string }) {
       <div className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg ${config.iconBg}`}>
         <Icon className={`h-4 w-4 ${config.iconColor}`} />
       </div>
-      <span className={`text-xs font-semibold ${config.textColor}`}>{actionType}</span>
+      <span className={`text-xs font-semibold ${config.textColor}`}>{getActionTypeLabel(actionType)}</span>
     </div>
   );
 }

@@ -71,7 +71,7 @@ type ProductsResponse = {
 
 const STATUS_OPTIONS: Array<{ value: StockStatus; label: string; tone: string }> = [
   { value: "PIENO", label: "Pieno", tone: "bg-emerald-100 text-emerald-700" },
-  { value: "A_META", label: "A meta", tone: "bg-amber-100 text-amber-700" },
+  { value: "A_META", label: "A metà", tone: "bg-amber-100 text-amber-700" },
   { value: "TERMINATO", label: "Finito", tone: "bg-rose-100 text-rose-700" },
 ];
 
@@ -156,7 +156,7 @@ export default function InventoryPage() {
       const result = await clientFetchJson<ProductsResponse>("/api/products", { signal });
       if (seq !== productsRequestSeqRef.current) return;
       if (!result.ok) {
-        if (!result.aborted) setError(result.error ?? "Errore caricamento");
+        if (!result.aborted) setError(result.error ?? "Non è stato possibile caricare i prodotti");
         return;
       }
 
@@ -193,7 +193,7 @@ export default function InventoryPage() {
       });
     } catch (e: unknown) {
       console.error("Failed to load products", e);
-      setError("Errore caricamento");
+      setError("Non è stato possibile caricare i prodotti");
     } finally {
       setLoadingProducts(false);
     }
@@ -210,7 +210,7 @@ export default function InventoryPage() {
     const amount = draft.amount.trim() === "" ? null : toNum(draft.amount.replace(",", "."), NaN);
 
     if (!Number.isFinite(addQty) || addQty <= 0) {
-      setError("Quantita rifornimento non valida");
+      setError("Quantità rifornimento non valida");
       return;
     }
     if (amount !== null && (!Number.isFinite(amount) || amount <= 0)) {
@@ -233,7 +233,7 @@ export default function InventoryPage() {
         }),
       });
       if (!result.ok) {
-        const msg = result.error ?? "Errore rifornimento";
+        const msg = result.error ?? "Non è stato possibile registrare il rifornimento";
         setError(msg);
         toast(msg, "error");
         return;
@@ -474,7 +474,7 @@ export default function InventoryPage() {
 
         const qtyVal = parseNumber(row[headerIndex.get(qtyKey) ?? -1]);
         if (qtyVal === null) {
-          nextErrors.push(`Riga ${rowNum}: quantita non valida`);
+          nextErrors.push(`Riga ${rowNum}: quantità non valida`);
           return;
         }
 
@@ -548,9 +548,9 @@ export default function InventoryPage() {
       
       <PageHeader
         title="Rifornimento"
-        subtitle="Consumabili monitorati a stati e biancheria gestita a quantita in una sola console."
+        subtitle="Consumabili monitorati a stati e biancheria gestita a quantità in una sola console."
         icon={<Package className="h-5 w-5 text-sidebar-bg" />}
-        eyebrow="Inventory"
+        eyebrow="Magazzino"
       />
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
@@ -560,21 +560,21 @@ export default function InventoryPage() {
         <KpiCard
           title="Prodotti Monitorati"
           value={String(monitoredProducts.length)}
-          subtitle="Elementi attivi nella console refill"
+          subtitle="Elementi attivi nel pannello scorte"
           status={monitoredProducts.length > 0 ? "ok" : "neutral"}
           icon={Package}
         />
         <KpiCard
           title="Consumabili In Evidenza"
           value={String(visibleStatusProducts.length)}
-          subtitle={consumableAttentionCount > 0 ? `${consumableAttentionCount} richiedono attenzione` : "Nessuna criticita aperta"}
+          subtitle={consumableAttentionCount > 0 ? `${consumableAttentionCount} richiedono attenzione` : "Nessuna criticità aperta"}
           status={consumableAttentionCount > 0 ? "warn" : "ok"}
           icon={AlertTriangle}
         />
         <KpiCard
           title="Biancheria In Evidenza"
           value={String(visibleQuantityProducts.length)}
-          subtitle={linenAttentionCount > 0 ? `${linenAttentionCount} da rivedere` : "Stock in equilibrio"}
+          subtitle={linenAttentionCount > 0 ? `${linenAttentionCount} da rivedere` : "Scorte a posto"}
           status={linenAttentionCount > 0 ? "warn" : "ok"}
           icon={ShoppingCart}
         />
@@ -761,7 +761,7 @@ export default function InventoryPage() {
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <span className="text-3xl">OK</span>
             <p className="text-sm font-medium text-zinc-700">Nessun consumabile da monitorare</p>
-            <p className="text-xs text-zinc-400">I consumabili usano PIENO, A_META e TERMINATO.</p>
+            <p className="text-xs text-zinc-400">Gli stati possibili sono Pieno, A metà e Finito.</p>
           </div>
         ) : (
           <>
@@ -856,7 +856,7 @@ export default function InventoryPage() {
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <span className="text-3xl">✅</span>
             <p className="text-sm font-medium text-zinc-700">Nessuna biancheria da monitorare</p>
-            <p className="text-xs text-zinc-400">Set letto, asciugamani e tessili restano gestiti a quantita.</p>
+            <p className="text-xs text-zinc-400">Set letto, asciugamani e tessili restano gestiti a quantità.</p>
           </div>
         ) : (
           <>

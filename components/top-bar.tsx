@@ -35,7 +35,7 @@ export function TopBar() {
           <Image src="/alva-logo.png" alt="" width={30} height={30} className="h-7 w-7 shrink-0 rounded-lg" priority />
           <div className="leading-none">
             <div className="text-[13px] font-semibold tracking-[0.08em] text-white/92">ALVA HOST</div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand/80">Operations Suite</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand/80">Gestione operativa</div>
           </div>
         </Link>
 

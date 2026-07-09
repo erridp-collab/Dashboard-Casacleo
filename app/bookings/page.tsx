@@ -151,7 +151,7 @@ export default function BookingsPage() {
       }),
     });
     if (!result.ok) {
-      const msg = result.error ?? "Errore update";
+      const msg = result.error ?? "Non è stato possibile salvare le modifiche";
       setError(msg);
       toast(msg, "error");
       return;
@@ -173,7 +173,7 @@ export default function BookingsPage() {
     if (!confirm("Eliminare prenotazione e azioni collegate?")) return;
     const result = await clientFetchJson<{ ok?: boolean }>(`/api/bookings/${id}`, { method: "DELETE" });
     if (!result.ok) {
-      const msg = result.error ?? "Errore delete";
+      const msg = result.error ?? "Non è stato possibile eliminare la prenotazione";
       setError(msg);
       toast(msg, "error");
       return;
@@ -222,7 +222,7 @@ export default function BookingsPage() {
         title="Prenotazioni"
         subtitle="Gestione soggiorni, importi e azioni collegate in un'unica vista operativa."
         icon={<BedDouble className="h-5 w-5 text-sidebar-bg" />}
-        eyebrow="Revenue"
+        eyebrow="Incassi"
       />
 
       <Card>
@@ -316,7 +316,7 @@ export default function BookingsPage() {
             <p className="max-w-[280px] text-sm text-zinc-500">
               {bookings.length === 0
                 ? "Aggiungi la prima prenotazione usando il modulo qui sopra per iniziare."
-                : "Tutte le prenotazioni visibili sono già state pulite (le prenotazioni FATTO sono nascoste)."}
+                : "Tutte le prenotazioni sono già state pulite (le prenotazioni completate sono nascoste)."}
             </p>
           </div>
         ) : (

@@ -110,7 +110,7 @@ export default function ResetPasswordPage() {
       <AuthShell
         icon={<KeyRound className="h-5 w-5" />}
         title="Link non valido"
-        subtitle="Il link di reset e mancante, scaduto oppure non e piu utilizzabile."
+        subtitle="Il link di reset è mancante, scaduto oppure non è più utilizzabile."
         footer={
           <Link href="/forgot-password" className="font-semibold text-sidebar-bg transition hover:text-primary">
             Richiedi un nuovo link

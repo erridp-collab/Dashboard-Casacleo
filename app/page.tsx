@@ -42,12 +42,12 @@ export default function DashboardPage() {
 
       if (!bookingsRes.ok) {
         if (bookingsRes.aborted) return;
-        setError(bookingsRes.error || "Errore bookings");
+        setError(bookingsRes.error || "Non è stato possibile caricare le prenotazioni");
         return;
       }
       if (!actionsRes.ok) {
         if (actionsRes.aborted) return;
-        setError(actionsRes.error || "Errore actions");
+        setError(actionsRes.error || "Non è stato possibile caricare le azioni");
         return;
       }
 
@@ -55,7 +55,7 @@ export default function DashboardPage() {
       setActions(actionsRes.data.actions ?? []);
     } catch (e: unknown) {
       console.error("Dashboard load failed", e);
-      setError("Errore caricamento");
+      setError("Non è stato possibile caricare i dati");
     } finally {
       setLoading(false);
     }
@@ -81,10 +81,10 @@ export default function DashboardPage() {
   return (
     <section className="space-y-6">
       <PageHeader
-        title="Dashboard"
-        subtitle="Panoramica operativa giornaliera con focus su attivita, prenotazioni e calendario."
+        title="Riepilogo"
+        subtitle="Panoramica operativa giornaliera con focus su attività, prenotazioni e calendario."
         icon={<LayoutDashboard className="h-5 w-5 text-sidebar-bg" />}
-        eyebrow="Overview"
+        eyebrow="Oggi"
       />
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}

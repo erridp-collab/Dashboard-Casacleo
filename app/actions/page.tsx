@@ -8,6 +8,7 @@ import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
 import { CleaningModal } from "@/components/cleaning-modal";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { getActionTypeLabel } from "@/lib/actionMeta";
 import { InlineAlert } from "@/components/inline-alert";
 import { todayLocalIT } from "@/lib/localDate";
 import { PageHeader } from "@/components/page-header";
@@ -321,13 +322,13 @@ export default function ActionsPage() {
     try {
       const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${from}&to=${to}`, { signal: ctrl.signal });
       if (!result.ok) {
-        if (!result.aborted) setError(result.error ?? "Errore");
+        if (!result.aborted) setError(result.error ?? "Non è stato possibile caricare le azioni");
         return;
       }
       setActions(result.data.actions ?? []);
     } catch (e: unknown) {
       console.error("Actions load failed", e);
-      setError("Errore caricamento");
+      setError("Non è stato possibile caricare le azioni");
     }
   }, [from, to]);
 
@@ -344,7 +345,7 @@ export default function ActionsPage() {
     try {
       const result = await clientFetchJson<BookingResponse>(`/api/bookings/${action.booking_id}`);
       if (!result.ok) {
-        setLinenError(result.error ?? "Errore caricamento booking");
+        setLinenError(result.error ?? "Non è stato possibile caricare la prenotazione");
         setLinenDraft(fillLinenDraft(buildLinenSuggestion(2), existing));
         return;
       }
@@ -513,7 +514,7 @@ export default function ActionsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!result.ok) return setError(result.error ?? "Errore update");
+    if (!result.ok) return setError(result.error ?? "Non è stato possibile salvare le modifiche");
     setActions((prev) => prev.map((x) => (x.id === action.id ? { ...x, status: next } : x)));
     toast(next === "FATTO" ? "Azione completata!" : "Azione segnata da fare", "success");
   }
@@ -524,7 +525,7 @@ export default function ActionsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date: actionDate, status: "FATTO", onlyPending: true }),
     });
-    if (!result.ok) return setError(result.error ?? "Errore mark all");
+    if (!result.ok) return setError(result.error ?? "Non è stato possibile completare le azioni della giornata");
     setActions((prev) => prev.map((x) => (x.action_date === actionDate ? { ...x, status: "FATTO" } : x)));
     toast("Tutte le azioni del giorno segnate come fatte!");
   }
@@ -551,7 +552,7 @@ export default function ActionsPage() {
         title="Azioni"
         subtitle="Lista operativa raggruppata per data, con focus su esecuzione e completamento."
         icon={<CheckSquare className="h-5 w-5 text-sidebar-bg" />}
-        eyebrow="Operations"
+        eyebrow="Attività"
       />
 
       <Card>
@@ -567,7 +568,7 @@ export default function ActionsPage() {
               }}
             >
               <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Mese prec.</span>
+              <span className="hidden sm:inline">Mese precedente</span>
             </button>
             <span className="text-sm font-medium capitalize text-zinc-800">{monthLabel}</span>
             <button
@@ -578,7 +579,7 @@ export default function ActionsPage() {
                 setMonthCursor(monthStartKey(d));
               }}
             >
-              <span className="hidden sm:inline">Mese succ.</span>
+              <span className="hidden sm:inline">Mese successivo</span>
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -591,7 +592,7 @@ export default function ActionsPage() {
           </button>
           <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm text-zinc-600">
             <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
-            Mostra FATTO
+            Mostra completate
           </label>
           <button
             className="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 px-3 text-sm text-zinc-700 hover:bg-zinc-50"
@@ -604,7 +605,7 @@ export default function ActionsPage() {
               }
             }}
           >
-            Range avanzato
+            Periodo personalizzato
           </button>
           {showAdvancedRange ? (
             <div className="col-span-full grid gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 sm:grid-cols-3">
@@ -634,19 +635,19 @@ export default function ActionsPage() {
                 className="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-100"
                 onClick={() => {
                   if (!fromDraft || !toDraft || fromDraft > toDraft) {
-                    setError("Range date non valido");
+                    setError("Periodo non valido");
                     return;
                   }
                   setMonthCursor(fromDraft.slice(0, 8) + "01");
                   void (async () => {
                     setError("");
                     const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${fromDraft}&to=${toDraft}`);
-                    if (!result.ok) return setError(result.error ?? "Errore");
+                    if (!result.ok) return setError(result.error ?? "Non è stato possibile caricare le azioni");
                     setActions(result.data.actions ?? []);
                   })();
                 }}
               >
-                Applica range
+                Applica periodo
               </button>
             </div>
           ) : null}
@@ -668,7 +669,7 @@ export default function ActionsPage() {
                 onClick={() => void markDayDone(date)}
               >
                 <CheckCheck className="h-3.5 w-3.5 text-emerald-600" />
-                Segna tutto FATTO
+                Segna tutto come completato
               </button>
             </div>
             <div className="space-y-2">
@@ -724,7 +725,7 @@ export default function ActionsPage() {
               </div>
               <p className="text-base font-medium text-zinc-800">Nessuna azione trovata</p>
               <p className="max-w-[280px] text-sm text-zinc-500">
-                Nessuna azione pianificata nel range selezionato. Le azioni vengono generate automaticamente in base alle prenotazioni.
+                Nessuna azione pianificata nel periodo selezionato. Le azioni vengono generate automaticamente in base alle prenotazioni.
               </p>
             </div>
           </Card>
@@ -733,7 +734,7 @@ export default function ActionsPage() {
 
       <ActionChecklistModal
         actionId={selectedAction?.id ?? null}
-        title={selectedAction ? `Checklist ${selectedAction.action_type}` : "Checklist"}
+        title={selectedAction ? `Checklist ${getActionTypeLabel(selectedAction.action_type)}` : "Checklist"}
         onClose={() => setSelectedAction(null)}
         onActionStatusChange={(actionId, nextStatus) => {
           setActions((prev) => prev.map((a) => (a.id === actionId ? { ...a, status: nextStatus } : a)));
