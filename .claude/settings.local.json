@@ -14,7 +14,33 @@
       "Bash(grep -v \"^$\")",
       "Bash(docker exec *)",
       "mcp__claude_ai_Supabase__execute_sql",
-      "mcp__claude_ai_Supabase__apply_migration"
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(grep -r \"navigator\" \"c:/Users/Enrico/Desktop/Buisness manager/app/\" --include=\"*.tsx\" --include=\"*.ts\" -n 2>/dev/null | grep -v node_modules | head -20)",
+      "Read(//c/Users/Enrico/Desktop/Buisness manager/app/**)",
+      "PowerShell($src = \"C:\\\\Users\\\\Enrico\\\\Desktop\\\\Buisness manager\\\\public\"; $dst = \"C:\\\\Users\\\\Enrico\\\\airbnb-manager\\\\public\"; Copy-Item \"$src\\\\icon-192.png\" \"$dst\\\\icon-192.png\"; Copy-Item \"$src\\\\icon-512.png\" \"$dst\\\\icon-512.png\"; Copy-Item \"$src\\\\icon-maskable-192.png\" \"$dst\\\\icon-maskable-192.png\"; Copy-Item \"$src\\\\apple-touch-icon.png\" \"$dst\\\\apple-touch-icon.png\"; Copy-Item \"$src\\\\badge-72.png\" \"$dst\\\\badge-72.png\")",
+      "PowerShell(ls \"C:\\\\Users\\\\Enrico\\\\airbnb-manager\\\\public\\\\\" | Where-Object { $_.Name -match \"icon|badge|apple\" })",
+      "PowerShell(git -C \"C:\\\\Users\\\\Enrico\\\\airbnb-manager\" add public/icon-192.png public/icon-512.png public/icon-maskable-192.png public/apple-touch-icon.png public/badge-72.png)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Enrico\\\\airbnb-manager\" commit -m \"feat: add PWA icons \\(192, 512, maskable, apple-touch, badge\\)\")",
+      "PowerShell(git -C \"C:\\\\Users\\\\Enrico\\\\airbnb-manager\" status)",
+      "PowerShell(ls \"C:\\\\Users\\\\Enrico\\\\airbnb-manager\\\\public\\\\\" | Where-Object { $_.Name -match \"icon|badge|apple\" } | Select-Object Name, Length)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Enrico\\\\airbnb-manager\" add public/sw.js components/sw-register.tsx app/layout.tsx)",
+      "Read(//c/Users/Enrico/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/**)",
+      "Bash(C:/Users/Enrico/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/scripts/start-server.sh --project-dir \"c:/Users/Enrico/airbnb-manager\")",
+      "Read(//c/Users/Enrico/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/**)",
+      "Bash(C:/Users/Enrico/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh --project-dir \"c:/Users/Enrico/airbnb-manager\")",
+      "PowerShell(cd C:\\\\Users\\\\Enrico\\\\airbnb-manager; npx tsc --noEmit 2>&1; echo \"EXIT:$LASTEXITCODE\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Enrico\\\\airbnb-manager\\\\app\\\\api\\\\products\\\\[id]\")",
+      "Bash(npx tsc *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "PowerShell(cd C:\\\\Users\\\\Enrico\\\\airbnb-manager; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"node_modules\" } | Select-Object -First 30)",
+      "Bash(mkdir -p \"c:/Users/Enrico/airbnb-manager/docs/superpowers/specs\")",
+      "Bash(sort -k5 -n -r)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Enrico\\airbnb-manager\\app\\api\\products",
+      "c:\\Users\\Enrico\\airbnb-manager\\docs\\superpowers\\specs"
     ]
   }
 }

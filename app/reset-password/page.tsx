@@ -4,6 +4,8 @@ import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound } from "lucide-react";
+import { AuthShell } from "@/components/auth-shell";
+import { InlineAlert } from "@/components/inline-alert";
 import { supabaseBrowserClient } from "@/lib/supabaseBrowser";
 
 type PageStatus = "checking" | "ready" | "invalid" | "pending" | "success" | "error";
@@ -93,116 +95,101 @@ export default function ResetPasswordPage() {
 
   if (status === "checking") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <p className="text-sm text-zinc-500">Verifica del link in corso...</p>
-      </div>
+      <AuthShell
+        icon={<KeyRound className="h-5 w-5" />}
+        title="Verifica del link"
+        subtitle="Stiamo controllando il token di recupero prima di mostrarti il form."
+      >
+        <InlineAlert tone="info">Verifica del link in corso...</InlineAlert>
+      </AuthShell>
     );
   }
 
   if (status === "invalid" || !tokens) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md space-y-6 rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-xl">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100">
-            <KeyRound className="h-6 w-6 text-zinc-900" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Link non valido</h2>
-            <p className="mt-2 text-sm text-zinc-600">
-              Il link di reset è mancante, scaduto oppure non è più utilizzabile.
-            </p>
-          </div>
-          <Link
-            href="/forgot-password"
-            className="inline-flex justify-center rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
-          >
+      <AuthShell
+        icon={<KeyRound className="h-5 w-5" />}
+        title="Link non valido"
+        subtitle="Il link di reset è mancante, scaduto oppure non è più utilizzabile."
+        footer={
+          <Link href="/forgot-password" className="font-semibold text-sidebar-bg transition hover:text-primary">
             Richiedi un nuovo link
           </Link>
-        </div>
-      </div>
+        }
+      >
+        <InlineAlert tone="warning" title="Serve un nuovo reset">
+          Richiedi un nuovo link per continuare in sicurezza.
+        </InlineAlert>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 rounded-2xl border border-zinc-200 bg-white p-8 shadow-xl">
-        <div className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100">
-            <KeyRound className="h-6 w-6 text-zinc-900" />
-          </div>
-          <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-zinc-900">
-            Nuova password
-          </h2>
-          <p className="mt-2 text-sm text-zinc-600">
-            Scegli una password sicura per il tuo account.
-          </p>
-        </div>
-
-        {status === "success" ? (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm text-emerald-700">
-            <p className="font-medium">Password aggiornata</p>
-            <p className="mt-1">Accesso in corso...</p>
-          </div>
-        ) : (
-          <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-1">
-              <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
-                Nuova password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  minLength={8}
-                  className="block w-full rounded-xl border border-zinc-300 px-3 py-3 pr-11 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
-                  placeholder="Almeno 8 caratteri"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                  aria-label={showPassword ? "Nascondi password" : "Mostra password"}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="confirm_password" className="block text-sm font-medium text-zinc-700">
-                Conferma password
-              </label>
+    <AuthShell
+      icon={<KeyRound className="h-5 w-5" />}
+      title="Nuova password"
+      subtitle="Scegli una password sicura per il tuo account e confermala qui sotto."
+      footer={
+        <Link href="/login" className="font-semibold text-sidebar-bg transition hover:text-primary">
+          Torna al login
+        </Link>
+      }
+    >
+      {status === "success" ? (
+        <InlineAlert tone="success" title="Password aggiornata">
+          <p>Accesso in corso...</p>
+        </InlineAlert>
+      ) : (
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="label-base">
+              Nuova password
+            </label>
+            <div className="relative">
               <input
-                id="confirm_password"
-                name="confirm_password"
+                id="password"
+                name="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 required
                 minLength={8}
-                className="block w-full rounded-xl border border-zinc-300 px-3 py-3 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
-                placeholder="Ripeti la password"
+                className="input-base pr-11"
+                placeholder="Almeno 8 caratteri"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary transition hover:text-text-primary"
+                aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
+          </div>
 
-            {(status === "error" || errorMessage) && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-                {errorMessage}
-              </div>
-            )}
+          <div className="space-y-1.5">
+            <label htmlFor="confirm_password" className="label-base">
+              Conferma password
+            </label>
+            <input
+              id="confirm_password"
+              name="confirm_password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              required
+              minLength={8}
+              className="input-base"
+              placeholder="Ripeti la password"
+            />
+          </div>
 
-            <button
-              type="submit"
-              disabled={status === "pending"}
-              className="flex w-full justify-center rounded-xl border border-transparent bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 disabled:opacity-50"
-            >
-              {status === "pending" ? "Aggiornamento..." : "Imposta nuova password"}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
+          {status === "error" || errorMessage ? <InlineAlert tone="error">{errorMessage}</InlineAlert> : null}
+
+          <button type="submit" disabled={status === "pending"} className="btn-primary w-full">
+            {status === "pending" ? "Aggiornamento..." : "Imposta nuova password"}
+          </button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

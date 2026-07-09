@@ -7,7 +7,9 @@ import dynamic from "next/dynamic";
 const CalendarClient = dynamic(() => import("@/app/calendar/calendar-client"), { ssr: false });
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { InlineAlert } from "@/components/inline-alert";
 import { KpiCard } from "@/components/kpi-card";
+import { PageHeader } from "@/components/page-header";
 import { KpiCardSkeleton } from "@/components/skeleton";
 import type { Action, Booking } from "@/types/db";
 import { todayLocalIT } from "@/lib/localDate";
@@ -40,12 +42,12 @@ export default function DashboardPage() {
 
       if (!bookingsRes.ok) {
         if (bookingsRes.aborted) return;
-        setError(bookingsRes.error || "Errore bookings");
+        setError(bookingsRes.error || "Non è stato possibile caricare le prenotazioni");
         return;
       }
       if (!actionsRes.ok) {
         if (actionsRes.aborted) return;
-        setError(actionsRes.error || "Errore actions");
+        setError(actionsRes.error || "Non è stato possibile caricare le azioni");
         return;
       }
 
@@ -53,7 +55,7 @@ export default function DashboardPage() {
       setActions(actionsRes.data.actions ?? []);
     } catch (e: unknown) {
       console.error("Dashboard load failed", e);
-      setError("Errore caricamento");
+      setError("Non è stato possibile caricare i dati");
     } finally {
       setLoading(false);
     }
@@ -78,17 +80,14 @@ export default function DashboardPage() {
 
   return (
     <section className="space-y-6">
-      <header className="flex items-center gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
-          <LayoutDashboard className="h-5 w-5 text-brand" />
-        </div>
-        <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Dashboard</h1>
-          <p className="mt-1 text-xs text-text-secondary">Panoramica operativa giornaliera</p>
-        </div>
-      </header>
+      <PageHeader
+        title="Riepilogo"
+        subtitle="Panoramica operativa giornaliera con focus su attività, prenotazioni e calendario."
+        icon={<LayoutDashboard className="h-5 w-5 text-sidebar-bg" />}
+        eyebrow="Oggi"
+      />
 
-      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading ? (

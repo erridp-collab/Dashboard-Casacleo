@@ -4,6 +4,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { InlineAlert } from "@/components/inline-alert";
+import { PageHeader } from "@/components/page-header";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
@@ -149,7 +151,7 @@ export default function BookingsPage() {
       }),
     });
     if (!result.ok) {
-      const msg = result.error ?? "Errore update";
+      const msg = result.error ?? "Non è stato possibile salvare le modifiche";
       setError(msg);
       toast(msg, "error");
       return;
@@ -171,7 +173,7 @@ export default function BookingsPage() {
     if (!confirm("Eliminare prenotazione e azioni collegate?")) return;
     const result = await clientFetchJson<{ ok?: boolean }>(`/api/bookings/${id}`, { method: "DELETE" });
     if (!result.ok) {
-      const msg = result.error ?? "Errore delete";
+      const msg = result.error ?? "Non è stato possibile eliminare la prenotazione";
       setError(msg);
       toast(msg, "error");
       return;
@@ -216,15 +218,12 @@ export default function BookingsPage() {
 
   return (
     <section className="space-y-6">
-      <header className="flex items-center gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
-          <BedDouble className="h-5 w-5 text-brand" />
-        </div>
-        <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Prenotazioni</h1>
-          <p className="mt-1 text-xs text-text-secondary">Gestione prenotazioni e azioni collegate</p>
-        </div>
-      </header>
+      <PageHeader
+        title="Prenotazioni"
+        subtitle="Gestione soggiorni, importi e azioni collegate in un'unica vista operativa."
+        icon={<BedDouble className="h-5 w-5 text-sidebar-bg" />}
+        eyebrow="Incassi"
+      />
 
       <Card>
         {/* Header con toggle su mobile, statico su desktop */}
@@ -275,7 +274,7 @@ export default function BookingsPage() {
         </div>
       </Card>
 
-      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
       <Card>
         <CardHeader
@@ -317,7 +316,7 @@ export default function BookingsPage() {
             <p className="max-w-[280px] text-sm text-zinc-500">
               {bookings.length === 0
                 ? "Aggiungi la prima prenotazione usando il modulo qui sopra per iniziare."
-                : "Tutte le prenotazioni visibili sono già state pulite (le prenotazioni FATTO sono nascoste)."}
+                : "Tutte le prenotazioni sono già state pulite (le prenotazioni completate sono nascoste)."}
             </p>
           </div>
         ) : (

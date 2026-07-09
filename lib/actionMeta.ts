@@ -15,3 +15,14 @@ export function getActionCategory(actionType: string): "cleaning" | "laundry" | 
   if (upper.includes("MANUT")) return "maintenance";
   return "shopping";
 }
+
+export function getActionTypeLabel(actionType: string): string {
+  const upper = actionType.toUpperCase();
+  if (upper.includes("BIANCHERIA")) return "Cambio biancheria";
+  if (upper.includes("PREPARA_LETTO")) return "Preparazione letto";
+  if (upper.includes("PULIZIA")) return "Pulizia";
+  if (upper.includes("LAVATRICI") || upper.includes("LAVAND")) return "Lavatrici";
+  if (upper.includes("MANUT")) return "Manutenzione";
+  if (upper === "SPESA") return "Spesa";
+  return "Attività";
+}

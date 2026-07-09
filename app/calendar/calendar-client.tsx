@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import itLocale from "@fullcalendar/core/locales/it";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import type { Action, Booking } from "@/types/db";
 import { ACTION_COLORS, getActionCategory } from "@/lib/actionMeta";
@@ -52,7 +53,7 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
 
       if (!actionsRes.ok) {
         if (actionsRes.aborted) return;
-        setError(actionsRes.error || "Errore actions");
+        setError(actionsRes.error || "Non è stato possibile caricare le azioni");
         return;
       }
 
@@ -60,7 +61,7 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
       setRange({ from: nextFrom, to: nextTo });
     } catch (e: unknown) {
       console.error("Calendar load failed", e);
-      setError("Errore caricamento");
+      setError("Non è stato possibile caricare il calendario");
     }
   }
 
@@ -124,6 +125,7 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
         initialDate={todayLocalIT()}
+        locale={itLocale}
         events={events}
         headerToolbar={{
           left: "prev,next today",

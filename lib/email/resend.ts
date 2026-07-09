@@ -200,7 +200,7 @@ export type WelcomeEmailParams = {
 };
 
 export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<void> {
-  const { email, fullName, organizationName, setPasswordUrl, siteUrl } = params;
+  const { email, fullName, organizationName, setPasswordUrl } = params;
 
   // ── TESTI PERSONALIZZABILI ──────────────────────────────────────────────────
   const SUBJECT = `Benvenuto su Alva Host Manager — ${organizationName}`;

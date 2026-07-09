@@ -4,7 +4,9 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { InlineAlert } from "@/components/inline-alert";
 import { KpiCard } from "@/components/kpi-card";
+import { PageHeader } from "@/components/page-header";
 import { KpiCardSkeleton, Skeleton } from "@/components/skeleton";
 import { monthLabel } from "@/lib/format";
 import { todayLocalIT } from "@/lib/localDate";
@@ -18,11 +20,11 @@ const FinanceCharts = dynamic(() => import("./finance-charts"), {
   loading: () => (
     <div className="grid gap-4 xl:grid-cols-2">
       <Card>
-        <CardHeader title="Entrate vs Spese" subtitle="Trend" />
+        <CardHeader title="Entrate vs Spese" subtitle="Andamento" />
         <Skeleton className="h-52 md:h-60" />
       </Card>
       <Card>
-        <CardHeader title="Tasso occupazione" subtitle="Trend" />
+        <CardHeader title="Tasso occupazione" subtitle="Andamento" />
         <Skeleton className="h-52 md:h-60" />
       </Card>
     </div>
@@ -88,7 +90,7 @@ export default function FinancePage() {
     if (seq !== requestSeqRef.current) return;
     setLoading(false);
     if (!result.ok) {
-      if (!result.aborted) setError(result.error ?? "Errore finance");
+      if (!result.aborted) setError(result.error ?? "Non è stato possibile caricare i dati economici");
       return;
     }
     setData(result.data);
@@ -142,7 +144,7 @@ export default function FinancePage() {
     const message =
       origin === "manuale"
         ? "Eliminare questa spesa?"
-        : "Questa spesa e' stata generata automaticamente da un'azione. Eliminandola ora, verra' ricreata se l'azione collegata torna FATTO. Continuare?";
+        : "Questa spesa è stata generata automaticamente da un'azione. Eliminandola ora, verrà ricreata se l'azione collegata torna completata. Continuare?";
     if (!confirm(message)) return;
     const result = await clientFetchJson<{ ok: boolean }>(`/api/finance?id=${id}`, { method: "DELETE" });
     if (result.ok) {
@@ -179,17 +181,15 @@ export default function FinancePage() {
 
   return (
     <section className="space-y-6">
-      <header className="flex items-center gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
-          <TrendingUp className="h-5 w-5 text-brand" />
-        </div>
-        <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Spese</h1>
-          <p className="mt-1 text-xs text-text-secondary">Mese corrente con lista movimenti e analisi trend</p>
-        </div>
-      </header>
+      
+        <PageHeader
+          title="Spese"
+          subtitle="Mese corrente, lista movimenti e andamento della redditività, in un'impostazione più leggibile."
+          icon={<TrendingUp className="h-5 w-5 text-sidebar-bg" />}
+          eyebrow="Bilancio"
+        />
 
-      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
       <Card>
         <CardHeader title="Periodo" subtitle="Controlla mese e orizzonte analisi" />
@@ -204,7 +204,7 @@ export default function FinancePage() {
             />
           </label>
           <label className="text-sm text-zinc-600">
-            Analisi trend
+            Confronto nel tempo
             <select
               className="input-base mt-1"
               value={months}
@@ -430,3 +430,4 @@ export default function FinancePage() {
     </section>
   );
 }
+

@@ -8,11 +8,11 @@ Guida operativa completa per la gestione quotidiana degli affitti brevi tramite 
 
 1. [Primo accesso](#1-primo-accesso)
 2. [Accesso quotidiano (Login)](#2-accesso-quotidiano-login)
-3. [Dashboard — Panoramica](#3-dashboard--panoramica)
+3. [Riepilogo — Panoramica](#3-riepilogo--panoramica)
 4. [Prenotazioni](#4-prenotazioni)
 5. [Azioni operative](#5-azioni-operative)
-6. [Inventario](#6-inventario)
-7. [Finanza](#7-finanza)
+6. [Rifornimento](#6-rifornimento)
+7. [Spese](#7-spese)
 8. [Impostazioni](#8-impostazioni)
 9. [Richiesta accesso per un nuovo utente](#9-richiesta-accesso-per-un-nuovo-utente)
 
@@ -36,18 +36,18 @@ La password deve avere almeno 8 caratteri.
 
 ### 1.3 Onboarding iniziale
 
-Al primo login vieni portato automaticamente alla pagina di configurazione del workspace. È divisa in due blocchi.
+Al primo login vieni portato automaticamente alla pagina di configurazione iniziale. È divisa in due blocchi.
 
-**Blocco 1 — Dati base organizzazione**
+**Blocco 1 — Dati base attività**
 
 Compila:
 
-- **Nome workspace** — es. "Casa Cleo"
+- **Nome attività** — es. "Casa Cleo"
 - **Valuta** — es. EUR
-- **Fuso orario** — es. Europe/Rome
+- **Fuso orario** — es. Roma
 - **Referente** — il tuo nome o il nome del gestore
 
-Clicca **Completa configurazione**. Il blocco si salva e puoi passare al secondo.
+Clicca **Completa onboarding**. Il blocco si salva e puoi passare al secondo.
 
 **Blocco 2 — Prodotti & Biancheria**
 
@@ -59,9 +59,9 @@ Aggiungi ogni tipo di biancheria che usi (set letto, asciugamani, tappetini, str
 
 1. Clicca **Aggiungi biancheria**
 2. Inserisci il **nome** (es. "Asciugamani Grandi")
-3. Scegli il **ruolo automazione** — determina quante unità il sistema scala automaticamente per ogni prenotazione:
+3. Scegli a cosa è **collegato** — determina quante unità il sistema scala automaticamente per ogni prenotazione:
 
-| Ruolo | Consumo automatico |
+| Collegato a | Consumo automatico |
 |---|---|
 | Set letto estivo | 1 ogni 2 ospiti |
 | Set letto invernale | 1 ogni 2 ospiti |
@@ -72,7 +72,7 @@ Aggiungi ogni tipo di biancheria che usi (set letto, asciugamani, tappetini, str
 | Tappetino doccia | 1 fisso per prenotazione |
 | Strofinacci | 1 fisso per prenotazione |
 
-> Ogni ruolo può essere assegnato a **un solo prodotto**. Se un ruolo è già assegnato appare disabilitato nel menu. Puoi aggiungere articoli senza ruolo — verranno tracciati a quantità ma senza consumo automatico.
+> Ogni collegamento può essere assegnato a **un solo prodotto**. Se è già assegnato appare disabilitato nel menu. Puoi aggiungere articoli senza collegamento — verranno tracciati a quantità ma senza consumo automatico.
 
 4. Inserisci la **quantità iniziale** (quante unità hai in casa), l'**unità di misura** e la **soglia minima** (sotto cui il sistema ti avvisa di rifornire)
 5. Clicca **Salva**
@@ -105,9 +105,9 @@ Se dimentichi la password:
 
 ---
 
-## 3. Dashboard — Panoramica
+## 3. Riepilogo — Panoramica
 
-La dashboard è la schermata principale. Si apre automaticamente dopo il login.
+Il Riepilogo è la schermata principale (dashboard). Si apre automaticamente dopo il login.
 
 ### 3.1 KPI in evidenza
 
@@ -117,7 +117,7 @@ Nella parte alta trovi 4 card con i dati chiave del giorno:
 |---|---|
 | **Prenotazioni Totali** | numero totale di prenotazioni nel sistema |
 | **Azioni Oggi** | quante azioni sono previste oggi, con indicazione di quelle ancora da fare |
-| **Azioni Aperte** | azioni in stato DA_FARE non ancora completate (arancione = attenzione, rosso = critico) |
+| **Azioni Aperte** | azioni "Da fare" non ancora completate (arancione = attenzione, rosso = critico) |
 | **Giorno** | data odierna |
 
 ### 3.2 Calendario
@@ -217,16 +217,16 @@ In alto trovi il selettore del mese con le frecce `<` e `>`. Le azioni sono ragg
 
 Ogni azione ha uno stato:
 
-- **DA_FARE** — da completare (badge arancione)
-- **FATTO** — completata (badge verde)
+- **Da fare** — da completare (badge arancione)
+- **Completata** — fatta (badge verde)
 
 ### 5.4 Completare un'azione
 
-Clicca sul badge **DA_FARE** dell'azione per marcarla come **FATTO**.
+Clicca sul badge **Da fare** dell'azione per marcarla come **Completata**.
 
 Per le azioni di biancheria: si apre un modal dove puoi inserire le quantità di biancheria effettivamente usata (set letto estivi/invernali, asciugamani viso/doccia/bidet, tappetino, strofinacci). Conferma e il sistema scala automaticamente le scorte dall'inventario.
 
-Per tornare indietro su un'azione già completata: clicca sul badge **FATTO** per riportarla a **DA_FARE** e ripristinare le scorte.
+Per tornare indietro su un'azione già completata: clicca sul badge **Completata** per riportarla a **Da fare** e ripristinare le scorte.
 
 ### 5.5 Checklist azioni
 
@@ -238,9 +238,9 @@ Per le azioni di pulizia, clicca l'icona apposita per aprire il modal con le ist
 
 ---
 
-## 6. Inventario
+## 6. Rifornimento
 
-Accedi dalla voce **Inventario** nel menu.
+Accedi dalla voce **Rifornimento** nel menu.
 
 ### 6.1 Schede: Biancheria e Consumabili
 
@@ -264,26 +264,26 @@ Per ogni prodotto vedi:
 
 1. Clicca **Rifornisci** sul prodotto
 2. Inserisci la **quantità aggiunta** (quante unità hai comprato/ricevuto)
-3. Inserisci l'**importo speso** (opzionale — viene registrato in finanza)
-4. Clicca **Salva rifornimento**
+3. Inserisci l'**importo speso** (opzionale — viene registrato tra le spese)
+4. Clicca **Registra rifornimento**
 
-La quantità viene aggiornata e, se inserito l'importo, viene creata automaticamente una spesa in finanza.
+La quantità viene aggiornata e, se inserito l'importo, viene creata automaticamente una spesa.
 
-### 6.4 Import CSV (aggiornamento in blocco)
+### 6.4 Import CSV o Excel (aggiornamento in blocco)
 
 Per aggiornare più prodotti in una volta:
 
-1. Scorri in fondo alla pagina inventario
-2. Clicca **Importa da CSV** per espandere la sezione
-3. Scarica il template CSV per vedere il formato corretto
-4. Modifica il CSV con le nuove quantità/soglie
-5. Carica il file e clicca **Applica importazione**
+1. Scorri in fondo alla pagina Rifornimento
+2. Clicca **Apri import** per espandere la sezione
+3. Scarica il template CSV o Excel per vedere il formato corretto
+4. Modifica il file con le nuove quantità/soglie
+5. Carica il file e clicca **Applica import**
 
 ---
 
-## 7. Finanza
+## 7. Spese
 
-Accedi dalla voce **Finanza** nel menu.
+Accedi dalla voce **Spese** nel menu.
 
 ### 7.1 KPI mensili
 
@@ -293,7 +293,7 @@ In alto trovi tre card per il mese selezionato:
 |---|---|
 | **Entrate** | somma prenotazioni del mese |
 | **Uscite** | somma spese del mese |
-| **Profitto netto** | entrate meno uscite |
+| **Netto** | entrate meno uscite |
 
 ### 7.2 Grafici
 
@@ -310,11 +310,9 @@ Clicca su una barra del grafico o usa il menu a tendina del mese per vedere il d
 
 Sotto i grafici trovi l'elenco delle entrate e uscite del mese selezionato con: data, tipo, categoria, descrizione, importo.
 
-Le voci con origine **automatica** (generate da prenotazioni o rifornimenti) non sono eliminabili manualmente.
-
 ### 7.5 Aggiungere una spesa manuale
 
-Clicca **+ Nuova spesa**. Compila:
+Clicca **Aggiungi**. Si apre il form **Nuova spesa**, compila:
 
 - **Data** — quando è avvenuta la spesa
 - **Categoria** — Pulizie, Rifornimento, Manutenzione, Utenze, Affitto, Commissioni, Altro
@@ -323,9 +321,9 @@ Clicca **+ Nuova spesa**. Compila:
 
 Clicca **Salva spesa**. La spesa appare subito nell'elenco e aggiorna le KPI.
 
-### 7.6 Eliminare una spesa manuale
+### 7.6 Eliminare una spesa
 
-Clicca l'icona **cestino** a destra della voce. Solo le spese inserite manualmente possono essere eliminate.
+Clicca l'icona **cestino** a destra della voce. Per le spese generate automaticamente (da un'azione o un rifornimento) viene mostrato un avviso: se elimini una spesa automatica e l'azione collegata torna completata, la spesa viene ricreata.
 
 ---
 
@@ -333,28 +331,28 @@ Clicca l'icona **cestino** a destra della voce. Solo le spese inserite manualmen
 
 Accedi dalla voce **Impostazioni** nel menu.
 
-### 8.1 Dati workspace
+### 8.1 Dati attività
 
-Qui puoi modificare i dati del workspace configurati durante l'onboarding:
+Qui puoi modificare i dati della tua attività configurati durante l'onboarding:
 
-- Nome workspace
+- Nome attività
 - Valuta
 - Fuso orario
 - Referente
 
-Salva con **Aggiorna impostazioni**.
+Salva con **Salva impostazioni**.
 
 ### 8.2 Catalogo prodotti
 
-Nella stessa pagina trovi la sezione **Catalogo prodotti**, divisa in due tab: **Biancheria** e **Consumabili**. Il funzionamento è identico a quello dell'onboarding (vedi [§1.3](#13-onboarding-iniziale) per la guida completa con la tabella dei ruoli).
+Nella stessa pagina trovi la sezione **Prodotti & Biancheria**, divisa in due tab: **Biancheria** e **Consumabili**. Il funzionamento è identico a quello dell'onboarding (vedi [§1.3](#13-onboarding-iniziale) per la guida completa con la tabella dei collegamenti).
 
 Operazioni disponibili:
 
 - **Aggiungere** un articolo: clicca **Aggiungi biancheria** / **Aggiungi consumabile**
-- **Modificare** un articolo esistente (inclusi nome, ruolo e quantità totale): clicca l'icona **matita**
+- **Modificare** un articolo esistente (inclusi nome, collegamento e quantità totale): clicca l'icona **matita**
 - **Eliminare** un articolo: clicca l'icona **cestino** e conferma
 
-> Se elimini un articolo di biancheria con ruolo assegnato, l'automazione non consumerà più quel tipo di biancheria nelle prenotazioni future.
+> Se elimini un articolo di biancheria collegato al rifornimento automatico, quel tipo di biancheria non verrà più scalato automaticamente dalle prenotazioni future.
 
 ---
 
@@ -385,11 +383,11 @@ Sì, dal menu `···` della prenotazione → Modifica. Le azioni collegate veng
 **Le azioni si creano automaticamente?**
 Sì. Quando crei una prenotazione, il sistema genera in automatico le azioni di pulizia, biancheria e lavatrici nelle date corrette.
 
-**Cosa succede se marco un'azione come FATTO per errore?**
-Riclicca sul badge FATTO → l'azione torna a DA_FARE e le scorte vengono ripristinate.
+**Cosa succede se marco un'azione come Completata per errore?**
+Riclicca sul badge Completata → l'azione torna a Da fare e le scorte vengono ripristinate.
 
 **Come faccio a sapere se le scorte stanno per finire?**
-Guarda la barra colorata in inventario: gialla = in esaurimento, rossa = da rifornire subito. Le azioni di tipo Spesa vengono create automaticamente quando un prodotto scende sotto la soglia.
+Guarda la barra colorata in Rifornimento: gialla = in esaurimento, rossa = da rifornire subito. Le azioni di tipo Spesa vengono create automaticamente quando un prodotto scende sotto la soglia.
 
 **Perché non riesco ad accedere?**
 Controlla di avere le credenziali corrette. Se il problema persiste, usa **Password dimenticata** per ricevere un nuovo link. Se l'account è stato disabilitato, contatta l'amministratore.
