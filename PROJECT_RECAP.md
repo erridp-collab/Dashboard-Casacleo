@@ -433,8 +433,12 @@ Tutte le migration sono state applicate al database hosted il 2026-05-25.
 - `20260508140000_add_signup_requests.sql`
 - `20260509000000_add_fk_expenses_source_action.sql`
 - `20260509010000_add_bulk_product_update_atomic.sql`
+- `20260606120000_fix_checklist_items_manut_naming.sql`
+- `20260606130000_add_created_at_to_action_checklist.sql`
 - `20260618100000_add_linen_role.sql`
 - `20260618110000_update_delete_booking_atomic.sql`
+- `20260707120000_add_unique_constraint_expenses_source_action.sql`
+- `20260708110000_drop_products_sku_not_null.sql`
 
 ## Ambiente di sviluppo
 
@@ -463,7 +467,7 @@ Migration: nuove migration vanno create in `supabase/migrations/` e applicate ma
 
 ## Verification Status
 
-Ultimo stato verde verificato (2026-06-19):
+Ultimo stato verde verificato (2026-07-09):
 
 - `npx tsc --noEmit` — verde
 - `npm run lint` — verde
@@ -476,6 +480,12 @@ Ultimo stato verde verificato (2026-06-19):
 - ProductCatalogEditor in settings e onboarding (biancheria con ruoli + consumabili a 3 stati)
 - quantità biancheria modificabile anche post-creazione via edit form (max_qty via PATCH)
 - label "Strofinacci" (era "Mappina cucina") — valore DB `mappina_cucina` invariato
+- ruolo `asciugamano_corpo` aggiunto al sistema linen (9 ruoli totali)
+- spese automatiche: prevenzione duplicati, delete sbloccato per tutte le origini, data allineata al giorno di completamento azione (non alla data pianificata)
+- logo Alva in TopBar, dedupe fetch bookings dashboard, service worker con aggiornamenti più rapidi
+- PWA: manifest/icone esposti anche senza sessione, install banner solo mobile
+- vincolo `NOT NULL` residuo su `products.sku` rimosso (colonna non più usata dal linen_role system)
+- **copy UI italianizzata (2026-07-09):** rimossi stati grezzi del DB mostrati in UI (`FATTO`/`DA_FARE`/`PIENO`/`A_META`/`TERMINATO`/`action_type` raw) sostituiti con etichette leggibili via `getActionTypeLabel()` in `lib/actionMeta.ts`; eliminati anglicismi decorativi (Overview, Revenue, Operations, Workspace → Oggi, Incassi, Attività, Configurazione); messaggi di errore riscritti in italiano naturale; calendario FullCalendar localizzato in italiano (`locale={itLocale}`, prima giorni/mesi erano in inglese); corretti refusi di accenti diffusi
 
 Suite rilevanti ora coperte:
 
@@ -789,6 +799,7 @@ Stato attuale:
 - backlog tecnico BT-1/2/3/4/5/6 tutti chiusi
 - email transazionale attiva: `noreply@mail.alva.land` via Resend, dominio verificato
 - linen_role system e ProductCatalogEditor live (2026-06-18/19)
+- copy UI interamente in italiano, senza stati DB grezzi né anglicismi decorativi (2026-07-09)
 
 Prossimi passi in ordine:
 
