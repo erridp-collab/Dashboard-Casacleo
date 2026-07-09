@@ -47,11 +47,11 @@ const statusStyles: Record<
 export function KpiCard({ title, value, subtitle, status = "neutral", icon: Icon }: Props) {
   const s = statusStyles[status];
   return (
-    <div className={`rounded-2xl border p-4 shadow-[0_1px_3px_rgba(80,40,20,0.07)] md:p-5 ${s.card}`}>
+    <div className={`rounded-[24px] border p-4 shadow-[0_14px_32px_rgba(77,40,17,0.08)] md:p-5 ${s.card}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className={`text-[10px] font-bold uppercase tracking-[.06em] ${s.label}`}>{title}</p>
         {Icon && (
-          <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${s.iconBg}`}>
+          <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${s.iconBg}`}>
             <Icon className={`h-4 w-4 ${s.iconColor}`} />
           </div>
         )}

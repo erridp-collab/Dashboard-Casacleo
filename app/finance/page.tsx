@@ -4,7 +4,9 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { InlineAlert } from "@/components/inline-alert";
 import { KpiCard } from "@/components/kpi-card";
+import { PageHeader } from "@/components/page-header";
 import { KpiCardSkeleton, Skeleton } from "@/components/skeleton";
 import { monthLabel } from "@/lib/format";
 import { todayLocalIT } from "@/lib/localDate";
@@ -179,17 +181,15 @@ export default function FinancePage() {
 
   return (
     <section className="space-y-6">
-      <header className="flex items-center gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
-          <TrendingUp className="h-5 w-5 text-brand" />
-        </div>
-        <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Spese</h1>
-          <p className="mt-1 text-xs text-text-secondary">Mese corrente con lista movimenti e analisi trend</p>
-        </div>
-      </header>
+      
+        <PageHeader
+          title="Spese"
+          subtitle="Mese corrente, lista movimenti e trend di redditivita con un'impostazione piu leggibile."
+          icon={<TrendingUp className="h-5 w-5 text-sidebar-bg" />}
+          eyebrow="Finance"
+        />
 
-      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
       <Card>
         <CardHeader title="Periodo" subtitle="Controlla mese e orizzonte analisi" />
@@ -430,3 +430,4 @@ export default function FinancePage() {
     </section>
   );
 }
+

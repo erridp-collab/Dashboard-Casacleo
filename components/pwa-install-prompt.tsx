@@ -24,7 +24,10 @@ export function PwaInstallPrompt() {
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
     if (!isAndroid && !isIos) return;
 
-    if (isIos) setShowIosHint(true);
+    let iosHintFrame = 0;
+    if (isIos) {
+      iosHintFrame = window.requestAnimationFrame(() => setShowIosHint(true));
+    }
 
     if (!isAndroid) return;
 
@@ -35,7 +38,10 @@ export function PwaInstallPrompt() {
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    return () => {
+      if (iosHintFrame) window.cancelAnimationFrame(iosHintFrame);
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
   }, []);
 
   const dismiss = () => {

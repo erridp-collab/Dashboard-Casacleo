@@ -8,7 +8,9 @@ import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card, CardHeader } from "@/components/card";
 import { CleaningModal } from "@/components/cleaning-modal";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { InlineAlert } from "@/components/inline-alert";
 import { todayLocalIT } from "@/lib/localDate";
+import { PageHeader } from "@/components/page-header";
 import { toast } from "@/components/toast";
 import type { Action, Booking } from "@/types/db";
 
@@ -147,20 +149,6 @@ function parseActionDetails(details: string | null): ParsedActionDetails {
 }
 
 function fillLinenDraft(base: LinenDraft, values?: Partial<Record<keyof LinenDraft, number | null>>): LinenDraft {
-  if (!values) return base;
-  return {
-    sets_estivo: toDraftValue(values.sets_estivo, base.sets_estivo),
-    sets_invernale: toDraftValue(values.sets_invernale, base.sets_invernale),
-    towels_corpo: toDraftValue(values.towels_corpo, base.towels_corpo),
-    towels_bidet: toDraftValue(values.towels_bidet, base.towels_bidet),
-    towels_viso: toDraftValue(values.towels_viso, base.towels_viso),
-    towels_doccia: toDraftValue(values.towels_doccia, base.towels_doccia),
-    tappetino: toDraftValue(values.tappetino, base.tappetino),
-    mappine: toDraftValue(values.mappine, base.mappine),
-  };
-}
-
-function fillLaundryDraft(base: LaundryDraft, values?: Partial<Record<keyof LaundryDraft, number | null>>): LaundryDraft {
   if (!values) return base;
   return {
     sets_estivo: toDraftValue(values.sets_estivo, base.sets_estivo),
@@ -370,13 +358,6 @@ export default function ActionsPage() {
     }
   }
 
-  function openLaundryModal(action: Action) {
-    setLaundryAction(action);
-    setLaundryError("");
-    setLaundryCost("");
-    setLaundryDraft(fillLaundryDraft(buildLaundryDraft(), parseActionDetails(action.details).laundry));
-  }
-
   async function confirmLinenUsage() {
     if (!linenAction) return;
     setLinenError("");
@@ -566,15 +547,12 @@ export default function ActionsPage() {
 
   return (
     <section className="space-y-6">
-      <header className="flex items-center gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
-          <CheckSquare className="h-5 w-5 text-brand" />
-        </div>
-        <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Azioni</h1>
-          <p className="mt-1 text-xs text-text-secondary">Azioni raggruppate per data</p>
-        </div>
-      </header>
+      <PageHeader
+        title="Azioni"
+        subtitle="Lista operativa raggruppata per data, con focus su esecuzione e completamento."
+        icon={<CheckSquare className="h-5 w-5 text-sidebar-bg" />}
+        eyebrow="Operations"
+      />
 
       <Card>
         <CardHeader title="Mese operativo" subtitle="Vista predefinita sul mese corrente" />
@@ -675,7 +653,7 @@ export default function ActionsPage() {
         </div>
       </Card>
 
-      {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
+      {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
       <div className="space-y-4">
         {Object.entries(groupedVisible).map(([date, rows]) => (

@@ -1,7 +1,12 @@
+import dynamic from "next/dynamic";
 import { Card, CardHeader } from "@/components/card";
-import { WorkspaceSettingsForm } from "@/components/workspace-settings-form";
 import { isOnboardingComplete, requireOrganizationState } from "@/lib/organizationContext";
-import { ProductCatalogEditor } from "@/components/product-catalog-editor";
+import { PageHeader } from "@/components/page-header";
+import { WorkspaceSettingsForm } from "@/components/workspace-settings-form";
+
+const ProductCatalogEditor = dynamic(() => import("@/components/product-catalog-editor").then((mod) => mod.ProductCatalogEditor), {
+  loading: () => <div className="rounded-2xl border border-dashed border-border-default bg-white/55 px-4 py-6 text-sm text-text-secondary">Caricamento catalogo prodotti...</div>,
+});
 
 export default async function OnboardingPage() {
   const { organization } = await requireOrganizationState();
@@ -9,17 +14,30 @@ export default async function OnboardingPage() {
 
   return (
     <section className="mx-auto max-w-3xl space-y-6">
-      <header className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">Onboarding</p>
-        <h1 className="text-3xl font-semibold text-zinc-900">
-          {completed ? "Setup iniziale workspace" : "Configura il tuo workspace"}
-        </h1>
-        <p className="max-w-2xl text-sm text-zinc-600">
-          {completed
+      <PageHeader
+        eyebrow="Onboarding"
+        title={completed ? "Setup iniziale workspace" : "Configura il tuo workspace"}
+        subtitle={
+          completed
             ? "Puoi riaprire questa schermata quando vuoi per rivedere i dati iniziali del workspace."
-            : "Facciamo un setup minimo per partire con i primi clienti tester. Completa questi dati una sola volta e poi entri direttamente nella dashboard."}
-        </p>
-      </header>
+            : "Facciamo un setup minimo per partire con i primi clienti tester. Completa questi dati una sola volta e poi entri direttamente nella dashboard."
+        }
+      />
+
+      <Card>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-[22px] border border-border-subtle bg-white/60 px-4 py-4">
+            <p className="label-base">Step 1</p>
+            <p className="mt-2 text-sm font-semibold text-text-primary">Configura il workspace</p>
+            <p className="mt-1 text-sm text-text-secondary">Impostiamo i dati minimi che rendono coerenti date, valuta e riferimenti.</p>
+          </div>
+          <div className="rounded-[22px] border border-border-subtle bg-white/60 px-4 py-4">
+            <p className="label-base">Step 2</p>
+            <p className="mt-2 text-sm font-semibold text-text-primary">Prepara il catalogo</p>
+            <p className="mt-1 text-sm text-text-secondary">Aggiungi biancheria e consumabili essenziali per partire senza frizioni.</p>
+          </div>
+        </div>
+      </Card>
 
       <Card className="p-6">
         <CardHeader
@@ -35,7 +53,7 @@ export default async function OnboardingPage() {
       <Card>
         <CardHeader
           title="Prodotti & Biancheria"
-          subtitle="Configura il catalogo prodotti del tuo B&B (puoi modificarlo in qualsiasi momento da Impostazioni)"
+          subtitle="Configura il catalogo iniziale del tuo B&B. Potrai rifinirlo in qualsiasi momento da Impostazioni."
         />
         <div className="px-6 pb-6">
           <ProductCatalogEditor />

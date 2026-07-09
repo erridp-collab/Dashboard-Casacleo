@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: 38 35% 90%;
+  --background: 36 42% 94%;
   --foreground: 35 53% 7%;
   --sidebar-bg: 338 68% 17%;
   --brand: 47 86% 69%;
@@ -9,10 +9,11 @@
   --canvas: 338 68% 17%;
   --surface: 338 56% 27%;
   --primary: 339 55% 46%;
-  --surface-1: 40 60% 99%;
-  --surface-2: 38 35% 93%;
-  --border-subtle: 32 30% 85%;
-  --border-default: 32 25% 80%;
+  --surface-1: 42 56% 98%;
+  --surface-2: 36 34% 92%;
+  --surface-3: 37 28% 88%;
+  --border-subtle: 31 31% 84%;
+  --border-default: 30 24% 77%;
   --text-primary: 30 60% 8%;
   --text-secondary: 28 25% 45%;
   --text-tertiary: 28 20% 55%;
@@ -39,6 +40,7 @@
   --color-primary: hsl(var(--primary));
   --color-surface-1: hsl(var(--surface-1));
   --color-surface-2: hsl(var(--surface-2));
+  --color-surface-3: hsl(var(--surface-3));
   --color-border-subtle: hsl(var(--border-subtle));
   --color-border-default: hsl(var(--border-default));
   --color-text-primary: hsl(var(--text-primary));
@@ -49,29 +51,38 @@
 }
 
 body {
-  background: hsl(var(--background));
+  background:
+    radial-gradient(circle at top, rgba(245, 200, 66, 0.2), transparent 32%),
+    linear-gradient(180deg, #fdf8f1 0%, #f4ede2 100%);
   color: hsl(var(--foreground));
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(245, 200, 66, 0.35);
+  color: hsl(var(--text-primary));
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center gap-2 rounded-xl bg-sidebar-bg px-4 py-2.5 text-sm font-semibold text-brand shadow-sm transition hover:opacity-90 active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-black/5 px-4 py-2.5 text-sm font-semibold text-brand shadow-[0_12px_28px_rgba(92,21,38,0.18)] transition duration-200 hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(92,21,38,0.22)] active:translate-y-0 active:scale-[0.99];
+    background: linear-gradient(135deg, #561120 0%, #7a2339 100%);
   }
   .btn-secondary {
-    @apply inline-flex items-center gap-2 rounded-xl border border-border-subtle bg-surface-1 px-4 py-2.5 text-sm font-medium text-text-primary transition hover:bg-surface-2 active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-border-subtle bg-surface-1 px-4 py-2.5 text-sm font-medium text-text-primary shadow-[0_8px_24px_rgba(66,32,12,0.05)] transition duration-200 hover:-translate-y-px hover:bg-white active:translate-y-0 active:scale-[0.99];
   }
   .btn-ghost {
-    @apply inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-text-secondary underline underline-offset-4 transition hover:text-text-primary;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium text-text-secondary transition duration-200 hover:bg-white/60 hover:text-text-primary;
   }
   .btn-danger {
-    @apply inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 shadow-[0_8px_20px_rgba(190,24,93,0.08)] transition duration-200 hover:-translate-y-px hover:bg-rose-100 active:translate-y-0 active:scale-[0.99];
   }
   .btn-sm {
-    @apply h-8 rounded-lg px-3 py-0 text-xs;
+    @apply h-9 rounded-xl px-3 py-0 text-xs;
   }
   .input-base {
-    @apply h-11 w-full rounded-xl border border-border-default bg-surface-1 px-3.5 text-text-primary transition placeholder:text-text-tertiary focus:border-sidebar-bg focus:outline-none focus:ring-2 focus:ring-sidebar-bg/10;
+    @apply h-11 w-full rounded-2xl border border-border-default bg-surface-1 px-3.5 text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_1px_2px_rgba(80,40,20,0.04)] transition placeholder:text-text-tertiary focus:border-sidebar-bg focus:bg-white focus:outline-none focus:ring-4 focus:ring-sidebar-bg/10;
     font-size: 16px;
     line-height: 1.5;
   }
@@ -83,6 +94,42 @@ body {
   }
   .label-base {
     @apply text-[10px] font-bold uppercase tracking-[.06em] text-text-secondary;
+  }
+  .page-header-icon {
+    @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(250,242,232,0.98))] text-sidebar-bg shadow-[0_12px_30px_rgba(92,21,38,0.12)];
+  }
+  .page-header-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary;
+  }
+  .surface-link {
+    @apply rounded-2xl border border-border-subtle bg-surface-1 px-4 py-3 text-sm text-text-primary shadow-[0_8px_24px_rgba(66,32,12,0.04)] transition duration-200 hover:-translate-y-px hover:bg-white;
+  }
+  .auth-shell {
+    @apply relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-6 lg:px-8;
+    background:
+      radial-gradient(circle at top, rgba(245, 200, 66, 0.28), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(122, 35, 57, 0.12), transparent 26%),
+      linear-gradient(180deg, #fbf5ec 0%, #f3eadc 100%);
+  }
+  .auth-shell-panel {
+    @apply relative z-10 w-full max-w-xl rounded-[32px] border border-white/70 bg-[rgba(255,252,247,0.88)] p-6 shadow-[0_24px_80px_rgba(63,30,12,0.14)] backdrop-blur sm:p-8;
+  }
+  .auth-shell-glow {
+    @apply pointer-events-none absolute rounded-full blur-3xl;
+  }
+  .auth-shell-glow--top {
+    top: -8rem;
+    left: 12%;
+    height: 16rem;
+    width: 16rem;
+    background: rgba(245, 200, 66, 0.16);
+  }
+  .auth-shell-glow--bottom {
+    right: 8%;
+    bottom: -10rem;
+    height: 18rem;
+    width: 18rem;
+    background: rgba(122, 35, 57, 0.14);
   }
 }
 

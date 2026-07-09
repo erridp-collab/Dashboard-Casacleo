@@ -76,8 +76,13 @@ export function ProductCatalogEditor() {
   useEffect(() => {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    void loadProducts(ctrl.signal);
-    return () => ctrl.abort();
+    const timeoutId = window.setTimeout(() => {
+      void loadProducts(ctrl.signal);
+    }, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+      ctrl.abort();
+    };
   }, []);
 
   useEffect(() => {

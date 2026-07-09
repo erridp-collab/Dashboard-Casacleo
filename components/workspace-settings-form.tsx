@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { InlineAlert } from "@/components/inline-alert";
 import type { OrganizationRecord } from "@/lib/organizationContext";
 import {
   completeOnboardingAction,
@@ -26,12 +27,20 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
   const action = mode === "onboarding" ? completeOnboardingAction : updateWorkspaceSettingsAction;
   const [state, formAction, isPending] = useActionState<OnboardingState, FormData>(action, null);
   const submitLabel = mode === "onboarding" ? "Completa onboarding" : "Salva impostazioni";
+  const helperText =
+    mode === "onboarding"
+      ? "Partiamo dai dati minimi del workspace: potrai rifinirli piu avanti senza bloccare l'operativita."
+      : "Questi dati definiscono il comportamento base del workspace attivo e si applicano subito.";
 
   return (
     <form action={formAction} className="space-y-5">
+      <div className="rounded-[24px] border border-border-subtle bg-white/60 px-4 py-4 text-sm text-text-secondary">
+        {helperText}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label htmlFor="name" className="mb-2 block text-sm font-medium text-zinc-800">
+          <label htmlFor="name" className="mb-2 block label-base">
             Nome workspace
           </label>
           <input
@@ -39,20 +48,21 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
             name="name"
             defaultValue={organization.name}
             required
-            className="w-full rounded-xl border border-zinc-300 px-3 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+            className="input-base"
             placeholder="Es. Alva Milano"
           />
+          <p className="mt-2 text-xs text-text-tertiary">Nome visibile nelle schermate operative e nei riferimenti interni.</p>
         </div>
 
         <div>
-          <label htmlFor="currency_code" className="mb-2 block text-sm font-medium text-zinc-800">
+          <label htmlFor="currency_code" className="mb-2 block label-base">
             Valuta
           </label>
           <select
             id="currency_code"
             name="currency_code"
             defaultValue={organization.currency_code}
-            className="w-full rounded-xl border border-zinc-300 px-3 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+            className="input-base"
           >
             {CURRENCY_OPTIONS.map((currency) => (
               <option key={currency} value={currency}>
@@ -63,14 +73,14 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
         </div>
 
         <div>
-          <label htmlFor="timezone" className="mb-2 block text-sm font-medium text-zinc-800">
+          <label htmlFor="timezone" className="mb-2 block label-base">
             Fuso orario
           </label>
           <select
             id="timezone"
             name="timezone"
             defaultValue={organization.timezone}
-            className="w-full rounded-xl border border-zinc-300 px-3 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+            className="input-base"
           >
             {TIMEZONE_OPTIONS.map((timezone) => (
               <option key={timezone} value={timezone}>
@@ -81,27 +91,24 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor="contact_name" className="mb-2 block text-sm font-medium text-zinc-800">
+          <label htmlFor="contact_name" className="mb-2 block label-base">
             Nome referente
           </label>
           <input
             id="contact_name"
             name="contact_name"
             defaultValue={typeof organization.settings.contact_name === "string" ? organization.settings.contact_name : ""}
-            className="w-full rounded-xl border border-zinc-300 px-3 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+            className="input-base"
             placeholder="Facoltativo"
           />
+          <p className="mt-2 text-xs text-text-tertiary">Utile per avere un riferimento operativo chiaro in onboarding e supporto.</p>
         </div>
       </div>
 
-      {state?.error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {state.error}
-        </div>
-      )}
+      {state?.error ? <InlineAlert tone="error">{state.error}</InlineAlert> : null}
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-text-tertiary">
           {mode === "onboarding"
             ? "Puoi modificare questi dati anche dopo, da Impostazioni."
             : "Le modifiche si applicano subito al workspace attivo."}
@@ -109,7 +116,7 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+          className="btn-primary"
         >
           {isPending ? "Salvataggio..." : submitLabel}
         </button>

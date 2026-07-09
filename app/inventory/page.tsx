@@ -4,7 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ChevronDown, Package, ShoppingCart } from "lucide-react";
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { InlineAlert } from "@/components/inline-alert";
 import { getRefillState, isMonitoredRefillProduct, isStatusManagedRefillProduct, type StockStatus } from "@/lib/refill";
+import { KpiCard } from "@/components/kpi-card";
+import { PageHeader } from "@/components/page-header";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
@@ -304,6 +307,21 @@ export default function InventoryPage() {
     return alerting.length > 0 ? alerting : quantityManaged;
   }, [products]);
 
+  const monitoredProducts = useMemo(
+    () => products.filter((product) => isMonitoredRefillProduct(product)),
+    [products],
+  );
+
+  const consumableAttentionCount = useMemo(
+    () => monitoredProducts.filter((product) => isStatusManagedRefillProduct(product) && getRefillState(product) !== "OK").length,
+    [monitoredProducts],
+  );
+
+  const linenAttentionCount = useMemo(
+    () => monitoredProducts.filter((product) => !isStatusManagedRefillProduct(product) && getRefillState(product) !== "OK").length,
+    [monitoredProducts],
+  );
+
   function stateBadge(state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE") {
     if (state === "DA_RIFORNIRE") {
       return (
@@ -527,33 +545,62 @@ export default function InventoryPage() {
 
   return (
     <section className="space-y-6">
-      <header className="flex items-center gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-bg">
-          <Package className="h-5 w-5 text-brand" />
-        </div>
-        <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-text-primary">Rifornimento</h1>
-          <p className="mt-1 text-xs text-text-secondary">Consumabili a 3 stati, biancheria a quantità</p>
-        </div>
-      </header>
+      
+      <PageHeader
+        title="Rifornimento"
+        subtitle="Consumabili monitorati a stati e biancheria gestita a quantita in una sola console."
+        icon={<Package className="h-5 w-5 text-sidebar-bg" />}
+        eyebrow="Inventory"
+      />
 
-      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-      {success && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{success}</p>}
+      {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
+      {success ? <InlineAlert tone="success">{success}</InlineAlert> : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title="Prodotti Monitorati"
+          value={String(monitoredProducts.length)}
+          subtitle="Elementi attivi nella console refill"
+          status={monitoredProducts.length > 0 ? "ok" : "neutral"}
+          icon={Package}
+        />
+        <KpiCard
+          title="Consumabili In Evidenza"
+          value={String(visibleStatusProducts.length)}
+          subtitle={consumableAttentionCount > 0 ? `${consumableAttentionCount} richiedono attenzione` : "Nessuna criticita aperta"}
+          status={consumableAttentionCount > 0 ? "warn" : "ok"}
+          icon={AlertTriangle}
+        />
+        <KpiCard
+          title="Biancheria In Evidenza"
+          value={String(visibleQuantityProducts.length)}
+          subtitle={linenAttentionCount > 0 ? `${linenAttentionCount} da rivedere` : "Stock in equilibrio"}
+          status={linenAttentionCount > 0 ? "warn" : "ok"}
+          icon={ShoppingCart}
+        />
+        <KpiCard
+          title="Import Disponibile"
+          value={csvPreview.length > 0 ? String(csvPreview.length) : "0"}
+          subtitle={csvPreview.length > 0 ? "aggiornamenti in anteprima" : "nessun file in lavorazione"}
+          status={csvPreview.length > 0 ? "neutral" : "neutral"}
+        />
+      </div>
 
       <Card>
-        <button
-          type="button"
-          className="flex w-full items-center justify-between"
-          onClick={() => setShowImport((v) => !v)}
-        >
+        <div className="flex items-start justify-between gap-4">
           <CardHeader
             title="Import CSV / Excel"
-            subtitle={showImport ? "Aggiorna i valori del magazzino in blocco" : "Tap per espandere"}
+            subtitle="Aggiorna i valori del magazzino in blocco solo quando hai molte modifiche da applicare insieme."
           />
-          <ChevronDown
-            className={`mr-6 h-5 w-5 shrink-0 text-zinc-400 transition-transform ${showImport ? "rotate-180" : ""}`}
-          />
-        </button>
+          <button
+            type="button"
+            className="btn-secondary btn-sm mt-1"
+            onClick={() => setShowImport((v) => !v)}
+          >
+            {showImport ? "Nascondi" : "Apri import"}
+            <ChevronDown className={`h-4 w-4 transition-transform ${showImport ? "rotate-180" : ""}`} />
+          </button>
+        </div>
 
         {showImport && (
           <div className="space-y-4 px-6 pb-6">
@@ -561,18 +608,18 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={downloadTemplate}
-                className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                className="btn-secondary"
               >
                 Scarica template CSV
               </button>
               <button
                 type="button"
                 onClick={downloadTemplateXlsx}
-                className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
+                className="btn-secondary"
               >
                 Scarica template Excel
               </button>
-              <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100">
+              <label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-dashed border-border-default bg-white/50 px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-white">
                 <input
                   type="file"
                   accept=".csv,.xlsx,.xls"
@@ -586,7 +633,7 @@ export default function InventoryPage() {
               </label>
               {csvFileName && <span className="text-xs text-zinc-500">File: {csvFileName}</span>}
             </div>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-text-tertiary">
               Carica un file CSV o Excel (.xlsx) per aggiornare i valori del magazzino in blocco.
             </p>
 
@@ -632,7 +679,7 @@ export default function InventoryPage() {
                     type="button"
                     onClick={() => void applyCsvImport()}
                     disabled={csvLoading}
-                    className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                    className="btn-primary btn-sm"
                   >
                     Applica import
                   </button>
@@ -655,8 +702,13 @@ export default function InventoryPage() {
       </Card>
 
       <div className="space-y-4">
-        {/* Tab bar */}
-        <div className="grid grid-cols-2 gap-1 rounded-[13px] bg-[#f4ede6] p-1">
+        <div className="rounded-[26px] border border-border-subtle bg-white/55 p-4 shadow-[0_10px_24px_rgba(66,32,12,0.04)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="label-base">Vista prioritaria</p>
+              <p className="mt-1 text-sm text-text-secondary">Mostriamo prima gli elementi che richiedono attenzione, poi il resto del catalogo monitorato.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-1 rounded-[16px] bg-[#f4ede6] p-1">
           <button
             className={`rounded-[10px] py-2 text-sm font-semibold transition-all ${
               activeTab === "biancheria"
@@ -683,6 +735,8 @@ export default function InventoryPage() {
               {visibleStatusProducts.length}
             </span>
           </button>
+            </div>
+          </div>
         </div>
 
         {activeTab === "consumabili" && (
@@ -954,3 +1008,4 @@ export default function InventoryPage() {
     </section>
   );
 }
+
