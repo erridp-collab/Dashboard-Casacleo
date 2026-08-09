@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/page-header";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
+import type { ProductRow, RestockDraft } from "@/lib/inventory-types";
 
 function StockBar({ quantity, initialQuantity, state }: { quantity: number; initialQuantity: number; state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE" }) {
   const pct = initialQuantity > 0 ? Math.min(100, Math.max(0, (quantity / initialQuantity) * 100)) : 0;
@@ -22,23 +23,6 @@ function StockBar({ quantity, initialQuantity, state }: { quantity: number; init
   );
 }
 
-type ProductRow = {
-  id: string;
-  name: string;
-  category: string | null;
-  unit: string | null;
-  quantity: number;
-  threshold: number;
-  initialQuantity: number;
-  maxQty: number | null;
-  consumptionPerCheckout: number | null;
-  stockStatus: StockStatus | null;
-};
-
-type RestockDraft = {
-  addQty: string;
-  amount: string;
-};
 
 type CsvPreviewRow = {
   id: string;
