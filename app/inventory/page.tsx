@@ -8,21 +8,11 @@ import { InlineAlert } from "@/components/inline-alert";
 import { getRefillState, isMonitoredRefillProduct, isStatusManagedRefillProduct, type StockStatus } from "@/lib/refill";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
-import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
 import type { ProductRow, RestockDraft } from "@/lib/inventory-types";
-
-function StockBar({ quantity, initialQuantity, state }: { quantity: number; initialQuantity: number; state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE" }) {
-  const pct = initialQuantity > 0 ? Math.min(100, Math.max(0, (quantity / initialQuantity) * 100)) : 0;
-  const color = state === "DA_RIFORNIRE" ? "bg-rose-500" : state === "IN_ESAURIMENTO" ? "bg-amber-400" : "bg-emerald-500";
-  return (
-    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
+import { RefillConsumablesModal } from "@/components/refill-consumables-modal";
+import { RefillLinenModal } from "@/components/refill-linen-modal";
 
 type CsvPreviewRow = {
   id: string;
@@ -52,12 +42,6 @@ type ProductApiRow = {
 type ProductsResponse = {
   products?: ProductApiRow[];
 };
-
-const STATUS_OPTIONS: Array<{ value: StockStatus; label: string; tone: string }> = [
-  { value: "PIENO", label: "Pieno", tone: "bg-emerald-100 text-emerald-700" },
-  { value: "A_META", label: "A metà", tone: "bg-amber-100 text-amber-700" },
-  { value: "TERMINATO", label: "Finito", tone: "bg-rose-100 text-rose-700" },
-];
 
 function toNum(value: unknown, fallback = 0): number {
   const parsed = Number(value);
@@ -128,7 +112,7 @@ export default function InventoryPage() {
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvColumns, setCsvColumns] = useState({ threshold: false, maxQty: false, consumption: false });
   const [showImport, setShowImport] = useState(false);
-  const [activeTab, setActiveTab] = useState<"consumabili" | "biancheria">("biancheria");
+  const [openModal, setOpenModal] = useState<"consumabili" | "biancheria" | null>(null);
   const productsAbortRef = useRef<AbortController | null>(null);
   const productsRequestSeqRef = useRef(0);
 
@@ -305,51 +289,6 @@ export default function InventoryPage() {
     () => monitoredProducts.filter((product) => !isStatusManagedRefillProduct(product) && getRefillState(product) !== "OK").length,
     [monitoredProducts],
   );
-
-  function stateBadge(state: "OK" | "IN_ESAURIMENTO" | "DA_RIFORNIRE") {
-    if (state === "DA_RIFORNIRE") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          DA RIFORNIRE
-        </span>
-      );
-    }
-    if (state === "IN_ESAURIMENTO") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          IN ESAURIMENTO
-        </span>
-      );
-    }
-    return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">OK</span>;
-  }
-
-  function statusSelector(product: ProductRow) {
-    return (
-      <div className="flex flex-wrap gap-2">
-        {STATUS_OPTIONS.map((option) => {
-          const active = product.stockStatus === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              disabled={savingStatusId === product.id}
-              onClick={() => void updateProductStatus(product.id, option.value)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                active
-                  ? option.tone
-                  : "border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50"
-              } disabled:opacity-50`}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
 
   function buildTemplateCsv() {
     const headers = ["id", "prodotto", "qty", "threshold", "max_qty", "consumption_per_checkout"];
@@ -540,7 +479,7 @@ export default function InventoryPage() {
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
       {success ? <InlineAlert tone="success">{success}</InlineAlert> : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
         <KpiCard
           title="Prodotti Monitorati"
           value={String(monitoredProducts.length)}
@@ -554,6 +493,7 @@ export default function InventoryPage() {
           subtitle={consumableAttentionCount > 0 ? `${consumableAttentionCount} richiedono attenzione` : "Nessuna criticità aperta"}
           status={consumableAttentionCount > 0 ? "warn" : "ok"}
           icon={AlertTriangle}
+          onClick={() => setOpenModal("consumabili")}
         />
         <KpiCard
           title="Biancheria In Evidenza"
@@ -561,12 +501,7 @@ export default function InventoryPage() {
           subtitle={linenAttentionCount > 0 ? `${linenAttentionCount} da rivedere` : "Scorte a posto"}
           status={linenAttentionCount > 0 ? "warn" : "ok"}
           icon={ShoppingCart}
-        />
-        <KpiCard
-          title="Import Disponibile"
-          value={csvPreview.length > 0 ? String(csvPreview.length) : "0"}
-          subtitle={csvPreview.length > 0 ? "aggiornamenti in anteprima" : "nessun file in lavorazione"}
-          status={csvPreview.length > 0 ? "neutral" : "neutral"}
+          onClick={() => setOpenModal("biancheria")}
         />
       </div>
 
@@ -685,310 +620,27 @@ export default function InventoryPage() {
         )}
       </Card>
 
-      <div className="space-y-4">
-        <div className="rounded-[26px] border border-border-subtle bg-white/55 p-4 shadow-[0_10px_24px_rgba(66,32,12,0.04)]">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="label-base">Vista prioritaria</p>
-              <p className="mt-1 text-sm text-text-secondary">Mostriamo prima gli elementi che richiedono attenzione, poi il resto del catalogo monitorato.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-1 rounded-[16px] bg-[#f4ede6] p-1">
-          <button
-            className={`rounded-[10px] py-2 text-sm font-semibold transition-all ${
-              activeTab === "biancheria"
-                ? "bg-surface text-text-primary shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-            onClick={() => setActiveTab("biancheria")}
-          >
-            Biancheria{" "}
-            <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === "biancheria" ? "bg-primary/10 text-primary" : "bg-zinc-200 text-zinc-500"}`}>
-              {visibleQuantityProducts.length}
-            </span>
-          </button>
-          <button
-            className={`rounded-[10px] py-2 text-sm font-semibold transition-all ${
-              activeTab === "consumabili"
-                ? "bg-surface text-text-primary shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-            onClick={() => setActiveTab("consumabili")}
-          >
-            Consumabili{" "}
-            <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === "consumabili" ? "bg-primary/10 text-primary" : "bg-zinc-200 text-zinc-500"}`}>
-              {visibleStatusProducts.length}
-            </span>
-          </button>
-            </div>
-          </div>
-        </div>
+      {openModal === "consumabili" && (
+        <RefillConsumablesModal
+          products={visibleStatusProducts}
+          loadingProducts={loadingProducts}
+          savingStatusId={savingStatusId}
+          onUpdateStatus={updateProductStatus}
+          onClose={() => setOpenModal(null)}
+        />
+      )}
 
-        {activeTab === "consumabili" && (
-        <Card>
-        <CardHeader title="Consumabili a Stati" subtitle={`${visibleStatusProducts.length} prodotti monitorati a 3 stati`} />
-
-        {loadingProducts ? (
-          <div className="hidden md:block">
-            <Table>
-              <TableHead>
-                <tr>
-                  <TableHeaderCell>Prodotto</TableHeaderCell>
-                  <TableHeaderCell>Categoria</TableHeaderCell>
-                  <TableHeaderCell>Stato</TableHeaderCell>
-                  <TableHeaderCell>Aggiorna</TableHeaderCell>
-                </tr>
-              </TableHead>
-              <TableBody>{[1, 2, 3].map((i) => <RowSkeleton key={i} cols={4} />)}</TableBody>
-            </Table>
-          </div>
-        ) : visibleStatusProducts.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <span className="text-3xl">OK</span>
-            <p className="text-sm font-medium text-zinc-700">Nessun consumabile da monitorare</p>
-            <p className="text-xs text-zinc-400">Gli stati possibili sono Pieno, A metà e Finito.</p>
-          </div>
-        ) : (
-          <>
-            <div className="space-y-3 md:hidden">
-              {visibleStatusProducts.map((product) => {
-                const state = getRefillState(product);
-                return (
-                  <article
-                    key={product.id}
-                    className={`rounded-xl border p-3 ${
-                      state === "DA_RIFORNIRE"
-                        ? "border-rose-200 bg-rose-50/60"
-                        : state === "IN_ESAURIMENTO"
-                          ? "border-amber-200 bg-amber-50/50"
-                          : "border-zinc-200"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-zinc-900">{product.name}</h3>
-                        <p className="text-xs text-zinc-500">{product.category ?? "-"}</p>
-                      </div>
-                      {stateBadge(state)}
-                    </div>
-                    <div className="mt-3">{statusSelector(product)}</div>
-                  </article>
-                );
-              })}
-            </div>
-            <div className="hidden md:block">
-              <Table>
-                <TableHead>
-                  <tr>
-                    <TableHeaderCell>Prodotto</TableHeaderCell>
-                    <TableHeaderCell>Categoria</TableHeaderCell>
-                    <TableHeaderCell>Stato</TableHeaderCell>
-                    <TableHeaderCell>Aggiorna</TableHeaderCell>
-                  </tr>
-                </TableHead>
-                <TableBody>
-                  {visibleStatusProducts.map((product) => {
-                    const state = getRefillState(product);
-                    return (
-                      <TableRow
-                        key={product.id}
-                        className={
-                          state === "DA_RIFORNIRE"
-                            ? "bg-rose-50/50"
-                            : state === "IN_ESAURIMENTO"
-                              ? "bg-amber-50/40"
-                              : ""
-                        }
-                      >
-                        <TableCell className="font-medium text-zinc-900">{product.name}</TableCell>
-                        <TableCell>{product.category ?? "-"}</TableCell>
-                        <TableCell>{stateBadge(state)}</TableCell>
-                        <TableCell>{statusSelector(product)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </>
-        )}
-        </Card>
-        )}
-
-        {activeTab === "biancheria" && (
-        <Card>
-        <CardHeader title="Biancheria a Quantità" subtitle={`${visibleQuantityProducts.length} prodotti gestiti a pezzi/set`} />
-
-        {loadingProducts ? (
-          <>
-            <div className="space-y-3 md:hidden">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse rounded-xl border border-zinc-100 p-4">
-                  <div className="h-4 w-32 rounded bg-zinc-200" />
-                  <div className="mt-2 h-3 w-20 rounded bg-zinc-200" />
-                  <div className="mt-3 h-1.5 w-full rounded-full bg-zinc-200" />
-                </div>
-              ))}
-            </div>
-            <div className="hidden md:block">
-              <Table>
-                <TableHead><tr><TableHeaderCell>Prodotto</TableHeaderCell><TableHeaderCell>Stato</TableHeaderCell><TableHeaderCell>Rifornisci</TableHeaderCell></tr></TableHead>
-                <TableBody>{[1, 2, 3].map((i) => <RowSkeleton key={i} cols={7} />)}</TableBody>
-              </Table>
-            </div>
-          </>
-        ) : visibleQuantityProducts.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <span className="text-3xl">✅</span>
-            <p className="text-sm font-medium text-zinc-700">Nessuna biancheria da monitorare</p>
-            <p className="text-xs text-zinc-400">Set letto, asciugamani e tessili restano gestiti a quantità.</p>
-          </div>
-        ) : (
-          <>
-          <div className="space-y-3 md:hidden">
-            {visibleQuantityProducts.map((product) => {
-              const state = getRefillState(product);
-              const margin = Number((product.initialQuantity * 0.2).toFixed(2));
-              const draft = drafts[product.id] ?? { addQty: "", amount: "" };
-
-              return (
-                <article
-                  key={product.id}
-                  className={`rounded-xl border p-3 ${
-                    state === "DA_RIFORNIRE"
-                      ? "border-rose-200 bg-rose-50/60"
-                      : state === "IN_ESAURIMENTO"
-                        ? "border-amber-200 bg-amber-50/50"
-                        : "border-zinc-200"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold text-zinc-900">{product.name}</h3>
-                      <p className="text-xs text-zinc-500">{product.category ?? "-"}</p>
-                    </div>
-                    {stateBadge(state)}
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-600">
-                    <p>Iniziale: <span className="font-medium text-zinc-800">{product.initialQuantity} {product.unit ?? ""}</span></p>
-                    <p>Attuale: <span className="font-medium text-zinc-800">{product.quantity} {product.unit ?? ""}</span></p>
-                    <p>Soglia: <span className="font-medium text-zinc-800">{product.threshold}</span></p>
-                    <p>Margine: <span className="font-medium text-zinc-800">{margin}</span></p>
-                  </div>
-                  <StockBar quantity={product.quantity} initialQuantity={product.initialQuantity} state={state} />
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <input
-                      className="input-base"
-                      type="number"
-                      placeholder="+qta"
-                      value={draft.addQty}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({ ...prev, [product.id]: { ...draft, addQty: e.target.value } }))
-                      }
-                    />
-                    <input
-                      className="input-base"
-                      type="number"
-                      placeholder="EUR"
-                      value={draft.amount}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({ ...prev, [product.id]: { ...draft, amount: e.target.value } }))
-                      }
-                    />
-                  </div>
-                  <button
-                    className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-                    onClick={() => void restockProduct(product.id)}
-                    disabled={loading}
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                    Registra rifornimento
-                  </button>
-                </article>
-              );
-            })}
-          </div>
-          <div className="hidden md:block">
-          <Table>
-            <TableHead>
-              <tr>
-                <TableHeaderCell>Prodotto</TableHeaderCell>
-                <TableHeaderCell>Categoria</TableHeaderCell>
-                <TableHeaderCell>Qtà iniziale</TableHeaderCell>
-                <TableHeaderCell>Qtà attuale</TableHeaderCell>
-                <TableHeaderCell>Soglia</TableHeaderCell>
-                <TableHeaderCell>Stato</TableHeaderCell>
-                <TableHeaderCell>Rifornisci</TableHeaderCell>
-              </tr>
-            </TableHead>
-            <TableBody>
-              {visibleQuantityProducts.map((product) => {
-                const state = getRefillState(product);
-                const margin = Number((product.initialQuantity * 0.2).toFixed(2));
-                const draft = drafts[product.id] ?? { addQty: "", amount: "" };
-
-                return (
-                    <TableRow
-                      key={product.id}
-                      className={
-                        state === "DA_RIFORNIRE"
-                          ? "bg-rose-50/50"
-                          : state === "IN_ESAURIMENTO"
-                            ? "bg-amber-50/40"
-                            : ""
-                      }
-                    >
-                    <TableCell className="font-medium text-zinc-900">
-                      {product.name}
-                      <StockBar quantity={product.quantity} initialQuantity={product.initialQuantity} state={state} />
-                    </TableCell>
-                    <TableCell>{product.category ?? "-"}</TableCell>
-                    <TableCell>{product.initialQuantity} {product.unit ?? ""}</TableCell>
-                    <TableCell>{product.quantity} {product.unit ?? ""}</TableCell>
-                    <TableCell>{product.threshold} (margine {margin})</TableCell>
-                    <TableCell>
-                      {stateBadge(state)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          className="input-base w-20"
-                          type="number"
-                          placeholder="+qta"
-                          value={draft.addQty}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({ ...prev, [product.id]: { ...draft, addQty: e.target.value } }))
-                          }
-                        />
-                        <input
-                          className="input-base w-24"
-                          type="number"
-                          placeholder="EUR"
-                          value={draft.amount}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({ ...prev, [product.id]: { ...draft, amount: e.target.value } }))
-                          }
-                        />
-                        <button
-                          className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-                          onClick={() => void restockProduct(product.id)}
-                          disabled={loading}
-                        >
-                          <ShoppingCart className="h-3.5 w-3.5" />
-                          Registra
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          </div>
-          </>
-        )}
-        </Card>
-        )}
-      </div>
+      {openModal === "biancheria" && (
+        <RefillLinenModal
+          products={visibleQuantityProducts}
+          loadingProducts={loadingProducts}
+          drafts={drafts}
+          setDrafts={setDrafts}
+          restockPending={loading}
+          onRestock={restockProduct}
+          onClose={() => setOpenModal(null)}
+        />
+      )}
     </section>
   );
 }
