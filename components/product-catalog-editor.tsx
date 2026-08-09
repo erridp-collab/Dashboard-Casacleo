@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import { toast } from "@/components/toast";
@@ -296,12 +297,16 @@ export function ProductCatalogEditor() {
         </div>
       )}
 
-      {/* Modal overlay */}
-      {modal.mode !== "closed" && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center"
-          onClick={(e) => { if (e.target === e.currentTarget) setModal({ mode: "closed" }); }}
-        >
+      {/* Modal overlay — portaled to <body> so it always covers the real
+          viewport, regardless of ancestors (e.g. Card's backdrop-blur,
+          which otherwise turns "fixed" into a containing-block-relative
+          position and clips/mispositions the modal). Closing happens only
+          via the explicit X/Annulla buttons: a tap-to-close backdrop
+          handler was tried before but on touch devices the delayed
+          synthetic click that follows touchend can land on the backdrop
+          that just appeared under the finger, closing the modal instantly. */}
+      {modal.mode !== "closed" && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center">
           <div
             className="w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
             style={{ maxHeight: "90dvh", paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
@@ -356,7 +361,8 @@ export function ProductCatalogEditor() {
               />
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
