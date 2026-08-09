@@ -73,7 +73,13 @@ export default function BookingsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  // Starts open when arriving from the "+ Nuova prenotazione" button in the
+  // top bar (?new=1) — that button lives in a different component/page and
+  // can only signal intent through the URL, mirroring what the mobile FAB
+  // does locally by calling setShowForm(true) directly.
+  const [showForm, setShowForm] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1",
+  );
   const [showCompleted, setShowCompleted] = useState(false);
   const [expandedMenuId, setExpandedMenuId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -209,6 +215,18 @@ export default function BookingsPage() {
       clearTimeout(t);
       bookingsAbortRef.current?.abort();
     };
+  }, []);
+
+  // showForm's initial value already reacted to ?new=1 (see useState above);
+  // this just scrolls the now-open form into view and drops the param so it
+  // doesn't linger in the URL bar or re-trigger on a later soft navigation.
+  // Plain History API on purpose (no next/navigation hook): useSearchParams
+  // would force this whole page behind a <Suspense> boundary just for a
+  // one-off, mount-time URL check.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") !== "1") return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.history.replaceState(null, "", "/bookings");
   }, []);
 
   const visibleBookings = useMemo(
