@@ -63,7 +63,7 @@ export function TopBar() {
         <div className="flex-1 md:hidden" />
 
         <Link
-          href="/bookings"
+          href="/bookings?new=1"
           className="inline-flex min-h-[46px] items-center gap-2 rounded-2xl border border-white/10 bg-brand px-3.5 py-2 text-sm font-semibold text-sidebar-bg shadow-[0_10px_24px_rgba(245,200,66,0.18)] transition hover:-translate-y-px hover:opacity-95 active:translate-y-0 active:scale-[0.99]"
         >
           <Plus className="h-4 w-4" />
