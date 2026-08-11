@@ -255,15 +255,18 @@ export default function InventoryPage() {
     };
   }, []);
 
-  const visibleStatusProducts = useMemo(() => {
+  const statusManagedProducts = useMemo(() => {
     const monitored = products.filter((product) => isMonitoredRefillProduct(product));
-    const statusManaged = monitored.filter((product) => isStatusManagedRefillProduct(product));
-    const alerting = statusManaged.filter((product) => {
+    return monitored.filter((product) => isStatusManagedRefillProduct(product));
+  }, [products]);
+
+  const visibleStatusProducts = useMemo(() => {
+    const alerting = statusManagedProducts.filter((product) => {
       const state = getRefillState(product);
       return state !== "OK";
     });
-    return alerting.length > 0 ? alerting : statusManaged;
-  }, [products]);
+    return alerting.length > 0 ? alerting : statusManagedProducts;
+  }, [statusManagedProducts]);
 
   const visibleQuantityProducts = useMemo(() => {
     const monitored = products.filter((product) => isMonitoredRefillProduct(product));
@@ -622,7 +625,7 @@ export default function InventoryPage() {
 
       {openModal === "consumabili" && (
         <RefillConsumablesModal
-          products={visibleStatusProducts}
+          products={statusManagedProducts}
           loadingProducts={loadingProducts}
           savingStatusId={savingStatusId}
           onUpdateStatus={updateProductStatus}

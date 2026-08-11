@@ -11,6 +11,7 @@ import { resolveProductSchema } from "../../lib/products-schema";
 test.describe("rifornimento kpi modals", () => {
   let fixture: OwnerFlowFixture;
   const consumableName = "Detersivo piatti E2E";
+  const secondConsumableName = "Sapone mani E2E";
 
   test.beforeAll(async () => {
     fixture = await createOwnerFlowFixture();
@@ -41,7 +42,12 @@ test.describe("rifornimento kpi modals", () => {
     };
     record[schema.quantityColumn] = 5;
     if (schema.idColumn === "sku") record.sku = `detersivo_e2e_${Date.now()}`;
-    const { error } = await supabase.from("products").insert(record);
+    const secondRecord: Record<string, unknown> = {
+      ...record,
+      name: secondConsumableName,
+    };
+    if (schema.idColumn === "sku") secondRecord.sku = `sapone_e2e_${Date.now()}`;
+    const { error } = await supabase.from("products").insert([record, secondRecord]);
     if (error) throw new Error(`seed consumable: ${error.message}`);
   });
 
@@ -64,7 +70,9 @@ test.describe("rifornimento kpi modals", () => {
     await expect(page.getByRole("heading", { name: "Consumabili a Stati" })).toBeVisible();
 
     const row = page.getByRole("row", { name: new RegExp(consumableName) });
+    const secondRow = page.getByRole("row", { name: new RegExp(secondConsumableName) });
     await expect(row).toBeVisible();
+    await expect(secondRow).toBeVisible();
     await row.getByRole("button", { name: "A metà" }).click();
 
     await expect
@@ -85,6 +93,7 @@ test.describe("rifornimento kpi modals", () => {
 
     // UI reflects the change too: the button now reads as active/pressed.
     await expect(row.getByRole("button", { name: "A metà" })).toHaveClass(/bg-amber-100/);
+    await expect(secondRow).toBeVisible();
   });
 
   test("biancheria: rifornimento dal modal aggiorna la quantità su Supabase", async ({ page }) => {
