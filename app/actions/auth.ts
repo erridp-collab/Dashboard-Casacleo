@@ -237,11 +237,16 @@ export async function requestAccessAction(prevState: AuthActionState, formData: 
       return { error: "Richiesta non completata. Verifica i dati e riprova." };
     }
 
-    sendSignupRequestNotification({
-      email,
-      fullName: fullName || null,
-      organizationName,
-    }).catch((err) => console.error("Signup notification failed:", err));
+    try {
+      await sendSignupRequestNotification({
+        email,
+        fullName: fullName || null,
+        organizationName,
+      });
+    } catch (error) {
+      // La richiesta resta valida anche se la notifica amministrativa non parte.
+      console.error("Signup notification failed:", error);
+    }
   } catch (error) {
     console.error("Request access failed", error);
     return { error: "Richiesta non completata. Verifica i dati e riprova." };

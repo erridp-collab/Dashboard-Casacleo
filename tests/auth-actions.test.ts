@@ -9,6 +9,7 @@ const {
   mockClearAuthCookies,
   mockWriteActiveOrganizationCookie,
   mockWriteSessionCookies,
+  mockSendSignupRequestNotification,
 } = vi.hoisted(() => ({
   mockHeaders: vi.fn(),
   mockCookies: vi.fn(),
@@ -18,6 +19,7 @@ const {
   mockClearAuthCookies: vi.fn(),
   mockWriteActiveOrganizationCookie: vi.fn(),
   mockWriteSessionCookies: vi.fn(),
+  mockSendSignupRequestNotification: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({
@@ -45,6 +47,10 @@ vi.mock("@/lib/supabaseAuth", () => ({
   writeSessionCookies: mockWriteSessionCookies,
 }));
 
+vi.mock("@/lib/email/resend", () => ({
+  sendSignupRequestNotification: mockSendSignupRequestNotification,
+}));
+
 import {
   forgotPasswordAction,
   loginAction,
@@ -66,6 +72,7 @@ function addPublicFormProtection(formData: FormData) {
 describe("auth actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSendSignupRequestNotification.mockResolvedValue(undefined);
     mockHeaders.mockResolvedValue(
       new Headers({
         host: "localhost:3000",
@@ -292,6 +299,72 @@ describe("auth actions", () => {
         organization_name: "Test Org",
         status: "pending",
       });
+      expect(mockSendSignupRequestNotification).toHaveBeenCalledWith({
+        email: "test@example.com",
+        fullName: "Mario Rossi",
+        organizationName: "Test Org",
+      });
+    });
+
+    it("waits for the signup notification before completing", async () => {
+      const insert = vi.fn().mockResolvedValue({ error: null });
+      const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      const limit = vi.fn().mockReturnValue({ maybeSingle });
+      const eqStatus = vi.fn().mockReturnValue({ limit });
+      const eqEmail = vi.fn().mockReturnValue({ eq: eqStatus });
+      const select = vi.fn().mockReturnValue({ eq: eqEmail });
+      const from = vi.fn().mockReturnValue({ select, insert });
+      const supabaseAdminModule = await import("@/lib/supabaseAdmin");
+      vi.mocked(supabaseAdminModule.supabaseAdmin).mockReturnValue({ from } as never);
+
+      let resolveNotification!: () => void;
+      mockSendSignupRequestNotification.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveNotification = resolve;
+        }),
+      );
+
+      const formData = addPublicFormProtection(new FormData());
+      formData.set("organization_name", "Test Org");
+      formData.set("email", "test@example.com");
+
+      let completed = false;
+      const action = requestAccessAction(null, formData).then((result) => {
+        completed = true;
+        return result;
+      });
+
+      await vi.waitFor(() => {
+        expect(mockSendSignupRequestNotification).toHaveBeenCalledTimes(1);
+      });
+      expect(completed).toBe(false);
+
+      resolveNotification();
+      await expect(action).resolves.toEqual({ success: true });
+    });
+
+    it("keeps the access request successful when notification delivery fails", async () => {
+      const insert = vi.fn().mockResolvedValue({ error: null });
+      const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      const limit = vi.fn().mockReturnValue({ maybeSingle });
+      const eqStatus = vi.fn().mockReturnValue({ limit });
+      const eqEmail = vi.fn().mockReturnValue({ eq: eqStatus });
+      const select = vi.fn().mockReturnValue({ eq: eqEmail });
+      const from = vi.fn().mockReturnValue({ select, insert });
+      const supabaseAdminModule = await import("@/lib/supabaseAdmin");
+      vi.mocked(supabaseAdminModule.supabaseAdmin).mockReturnValue({ from } as never);
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const deliveryError = new Error("Resend unavailable");
+      mockSendSignupRequestNotification.mockRejectedValueOnce(deliveryError);
+
+      const formData = addPublicFormProtection(new FormData());
+      formData.set("organization_name", "Test Org");
+      formData.set("email", "test@example.com");
+
+      await expect(requestAccessAction(null, formData)).resolves.toEqual({ success: true });
+      expect(consoleError).toHaveBeenCalledWith("Signup notification failed:", deliveryError);
+
+      consoleError.mockRestore();
     });
   });
 });
