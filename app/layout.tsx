@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#701a2f",
+  themeColor: "#4A0E24",
   viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
@@ -47,7 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-canvas text-text-primary antialiased`}>
         <SwRegister />
         <PwaInstallPrompt />
         <div className="min-h-screen">
