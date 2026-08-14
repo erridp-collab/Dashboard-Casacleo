@@ -32,19 +32,19 @@ type SignupRequestRecord = {
 const STATUS_META = {
   pending: {
     label: "Pending",
-    className: "border-amber-200 bg-amber-50 text-amber-800",
+    className: "border-semantic-warning/25 bg-semantic-warning/8 text-text-primary",
   },
   approved: {
     label: "Approved",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    className: "border-semantic-success/25 bg-semantic-success/8 text-semantic-success",
   },
   rejected: {
     label: "Rejected",
-    className: "border-zinc-200 bg-zinc-100 text-zinc-700",
+    className: "border-border-strong/15 bg-surface-muted text-text-secondary",
   },
   failed: {
     label: "Failed",
-    className: "border-rose-200 bg-rose-50 text-rose-800",
+    className: "border-semantic-error/25 bg-semantic-error/8 text-text-primary",
   },
 } satisfies Record<
   SignupRequestRecord["status"],
@@ -145,7 +145,7 @@ function RequestActions({ request }: { request: SignupRequestRecord }) {
         <input type="hidden" name="request_id" value={request.id} />
         <button
           type="submit"
-          className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 active:scale-95"
+          className="btn-primary btn-sm"
         >
           {request.status === "failed" ? "Riprova provisioning" : "Approva"}
         </button>
@@ -156,7 +156,7 @@ function RequestActions({ request }: { request: SignupRequestRecord }) {
           <input type="hidden" name="request_id" value={request.id} />
           <button
             type="submit"
-            className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 active:scale-95"
+            className="btn-secondary btn-sm"
           >
             Rifiuta
           </button>
@@ -168,21 +168,21 @@ function RequestActions({ request }: { request: SignupRequestRecord }) {
 
 function RequestQueueCard({ request }: { request: SignupRequestRecord }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
+    <div className="space-y-3 rounded-xl border border-border-strong/12 bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-medium text-zinc-900 truncate">
+          <p className="truncate font-medium text-text-primary">
             {request.full_name || "Senza nome"}
           </p>
-          <p className="text-sm text-zinc-500 truncate">{request.email}</p>
-          <p className="mt-0.5 text-sm text-zinc-700">{request.organization_name}</p>
+          <p className="truncate text-sm text-text-muted">{request.email}</p>
+          <p className="mt-0.5 text-sm text-text-secondary">{request.organization_name}</p>
         </div>
         <StatusBadge status={request.status} />
       </div>
-      <div className="text-xs text-zinc-500 space-y-0.5">
+      <div className="space-y-0.5 text-xs text-text-muted">
         <p>{request.auth_user_id ? "Auth pronto" : "Auth da creare"}</p>
         <p>{request.organization_id ? "Workspace pronto" : "Workspace da creare"}</p>
-        {request.notes ? <p className="text-rose-700">{request.notes}</p> : null}
+        {request.notes ? <p className="text-semantic-error">{request.notes}</p> : null}
         <p>Ricevuta: {formatDate(request.created_at)}</p>
       </div>
       <RequestActions request={request} />
@@ -238,9 +238,9 @@ export default async function PlatformRequestsPage({
         <div
           className={[
             "rounded-2xl border px-4 py-3 text-sm",
-            banner.tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-800",
-            banner.tone === "error" && "border-rose-200 bg-rose-50 text-rose-800",
-            banner.tone === "neutral" && "border-zinc-200 bg-zinc-50 text-zinc-700",
+            banner.tone === "success" && "border-semantic-success/25 bg-semantic-success/8 text-semantic-success",
+            banner.tone === "error" && "border-semantic-error/25 bg-semantic-error/8 text-text-primary",
+            banner.tone === "neutral" && "border-border-strong/15 bg-surface-muted text-text-secondary",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -253,40 +253,40 @@ export default async function PlatformRequestsPage({
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-zinc-500">Pending</p>
-              <p className="mt-2 text-3xl font-semibold text-zinc-900">{counts.pending}</p>
+              <p className="text-sm text-text-secondary">Pending</p>
+              <p className="mt-2 text-3xl font-semibold text-text-primary">{counts.pending}</p>
             </div>
-            <Clock3 className="h-5 w-5 text-amber-500" />
+            <Clock3 className="h-5 w-5 text-semantic-warning" aria-hidden="true" />
           </div>
         </Card>
 
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-zinc-500">Failed</p>
-              <p className="mt-2 text-3xl font-semibold text-zinc-900">{counts.failed}</p>
+              <p className="text-sm text-text-secondary">Failed</p>
+              <p className="mt-2 text-3xl font-semibold text-text-primary">{counts.failed}</p>
             </div>
-            <AlertTriangle className="h-5 w-5 text-rose-500" />
+            <AlertTriangle className="h-5 w-5 text-semantic-error" aria-hidden="true" />
           </div>
         </Card>
 
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-zinc-500">Approved</p>
-              <p className="mt-2 text-3xl font-semibold text-zinc-900">{counts.approved}</p>
+              <p className="text-sm text-text-secondary">Approved</p>
+              <p className="mt-2 text-3xl font-semibold text-text-primary">{counts.approved}</p>
             </div>
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <CheckCircle2 className="h-5 w-5 text-semantic-success" aria-hidden="true" />
           </div>
         </Card>
 
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-zinc-500">Rejected</p>
-              <p className="mt-2 text-3xl font-semibold text-zinc-900">{counts.rejected}</p>
+              <p className="text-sm text-text-secondary">Rejected</p>
+              <p className="mt-2 text-3xl font-semibold text-text-primary">{counts.rejected}</p>
             </div>
-            <XCircle className="h-5 w-5 text-zinc-500" />
+            <XCircle className="h-5 w-5 text-text-muted" aria-hidden="true" />
           </div>
         </Card>
       </div>
@@ -295,11 +295,11 @@ export default async function PlatformRequestsPage({
         <CardHeader
           title="Coda approvazioni"
           subtitle="Pending e failed richiedono un tuo intervento. I failed mantengono gli ID gia creati per consentire retry sicuri."
-          action={<RefreshCcw className="h-4 w-4 text-primary" />}
+          action={<RefreshCcw className="h-4 w-4 text-brand-primary" aria-hidden="true" />}
         />
 
         {queue.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-sm text-zinc-600">
+          <div className="rounded-xl border border-dashed border-border-strong/25 bg-surface-muted p-6 text-sm text-text-secondary">
             Nessuna richiesta in coda in questo momento.
           </div>
         ) : (
@@ -318,7 +318,7 @@ export default async function PlatformRequestsPage({
         />
 
         {history.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-sm text-zinc-600">
+          <div className="rounded-xl border border-dashed border-border-strong/25 bg-surface-muted p-6 text-sm text-text-secondary">
             Nessuna richiesta processata ancora.
           </div>
         ) : (
@@ -337,22 +337,22 @@ export default async function PlatformRequestsPage({
                 <TableRow key={request.id}>
                   <TableCell>
                     <div className="space-y-1">
-                      <p className="font-medium text-zinc-900">
+                      <p className="font-medium text-text-primary">
                         {request.full_name || "Richiesta senza nome"}
                       </p>
-                      <p className="text-sm text-zinc-500">{request.email}</p>
+                      <p className="text-sm text-text-muted">{request.email}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium text-zinc-900">
+                  <TableCell className="font-medium text-text-primary">
                     {request.organization_name}
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={request.status} />
                   </TableCell>
-                  <TableCell className="text-sm text-zinc-600">
+                  <TableCell className="text-sm text-text-secondary">
                     {formatDate(request.created_at)}
                   </TableCell>
-                  <TableCell className="text-sm text-zinc-600">
+                  <TableCell className="text-sm text-text-secondary">
                     {formatDate(request.reviewed_at)}
                   </TableCell>
                 </TableRow>

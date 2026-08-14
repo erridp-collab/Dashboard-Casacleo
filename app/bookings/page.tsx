@@ -61,9 +61,9 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 
 function channelChipClass(channel: string | null): string {
   const ch = (channel ?? "").toLowerCase();
-  if (ch.includes("airbnb")) return "bg-sidebar-bg text-[#f5c842]";
-  if (ch.includes("booking")) return "bg-[#1a3a6b] text-white";
-  return "bg-zinc-600 text-white";
+  if (ch.includes("airbnb")) return "bg-brand-primary/10 text-brand-primary";
+  if (ch.includes("booking")) return "bg-semantic-info/10 text-semantic-info";
+  return "bg-surface-muted text-text-secondary";
 }
 
 function cleaningStatusChipClass(done: boolean): string {

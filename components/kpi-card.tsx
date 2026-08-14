@@ -15,9 +15,9 @@ type Props = {
 };
 
 const statusIndicator: Record<Status, { dot: string; text: string; label: string } | null> = {
-  ok: { dot: "bg-semantic-success", text: "text-semantic-success", label: "OK" },
-  warn: { dot: "bg-semantic-warning", text: "text-semantic-warning", label: "Attenzione" },
-  critical: { dot: "bg-semantic-error", text: "text-semantic-error", label: "Critico" },
+  ok: { dot: "bg-semantic-success", text: "text-text-secondary", label: "OK" },
+  warn: { dot: "bg-semantic-warning", text: "text-text-secondary", label: "Attenzione" },
+  critical: { dot: "bg-semantic-error", text: "text-text-secondary", label: "Critico" },
   neutral: null,
 };
 

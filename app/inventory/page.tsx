@@ -569,7 +569,7 @@ export default function InventoryPage() {
           {csvFileName && <p className="text-xs text-text-secondary">File: {csvFileName}</p>}
 
           {csvErrors.length > 0 && (
-            <div className="rounded-xl border border-semantic-warning/30 bg-semantic-warning/10 p-3 text-xs text-semantic-warning">
+            <div className="rounded-xl border border-semantic-warning/30 bg-semantic-warning/10 p-3 text-xs text-text-primary">
               {csvErrors.map((err) => (
                 <p key={err}>{err}</p>
               ))}

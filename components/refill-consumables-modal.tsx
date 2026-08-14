@@ -9,8 +9,8 @@ import type { ProductRow } from "@/lib/inventory-types";
 
 const STATUS_OPTIONS: Array<{ value: StockStatus; label: string; activeClass: string }> = [
   { value: "PIENO", label: "Pieno", activeClass: "bg-semantic-success/15 text-semantic-success" },
-  { value: "A_META", label: "A metà", activeClass: "bg-semantic-warning/15 text-semantic-warning" },
-  { value: "TERMINATO", label: "Finito", activeClass: "bg-semantic-error/15 text-semantic-error" },
+  { value: "A_META", label: "A metà", activeClass: "border border-semantic-warning/30 bg-semantic-warning/15 text-text-primary" },
+  { value: "TERMINATO", label: "Finito", activeClass: "border border-semantic-error/30 bg-semantic-error/15 text-text-primary" },
 ];
 
 type Props = {

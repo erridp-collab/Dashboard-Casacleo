@@ -4,23 +4,23 @@
   /* Legacy tokens — consumati da schermate non ancora migrate al piano
      IMPLEMENTATION_PLAN_UI_UX.md. Da rimuovere quando tutte le pagine
      useranno la palette sottostante (vedi piano, punto 14). */
-  --background: 36 42% 94%;
-  --foreground: 35 53% 7%;
+  --background: 42 50% 96%;
+  --foreground: 338 68% 17%;
   --sidebar-bg: 338 68% 17%;
   --brand: 47 86% 69%;
   --brand-light: 47 86% 69%;
   --primary: 339 55% 46%;
-  --surface-1: 42 56% 98%;
-  --surface-2: 36 34% 92%;
-  --surface-3: 37 28% 88%;
-  --border-subtle: 31 31% 84%;
-  --border-default: 30 24% 77%;
-  --text-tertiary: 28 20% 55%;
+  --surface-1: 0 0% 100%;
+  --surface-2: 338 24% 96%;
+  --surface-3: 338 18% 92%;
+  --border-subtle: 336 22% 86%;
+  --border-default: 336 24% 76%;
+  --text-tertiary: 336 53% 35%;
 
   /* Palette Alva Host (IMPLEMENTATION_PLAN_UI_UX.md) */
   --canvas: 42 50% 96%;
   --surface: 0 0% 100%;
-  --surface-muted: 43 45% 91%;
+  --surface-muted: 338 24% 96%;
   --surface-raised: 0 0% 100%;
 
   --text-primary: 338 68% 17%;
@@ -94,7 +94,7 @@
 
 body {
   background: hsl(var(--canvas));
-  color: hsl(var(--foreground));
+  color: hsl(var(--text-primary));
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
   min-height: 100vh;
 }
@@ -115,7 +115,7 @@ body {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-semantic-error/30 bg-semantic-error/10 px-4 py-2.5 text-sm font-medium text-semantic-error transition-colors duration-150 hover:bg-semantic-error/15 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-semantic-error/35 bg-semantic-error/10 px-4 py-2.5 text-sm font-medium text-text-primary transition-colors duration-150 hover:bg-semantic-error/15 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-sm {
     @apply h-9 rounded-lg px-3 py-0 text-xs;
@@ -149,15 +149,14 @@ body {
 }
 
 .calendar-shell {
-  background: linear-gradient(180deg, #fffdf8 0%, #f4efe6 100%);
-  border: 1px solid #e7dfd2;
-  border-radius: 20px;
-  box-shadow: 0 18px 40px rgba(58, 42, 22, 0.08);
+  background: hsl(var(--surface-raised));
+  border: 1px solid hsl(var(--border-strong) / 0.12);
+  border-radius: 16px;
 }
 
 .calendar-modern .fc {
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
-  color: #2f261c;
+  color: hsl(var(--text-primary));
 }
 
 .calendar-modern .fc-toolbar.fc-header-toolbar {
@@ -173,31 +172,52 @@ body {
 }
 
 .calendar-modern .fc-button {
-  background: #fff7ec;
-  border: 1px solid #e5d4bf;
-  color: #2f261c;
-  border-radius: 999px;
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--border-strong) / 0.22);
+  color: hsl(var(--text-secondary));
+  border-radius: 10px;
   padding: 0.4rem 0.8rem;
   font-weight: 600;
   box-shadow: none;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
 }
 
 .calendar-modern .fc-button:hover,
-.calendar-modern .fc-button:focus,
+.calendar-modern .fc-button:focus {
+  background: hsl(var(--brand-primary) / 0.08);
+  border-color: hsl(var(--brand-primary) / 0.4);
+  color: hsl(var(--brand-primary));
+}
+
+.calendar-modern .fc-button:focus-visible {
+  outline: 2px solid hsl(var(--brand-primary) / 0.35);
+  outline-offset: 2px;
+}
+
 .calendar-modern .fc-button-primary:not(:disabled).fc-button-active {
-  background: #f2e4d1;
-  border-color: #d9c4a7;
-  color: #2f261c;
+  background: hsl(var(--brand-primary));
+  border-color: hsl(var(--brand-primary));
+  color: white;
+}
+
+.calendar-modern .fc-button:disabled {
+  background: hsl(var(--surface-muted));
+  border-color: hsl(var(--border-strong) / 0.12);
+  color: hsl(var(--text-muted));
+  opacity: 0.72;
 }
 
 .calendar-modern .fc-theme-standard .fc-scrollgrid,
 .calendar-modern .fc-theme-standard td,
 .calendar-modern .fc-theme-standard th {
-  border-color: rgba(120, 100, 80, 0.18);
+  border-color: hsl(var(--border-strong) / 0.14);
 }
 
 .calendar-modern .fc-col-header-cell-cushion {
-  color: #7a6a58;
+  color: hsl(var(--text-secondary));
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -206,25 +226,60 @@ body {
 }
 
 .calendar-modern .fc-daygrid-day-number {
-  color: #2f261c;
+  color: hsl(var(--text-primary));
   font-weight: 700;
   font-size: 0.88rem;
   padding: 0.4rem;
 }
 
 .calendar-modern .fc-daygrid-day.fc-day-today {
-  background: rgba(245, 200, 66, 0.15);
-  border: 1.5px solid rgba(245, 200, 66, 0.45);
-  border-radius: 6px;
+  background: hsl(var(--gold) / 0.14);
+  box-shadow: inset 0 0 0 1px hsl(var(--gold) / 0.45);
 }
 
 .calendar-modern .fc-event {
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
   padding: 0.15rem 0.4rem;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.calendar-modern .fc-event.calendar-event--booking {
+  background: hsl(var(--brand-primary) / 0.1);
+  border-color: hsl(var(--brand-primary) / 0.28);
+  color: hsl(var(--brand-primary));
+}
+
+.calendar-modern .fc-event.calendar-event--cleaning {
+  background: hsl(var(--semantic-success) / 0.1);
+  border-color: hsl(var(--semantic-success) / 0.28);
+  color: hsl(var(--semantic-success));
+}
+
+.calendar-modern .fc-event.calendar-event--laundry {
+  background: hsl(var(--brand-secondary) / 0.16);
+  border-color: hsl(var(--brand-secondary) / 0.38);
+  color: hsl(var(--brand-dark));
+}
+
+.calendar-modern .fc-event.calendar-event--linen {
+  background: hsl(var(--semantic-info) / 0.1);
+  border-color: hsl(var(--semantic-info) / 0.28);
+  color: hsl(var(--semantic-info));
+}
+
+.calendar-modern .fc-event.calendar-event--maintenance {
+  background: hsl(var(--semantic-warning) / 0.12);
+  border-color: hsl(var(--semantic-warning) / 0.35);
+  color: hsl(var(--text-primary));
+}
+
+.calendar-modern .fc-event.calendar-event--shopping {
+  background: hsl(var(--border-strong) / 0.1);
+  border-color: hsl(var(--border-strong) / 0.28);
+  color: hsl(var(--text-muted));
 }
 
 .calendar-modern .fc-event-title {

@@ -49,21 +49,23 @@ export function ToastContainer() {
           key={item.id}
           className={`flex items-center gap-3 rounded-xl border px-4 py-3 shadow-lg text-sm font-medium transition-all ${
             item.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-rose-200 bg-rose-50 text-rose-800"
+              ? "border-semantic-success/25 bg-surface-raised text-text-primary"
+              : "border-semantic-error/25 bg-surface-raised text-text-primary"
           }`}
         >
           {item.type === "success" ? (
-            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-500" />
+            <CheckCircle className="h-4 w-4 shrink-0 text-semantic-success" aria-hidden="true" />
           ) : (
-            <XCircle className="h-4 w-4 shrink-0 text-rose-500" />
+            <XCircle className="h-4 w-4 shrink-0 text-semantic-error" aria-hidden="true" />
           )}
           <span>{item.message}</span>
           <button
-            className="ml-1 rounded p-0.5 opacity-60 hover:opacity-100"
+            type="button"
+            aria-label="Chiudi notifica"
+            className="ml-1 rounded-lg p-1 opacity-60 transition-opacity duration-150 hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
             onClick={() => emit(toasts.filter((t) => t.id !== item.id))}
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
       ))}

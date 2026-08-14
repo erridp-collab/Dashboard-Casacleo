@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-zinc-200 ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-surface-muted ${className}`} />;
 }
 
 export function KpiCardSkeleton() {
@@ -15,7 +15,7 @@ export function KpiCardSkeleton() {
 
 export function RowSkeleton({ cols = 4 }: { cols?: number }) {
   return (
-    <tr className="border-b border-zinc-100">
+    <tr className="border-b border-border-strong/10">
       {Array.from({ length: cols }).map((_, i) => (
         <td key={i} className="px-3 py-3">
           <Skeleton className="h-4 w-full" />
@@ -29,7 +29,7 @@ export function CardSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-zinc-100 p-4">
+        <div key={i} className="rounded-xl border border-border-strong/10 p-4">
           <Skeleton className="h-4 w-32" />
           <Skeleton className="mt-2 h-3 w-48" />
         </div>

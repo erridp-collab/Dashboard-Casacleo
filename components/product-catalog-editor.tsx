@@ -596,7 +596,7 @@ function DeleteConfirm({
         Vuoi eliminare <span className="font-semibold text-text-primary">{product.name}</span>? L&apos;operazione non è reversibile.
       </p>
       {product.linen_role && (
-        <p className="rounded-xl border border-semantic-warning/30 bg-semantic-warning/10 px-3 py-2 text-xs text-semantic-warning">
+        <p className="rounded-xl border border-semantic-warning/30 bg-semantic-warning/10 px-3 py-2 text-xs text-text-primary">
           Questo prodotto è collegato al rifornimento automatico di {LINEN_ROLES.find((r) => r.value === product.linen_role)?.label}.
           Eliminandolo, questo tipo di biancheria non verrà più scalato automaticamente dalle prenotazioni future.
         </p>

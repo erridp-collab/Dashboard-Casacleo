@@ -136,8 +136,8 @@ export default async function PlatformAccountsPage({
         <div
           className={[
             "rounded-2xl border px-4 py-3 text-sm",
-            banner.tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-800",
-            banner.tone === "error" && "border-rose-200 bg-rose-50 text-rose-800",
+            banner.tone === "success" && "border-semantic-success/25 bg-semantic-success/8 text-semantic-success",
+            banner.tone === "error" && "border-semantic-error/25 bg-semantic-error/8 text-text-primary",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -150,7 +150,7 @@ export default async function PlatformAccountsPage({
         <CardHeader
           title="Ricerca account"
           subtitle="Cerca un utente per email e gestisci reset, blocco o riattivazione."
-          action={<Search className="h-4 w-4 text-primary" />}
+          action={<Search className="h-4 w-4 text-brand-primary" aria-hidden="true" />}
         />
 
         <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -159,11 +159,11 @@ export default async function PlatformAccountsPage({
             name="email"
             defaultValue={email}
             placeholder="utente@esempio.com"
-            className="w-full rounded-xl border border-zinc-300 px-3 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+            className="input-base"
           />
           <button
             type="submit"
-            className="rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            className="btn-primary"
           >
             Cerca account
           </button>
@@ -172,14 +172,14 @@ export default async function PlatformAccountsPage({
 
       {!email ? (
         <Card className="p-6">
-          <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-sm text-zinc-600">
+          <div className="rounded-xl border border-dashed border-border-strong/25 bg-surface-muted p-6 text-sm text-text-secondary">
             Inserisci un&apos;email per cercare un account piattaforma.
           </div>
         </Card>
       ) : !user ? (
         <Card className="p-6">
-          <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-sm text-zinc-600">
-            Nessun account trovato per <span className="font-medium text-zinc-900">{email}</span>.
+          <div className="rounded-xl border border-dashed border-border-strong/25 bg-surface-muted p-6 text-sm text-text-secondary">
+            Nessun account trovato per <span className="font-medium text-text-primary">{email}</span>.
           </div>
         </Card>
       ) : (
@@ -188,49 +188,49 @@ export default async function PlatformAccountsPage({
             <Card className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-zinc-500">Stato account</p>
-                  <p className="mt-2 text-xl font-semibold text-zinc-900">
+                  <p className="text-sm text-text-secondary">Stato account</p>
+                  <p className="mt-2 text-xl font-semibold text-text-primary">
                     {isDisabled ? "Disattivato" : "Attivo"}
                   </p>
-                  <p className="mt-2 text-sm text-zinc-500">
+                  <p className="mt-2 text-sm text-text-muted">
                     {isDisabled
                       ? `Bloccato fino a ${formatDate(user.banned_until)}`
                       : "Login e reset password disponibili"}
                   </p>
                 </div>
-                <Ban className={`h-5 w-5 ${isDisabled ? "text-rose-500" : "text-zinc-400"}`} />
+                <Ban className={`h-5 w-5 ${isDisabled ? "text-semantic-error" : "text-text-muted"}`} aria-hidden="true" />
               </div>
             </Card>
 
             <Card className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-zinc-500">Email</p>
-                  <p className="mt-2 text-xl font-semibold text-zinc-900">
+                  <p className="text-sm text-text-secondary">Email</p>
+                  <p className="mt-2 text-xl font-semibold text-text-primary">
                     {user.email ?? email}
                   </p>
-                  <p className="mt-2 text-sm text-zinc-500">
+                  <p className="mt-2 text-sm text-text-muted">
                     {user.email_confirmed_at ? "Email confermata" : "Email non ancora confermata"}
                   </p>
                 </div>
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <CheckCircle2 className="h-5 w-5 text-semantic-success" aria-hidden="true" />
               </div>
             </Card>
 
             <Card className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-zinc-500">Accesso recente</p>
-                  <p className="mt-2 text-xl font-semibold text-zinc-900">
+                  <p className="text-sm text-text-secondary">Accesso recente</p>
+                  <p className="mt-2 text-xl font-semibold text-text-primary">
                     {user.last_sign_in_at ? "Presente" : "Mai entrato"}
                   </p>
-                  <p className="mt-2 text-sm text-zinc-500">
+                  <p className="mt-2 text-sm text-text-muted">
                     {user.last_sign_in_at
                       ? formatDate(user.last_sign_in_at)
                       : `Creato il ${formatDate(user.created_at)}`}
                   </p>
                 </div>
-                <UserRound className="h-5 w-5 text-primary" />
+                <UserRound className="h-5 w-5 text-brand-primary" aria-hidden="true" />
               </div>
             </Card>
           </div>
@@ -243,7 +243,7 @@ export default async function PlatformAccountsPage({
               />
 
               {memberships.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-sm text-zinc-600">
+                <div className="rounded-xl border border-dashed border-border-strong/25 bg-surface-muted p-6 text-sm text-text-secondary">
                   Nessuna membership trovata per questo account.
                 </div>
               ) : (
@@ -254,12 +254,12 @@ export default async function PlatformAccountsPage({
                     return (
                       <div
                         key={`${membership.organization_id}-${membership.role}`}
-                        className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3"
+                        className="rounded-xl border border-border-strong/12 bg-surface-muted px-4 py-3"
                       >
-                        <p className="font-medium text-zinc-900">
+                        <p className="font-medium text-text-primary">
                           {organization?.name ?? membership.organization_id}
                         </p>
-                        <p className="mt-1 text-sm text-zinc-500">
+                        <p className="mt-1 text-sm text-text-muted">
                           {organization?.slug ?? "slug non disponibile"} - ruolo {membership.role}
                         </p>
                       </div>
@@ -273,7 +273,7 @@ export default async function PlatformAccountsPage({
               <CardHeader
                 title="Azioni supporto"
                 subtitle="Operazioni rapide per supportare l'utente senza uscire dalla console."
-                action={<KeyRound className="h-4 w-4 text-primary" />}
+                action={<KeyRound className="h-4 w-4 text-brand-primary" aria-hidden="true" />}
               />
 
               <div className="space-y-3">
@@ -281,7 +281,7 @@ export default async function PlatformAccountsPage({
                   <input type="hidden" name="email" value={user.email ?? email} />
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    className="btn-primary w-full"
                   >
                     Reinvio link reset password
                   </button>
@@ -293,7 +293,7 @@ export default async function PlatformAccountsPage({
                     <input type="hidden" name="email" value={user.email ?? email} />
                     <button
                       type="submit"
-                      className="w-full rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                      className="btn-danger w-full"
                     >
                       Disattiva account
                     </button>
@@ -304,7 +304,7 @@ export default async function PlatformAccountsPage({
                     <input type="hidden" name="email" value={user.email ?? email} />
                     <button
                       type="submit"
-                      className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      className="w-full rounded-xl border border-semantic-success/30 bg-semantic-success/8 px-4 py-3 text-sm font-semibold text-semantic-success transition-colors duration-150 hover:bg-semantic-success/12"
                     >
                       Riattiva account
                     </button>

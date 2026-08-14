@@ -16,11 +16,15 @@ export function StatusBadge({ status }: { status: ActionStatus }) {
   const done = status === "FATTO";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-        done ? "bg-semantic-success/10 text-semantic-success" : "bg-semantic-warning/10 text-semantic-warning"
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-text-primary ${
+        done ? "bg-semantic-success/10" : "bg-semantic-warning/10"
       }`}
     >
-      {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
+      {done ? (
+        <CheckCircle2 className="h-3.5 w-3.5 text-semantic-success" aria-hidden="true" />
+      ) : (
+        <CircleDashed className="h-3.5 w-3.5 text-semantic-warning" aria-hidden="true" />
+      )}
       {done ? "Completata" : "Da fare"}
     </span>
   );
@@ -28,49 +32,28 @@ export function StatusBadge({ status }: { status: ActionStatus }) {
 
 type BadgeConfig = {
   icon: LucideIcon;
-  iconBg: string;
-  iconColor: string;
-  textColor: string;
 };
 
 const BADGE_CONFIG: Record<"cleaning" | "laundry" | "linen" | "maintenance" | "shopping", BadgeConfig> = {
   cleaning: {
     icon: Sparkles,
-    iconBg: "bg-emerald-100",
-    iconColor: "text-emerald-700",
-    textColor: "text-emerald-800",
   },
   linen: {
     icon: Layers,
-    iconBg: "bg-purple-100",
-    iconColor: "text-purple-700",
-    textColor: "text-purple-800",
   },
   laundry: {
     icon: Wind,
-    iconBg: "bg-orange-100",
-    iconColor: "text-orange-700",
-    textColor: "text-orange-800",
   },
   maintenance: {
     icon: Wrench,
-    iconBg: "bg-amber-100",
-    iconColor: "text-amber-700",
-    textColor: "text-amber-800",
   },
   shopping: {
     icon: ShoppingCart,
-    iconBg: "bg-slate-100",
-    iconColor: "text-slate-600",
-    textColor: "text-slate-700",
   },
 };
 
 const DEFAULT_CONFIG: BadgeConfig = {
   icon: ClipboardList,
-  iconBg: "bg-zinc-100",
-  iconColor: "text-zinc-600",
-  textColor: "text-zinc-700",
 };
 
 export function ActionTypeBadge({ actionType }: { actionType: string }) {
@@ -80,10 +63,10 @@ export function ActionTypeBadge({ actionType }: { actionType: string }) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg ${config.iconBg}`}>
-        <Icon className={`h-4 w-4 ${config.iconColor}`} />
+      <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-surface-muted">
+        <Icon className="h-4 w-4 text-text-secondary" />
       </div>
-      <span className={`text-xs font-semibold ${config.textColor}`}>{getActionTypeLabel(actionType)}</span>
+      <span className="text-xs font-semibold text-text-primary">{getActionTypeLabel(actionType)}</span>
     </div>
   );
 }

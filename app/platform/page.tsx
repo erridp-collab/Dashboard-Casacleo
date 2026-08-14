@@ -10,15 +10,15 @@ export default function PlatformPage() {
           subtitle="Base amministrativa pronta per gestire approvazione accessi e supporto account."
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-            <p className="text-sm font-medium text-zinc-900">Platform admin</p>
-            <p className="mt-1 text-sm text-zinc-600">
+          <div className="rounded-xl border border-border-strong/12 bg-surface-muted p-4">
+            <p className="text-sm font-medium text-text-primary">Platform admin</p>
+            <p className="mt-1 text-sm text-text-secondary">
               Guard dedicato separato dal contesto tenant e bypass onboarding su `/platform`.
             </p>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-            <p className="text-sm font-medium text-zinc-900">UI coerente</p>
-            <p className="mt-1 text-sm text-zinc-600">
+          <div className="rounded-xl border border-border-strong/12 bg-surface-muted p-4">
+            <p className="text-sm font-medium text-text-primary">UI coerente</p>
+            <p className="mt-1 text-sm text-text-secondary">
               Area interna pulita e leggibile, pronta per richieste accesso e gestione account.
             </p>
           </div>
@@ -33,13 +33,13 @@ export default function PlatformPage() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/platform/requests"
-            className="inline-flex rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            className="btn-primary"
           >
             Apri richieste accesso
           </Link>
           <Link
             href="/platform/accounts"
-            className="inline-flex rounded-xl border border-zinc-300 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+            className="btn-secondary"
           >
             Apri supporto account
           </Link>

@@ -21,9 +21,24 @@ type Props = {
 };
 
 const STATUS_CONFIG: Record<StockStatus, { label: string; bg: string; text: string; dot: string }> = {
-  PIENO: { label: "Pieno", bg: "bg-emerald-100", text: "text-emerald-700", dot: "bg-emerald-500" },
-  A_META: { label: "A metà", bg: "bg-amber-100", text: "text-amber-700", dot: "bg-amber-400" },
-  TERMINATO: { label: "Finito", bg: "bg-rose-100", text: "text-rose-700", dot: "bg-rose-500" },
+  PIENO: {
+    label: "Pieno",
+    bg: "bg-semantic-success/10",
+    text: "text-semantic-success",
+    dot: "bg-semantic-success",
+  },
+  A_META: {
+    label: "A metà",
+    bg: "bg-semantic-warning/10",
+    text: "text-text-primary",
+    dot: "bg-semantic-warning",
+  },
+  TERMINATO: {
+    label: "Finito",
+    bg: "bg-semantic-error/10",
+    text: "text-text-primary",
+    dot: "bg-semantic-error",
+  },
 };
 
 const STATUS_CYCLE: StockStatus[] = ["PIENO", "A_META", "TERMINATO"];
@@ -170,27 +185,29 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
 
         <div className="space-y-5 px-5 py-4">
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
               Chi ha fatto le pulizie?
             </p>
             <div className="grid grid-cols-2 gap-3">
               <button
+                type="button"
                 onClick={() => setMode("SELF")}
                 className={`flex flex-col items-center gap-2 rounded-xl border-2 py-4 text-sm font-medium transition ${
                   mode === "SELF"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                    ? "border-brand-primary bg-brand-primary/8 text-brand-primary"
+                    : "border-border-strong/20 text-text-secondary hover:border-brand-primary/35 hover:bg-brand-primary/5"
                 }`}
               >
                 <span className="text-2xl">Pulizia</span>
                 Fatta da me
               </button>
               <button
+                type="button"
                 onClick={() => setMode("EXTERNAL")}
                 className={`flex flex-col items-center gap-2 rounded-xl border-2 py-4 text-sm font-medium transition ${
                   mode === "EXTERNAL"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                    ? "border-brand-primary bg-brand-primary/8 text-brand-primary"
+                    : "border-border-strong/20 text-text-secondary hover:border-brand-primary/35 hover:bg-brand-primary/5"
                 }`}
               >
                 <span className="text-2xl">Servizio</span>
@@ -199,7 +216,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
             </div>
             {mode === "EXTERNAL" ? (
               <div className="mt-3">
-                <label className="text-sm text-zinc-600">
+                <label className="text-sm text-text-secondary">
                   Ore di pulizia esterna
                   <input
                     type="number"
@@ -209,10 +226,10 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                     placeholder="es. 2.5"
                     value={externalHours}
                     onChange={(e) => setExternalHours(e.target.value)}
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+                    className="input-base mt-1"
                   />
                 </label>
-                <label className="mt-2 block text-sm text-zinc-600">
+                <label className="mt-2 block text-sm text-text-secondary">
                   Tariffa oraria (€/ora)
                   <input
                     type="number"
@@ -222,28 +239,28 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                     placeholder="es. 12"
                     value={externalRate}
                     onChange={(e) => setExternalRate(e.target.value)}
-                    className="mt-1 block h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm outline-none focus:border-primary"
+                    className="input-base mt-1"
                   />
                 </label>
                 {externalHours && externalRate && Number(externalHours.replace(",", ".")) > 0 && Number(externalRate.replace(",", ".")) > 0 ? (
-                  <p className="mt-1 text-xs font-medium text-primary">
+                  <p className="mt-1 text-xs font-medium text-brand-primary">
                     Totale: €{(Number(externalHours.replace(",", ".")) * Number(externalRate.replace(",", "."))).toFixed(2)}
                   </p>
                 ) : null}
-                <p className="mt-1 text-xs text-zinc-400">Il totale verrà registrato come spesa</p>
+                <p className="mt-1 text-xs text-text-muted">Il totale verrà registrato come spesa</p>
               </div>
             ) : null}
           </div>
 
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">
               Scorte prodotti - tocca per cambiare stato
             </p>
 
             {loadingProducts ? (
               <div className="grid grid-cols-3 gap-2">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-16 animate-pulse rounded-xl bg-zinc-100" />
+                  <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-muted" />
                 ))}
               </div>
             ) : (
@@ -252,12 +269,13 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                   const cfg = STATUS_CONFIG[p.status];
                   return (
                     <button
+                      type="button"
                       key={p.id}
                       onClick={() => cycleStatus(p.id)}
                       className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-transparent px-2 py-3 text-center transition active:scale-95 ${cfg.bg}`}
                     >
                       <span className={`h-2.5 w-2.5 rounded-full ${cfg.dot}`} />
-                      <span className="text-[11px] font-medium leading-tight text-zinc-800">
+                      <span className="text-[11px] font-medium leading-tight text-text-primary">
                         {p.name.length > 14 ? `${p.name.slice(0, 13)}...` : p.name}
                       </span>
                       <span className={`text-[10px] font-semibold ${cfg.text}`}>{cfg.label}</span>
@@ -269,23 +287,23 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
           </div>
 
           <div>
-            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <Wrench className="h-3.5 w-3.5" />
               Segnalazione manutenzione (opzionale)
             </label>
             <textarea
-              className="mt-2 w-full resize-none rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-primary"
+              className="mt-2 w-full resize-none rounded-xl border border-border-strong/25 bg-surface px-3 py-2 text-sm text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
               rows={3}
               placeholder="Es: perdita sotto il lavandino, maniglia rotta, lampadina fulminata..."
               value={maintenanceNote}
               onChange={(e) => setMaintenanceNote(e.target.value)}
             />
             {maintenanceNote.trim() ? (
-              <p className="mt-1 text-xs text-amber-600">Verrà creata una segnalazione di manutenzione con questa nota</p>
+              <p className="mt-1 text-xs text-text-secondary">Verrà creata una segnalazione di manutenzione con questa nota</p>
             ) : null}
           </div>
 
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+          {error ? <p className="text-sm text-text-primary">{error}</p> : null}
         </div>
 
         <div className="flex flex-col gap-2 border-t border-border-strong/12 px-5 py-4">
