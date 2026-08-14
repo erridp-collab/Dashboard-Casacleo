@@ -53,7 +53,7 @@ test.describe("owner flow", () => {
     await page.getByRole("button", { name: "Completa onboarding" }).click();
 
     await page.waitForURL("**/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Riepilogo" })).toBeVisible();
     await expect
       .poll(async () => getOnboardingComplete(fixture.orgId), {
         message: "onboarding should be persisted on the organization settings",
@@ -62,6 +62,11 @@ test.describe("owner flow", () => {
 
     await page.goto("/bookings");
     await expect(page.getByRole("heading", { name: "Prenotazioni", exact: true })).toBeVisible();
+
+    // Il form "Nuova prenotazione" vive in un drawer, chiuso di default
+    // (IMPLEMENTATION_PLAN_UI_UX.md, sezione 6): va aperto esplicitamente.
+    await page.getByRole("button", { name: "Nuova prenotazione" }).first().click();
+    await expect(page.getByRole("dialog", { name: "Nuova prenotazione" })).toBeVisible();
 
     await page.getByLabel("Check-in").fill(checkIn);
     await page.getByLabel("Check-out").fill(checkOut);
