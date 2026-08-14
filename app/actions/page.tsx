@@ -2,14 +2,16 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarRange, CheckCheck, CheckSquare, ChevronLeft, ChevronRight, ClipboardList, RefreshCw } from "lucide-react";
+import { CheckCheck, ChevronLeft, ChevronRight, ClipboardList, RefreshCw, X } from "lucide-react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
-import { Card, CardHeader } from "@/components/card";
+import { Card } from "@/components/card";
 import { CleaningModal } from "@/components/cleaning-modal";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { formatDateHeaderIT } from "@/lib/format";
 import { getActionTypeLabel } from "@/lib/actionMeta";
 import { InlineAlert } from "@/components/inline-alert";
+import { ListGroup, ListPanel, ListRow, ListRows, ListSectionHeader } from "@/components/grouped-list";
 import { todayLocalIT } from "@/lib/localDate";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "@/components/toast";
@@ -210,7 +212,7 @@ function QuantityInputs<T extends string>({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {fields.map(({ key, label }) => (
-        <label key={key} className="text-sm text-zinc-600">
+        <label key={key} className="text-sm text-text-secondary">
           {label}
           <input
             type="number"
@@ -249,36 +251,34 @@ function ActionModalShell({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-zinc-900/30 backdrop-blur-sm">
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden rounded-none bg-white shadow-xl sm:my-6 sm:max-h-[90vh] sm:rounded-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-5 py-4">
+    <div className="fixed inset-0 z-40 flex flex-col bg-black/30">
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden bg-surface-raised shadow-[0_20px_50px_rgba(74,14,36,0.22)] sm:my-6 sm:max-h-[90vh] sm:rounded-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-border-strong/12 px-5 py-4">
           <div>
-            <h3 className="text-base font-semibold text-zinc-900">{title}</h3>
-            {subtitle ? <p className="mt-1 text-sm text-zinc-500">{subtitle}</p> : null}
+            <h3 className="text-base font-bold text-text-primary">{title}</h3>
+            {subtitle ? <p className="mt-1 text-sm text-text-secondary">{subtitle}</p> : null}
           </div>
-          <button className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100" onClick={onClose}>
-            Chiudi
+          <button
+            type="button"
+            aria-label="Chiudi"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary"
+            onClick={onClose}
+          >
+            <X className="h-[18px] w-[18px]" aria-hidden="true" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {loadingLabel && isBusy ? <p className="text-sm text-zinc-500">{loadingLabel}</p> : null}
-          {error ? <p className="mb-3 text-sm text-rose-600">{error}</p> : null}
+          {loadingLabel && isBusy ? <p className="text-sm text-text-secondary">{loadingLabel}</p> : null}
+          {error ? <p className="mb-3 text-sm text-semantic-error">{error}</p> : null}
           {children}
         </div>
 
-        <div className="flex shrink-0 flex-col gap-2 border-t border-zinc-100 px-5 py-4">
-          <button
-            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-white shadow-sm hover:opacity-90 active:opacity-80 disabled:opacity-50"
-            onClick={onSave}
-            disabled={isBusy}
-          >
+        <div className="flex shrink-0 flex-col gap-2 border-t border-border-strong/12 px-5 py-4">
+          <button type="button" className="btn-primary w-full disabled:opacity-50" onClick={onSave} disabled={isBusy}>
             {isBusy ? "Salvataggio..." : saveLabel}
           </button>
-          <button
-            className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 text-sm text-zinc-500 hover:bg-zinc-50"
-            onClick={onClose}
-          >
+          <button type="button" className="btn-secondary w-full" onClick={onClose}>
             Annulla
           </button>
         </div>
@@ -519,6 +519,24 @@ export default function ActionsPage() {
     toast(next === "FATTO" ? "Azione completata!" : "Azione segnata da fare", "success");
   }
 
+  function openActionDetail(a: Action) {
+    if (a.action_type.toUpperCase() === "SPESA") {
+      setSpesaAction(a);
+      setSpesaAmount("");
+      setSpesaError("");
+      return;
+    }
+    if (isLinenAction(a.action_type)) {
+      void openLinenModal(a);
+      return;
+    }
+    if (a.action_type.toUpperCase().includes("PULIZIA")) {
+      setCleaningAction(a);
+      return;
+    }
+    setSelectedAction(a);
+  }
+
   async function markDayDone(actionDate: string) {
     const result = await clientFetchJson<{ ok?: boolean }>("/api/actions", {
       method: "PATCH",
@@ -550,52 +568,57 @@ export default function ActionsPage() {
     <section className="space-y-6">
       <PageHeader
         title="Azioni"
-        subtitle="Lista operativa raggruppata per data, con focus su esecuzione e completamento."
-        icon={<CheckSquare className="h-5 w-5 text-sidebar-bg" />}
-        eyebrow="Attività"
+        subtitle={`${visibleActions.length} azion${visibleActions.length === 1 ? "e" : "i"} · ${monthLabel}`}
       />
 
       <Card>
-        <CardHeader title="Mese operativo" subtitle="Vista predefinita sul mese corrente" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="col-span-full flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-border-strong/20 bg-surface-muted px-1 py-1">
             <button
-              className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 text-xs transition hover:bg-zinc-100 active:scale-95"
+              type="button"
+              aria-label="Mese precedente"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-text-secondary transition-colors duration-150 hover:bg-surface-raised hover:text-text-primary"
               onClick={() => {
                 const d = new Date(monthCursor);
                 d.setMonth(d.getMonth() - 1);
                 setMonthCursor(monthStartKey(d));
               }}
             >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Mese precedente</span>
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <span className="text-sm font-medium capitalize text-zinc-800">{monthLabel}</span>
+            <span className="min-w-[9ch] px-1 text-center text-sm font-semibold capitalize text-text-primary">{monthLabel}</span>
             <button
-              className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 text-xs transition hover:bg-zinc-100 active:scale-95"
+              type="button"
+              aria-label="Mese successivo"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-text-secondary transition-colors duration-150 hover:bg-surface-raised hover:text-text-primary"
               onClick={() => {
                 const d = new Date(monthCursor);
                 d.setMonth(d.getMonth() + 1);
                 setMonthCursor(monthStartKey(d));
               }}
             >
-              <span className="hidden sm:inline">Mese successivo</span>
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
-          <button
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 active:scale-95"
-            onClick={() => void loadActions()}
-          >
-            <RefreshCw className="h-4 w-4" />
+
+          <button type="button" className="btn-secondary btn-sm inline-flex items-center gap-1.5" onClick={() => void loadActions()}>
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
             Aggiorna
           </button>
-          <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm text-zinc-600">
-            <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
+
+          <label className="inline-flex h-9 items-center gap-2 rounded-lg border border-border-strong/20 px-3 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={showDone}
+              onChange={(e) => setShowDone(e.target.checked)}
+              className="h-4 w-4 accent-brand-primary"
+            />
             Mostra completate
           </label>
+
           <button
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+            type="button"
+            className="btn-ghost btn-sm ml-auto"
             onClick={() => {
               const next = !showAdvancedRange;
               setShowAdvancedRange(next);
@@ -607,130 +630,124 @@ export default function ActionsPage() {
           >
             Periodo personalizzato
           </button>
-          {showAdvancedRange ? (
-            <div className="col-span-full grid gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 sm:grid-cols-3">
-              <label className="text-sm text-zinc-600">
-                Da
-                <input
-                  id="actions-from-date"
-                  name="from"
-                  type="date"
-                  value={fromDraft}
-                  onChange={(e) => setFromDraft(e.target.value)}
-                  className="input-base mt-1"
-                />
-              </label>
-              <label className="text-sm text-zinc-600">
-                A
-                <input
-                  id="actions-to-date"
-                  name="to"
-                  type="date"
-                  value={toDraft}
-                  onChange={(e) => setToDraft(e.target.value)}
-                  className="input-base mt-1"
-                />
-              </label>
-              <button
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-100"
-                onClick={() => {
-                  if (!fromDraft || !toDraft || fromDraft > toDraft) {
-                    setError("Periodo non valido");
-                    return;
-                  }
-                  setMonthCursor(fromDraft.slice(0, 8) + "01");
-                  void (async () => {
-                    setError("");
-                    const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${fromDraft}&to=${toDraft}`);
-                    if (!result.ok) return setError(result.error ?? "Non è stato possibile caricare le azioni");
-                    setActions(result.data.actions ?? []);
-                  })();
-                }}
-              >
-                Applica periodo
-              </button>
-            </div>
-          ) : null}
         </div>
+
+        {showAdvancedRange ? (
+          <div className="mt-3 grid gap-3 rounded-xl border border-border-strong/12 bg-surface-muted p-3 sm:grid-cols-3">
+            <label className="text-sm text-text-secondary">
+              Da
+              <input
+                id="actions-from-date"
+                name="from"
+                type="date"
+                value={fromDraft}
+                onChange={(e) => setFromDraft(e.target.value)}
+                className="input-base mt-1"
+              />
+            </label>
+            <label className="text-sm text-text-secondary">
+              A
+              <input
+                id="actions-to-date"
+                name="to"
+                type="date"
+                value={toDraft}
+                onChange={(e) => setToDraft(e.target.value)}
+                className="input-base mt-1"
+              />
+            </label>
+            <button
+              type="button"
+              className="btn-secondary self-end"
+              onClick={() => {
+                if (!fromDraft || !toDraft || fromDraft > toDraft) {
+                  setError("Periodo non valido");
+                  return;
+                }
+                setMonthCursor(fromDraft.slice(0, 8) + "01");
+                void (async () => {
+                  setError("");
+                  const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${fromDraft}&to=${toDraft}`);
+                  if (!result.ok) return setError(result.error ?? "Non è stato possibile caricare le azioni");
+                  setActions(result.data.actions ?? []);
+                })();
+              }}
+            >
+              Applica periodo
+            </button>
+          </div>
+        ) : null}
       </Card>
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
-      <div className="space-y-4">
-        {Object.entries(groupedVisible).map(([date, rows]) => (
-          <Card key={date}>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-800">
-                <CalendarRange className="h-4 w-4 text-primary" />
-                {date}
-              </h2>
-              <button
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50"
-                onClick={() => void markDayDone(date)}
-              >
-                <CheckCheck className="h-3.5 w-3.5 text-emerald-600" />
-                Segna tutto come completato
-              </button>
+      {visibleActions.length === 0 ? (
+        <Card>
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-muted text-text-secondary">
+              <ClipboardList className="h-8 w-8" aria-hidden="true" />
             </div>
-            <div className="space-y-2">
-              {rows.map((a) => (
-                <button
-                  key={a.id}
-                  className={`w-full rounded-xl border border-zinc-200 px-3 py-2 text-left transition hover:border-primary/30 hover:bg-primary/5 ${
-                    a.status === "FATTO" ? "opacity-70 line-through" : ""
-                  }`}
-                  onClick={() => {
-                    if (a.action_type.toUpperCase() === "SPESA") {
-                      setSpesaAction(a);
-                      setSpesaAmount("");
-                      setSpesaError("");
-                      return;
+            <p className="text-base font-medium text-text-primary">Nessuna azione trovata</p>
+            <p className="max-w-[280px] text-sm text-text-secondary">
+              Nessuna azione pianificata nel periodo selezionato. Le azioni vengono generate automaticamente in base alle prenotazioni.
+            </p>
+          </div>
+        </Card>
+      ) : (
+        <ListPanel>
+          {Object.entries(groupedVisible)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([date, rows], idx) => {
+              const label = date === todayLocalIT() ? `Oggi · ${formatDateHeaderIT(date)}` : formatDateHeaderIT(date);
+              return (
+                <ListGroup key={date} isFirst={idx === 0}>
+                  <ListSectionHeader
+                    title={label.toUpperCase()}
+                    action={
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary transition-colors duration-150 hover:text-text-primary"
+                        onClick={() => void markDayDone(date)}
+                      >
+                        <CheckCheck className="h-3.5 w-3.5 text-semantic-success" aria-hidden="true" />
+                        Segna tutto come completato
+                      </button>
                     }
-                    if (isLinenAction(a.action_type)) {
-                      void openLinenModal(a);
-                      return;
-                    }
-                    if (a.action_type.toUpperCase().includes("PULIZIA")) {
-                      setCleaningAction(a);
-                      return;
-                    }
-                    setSelectedAction(a);
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <ActionTypeBadge actionType={a.action_type} />
-                      <span className="truncate text-xs text-zinc-500">{getActionLabel(a)}</span>
-                    </div>
-                    <button
-                      className="rounded-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void toggleStatus(a);
-                      }}
-                    >
-                      <StatusBadge status={a.status} />
-                    </button>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </Card>
-        ))}
-        {visibleActions.length === 0 ? (
-          <Card>
-            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
-                <ClipboardList className="h-8 w-8" />
-              </div>
-              <p className="text-base font-medium text-zinc-800">Nessuna azione trovata</p>
-              <p className="max-w-[280px] text-sm text-zinc-500">
-                Nessuna azione pianificata nel periodo selezionato. Le azioni vengono generate automaticamente in base alle prenotazioni.
-              </p>
-            </div>
-          </Card>
-        ) : null}
-      </div>
+                  />
+                  <ListRows>
+                    {rows.map((a) => (
+                      <ListRow key={a.id}>
+                        {/* Apertura riga (checklist/dettaglio) e toggle stato sono due
+                            controlli indipendenti e non annidati (IMPLEMENTATION_PLAN_UI_UX.md,
+                            sezione 7). */}
+                        <button
+                          type="button"
+                          className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left ${
+                            a.status === "FATTO" ? "opacity-60" : ""
+                          }`}
+                          onClick={() => openActionDetail(a)}
+                        >
+                          <ActionTypeBadge actionType={a.action_type} />
+                          <span className={`truncate text-xs text-text-secondary ${a.status === "FATTO" ? "line-through" : ""}`}>
+                            {getActionLabel(a)}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="shrink-0 rounded-full"
+                          aria-label={a.status === "FATTO" ? "Segna come da fare" : "Segna come completata"}
+                          onClick={() => void toggleStatus(a)}
+                        >
+                          <StatusBadge status={a.status} />
+                        </button>
+                      </ListRow>
+                    ))}
+                  </ListRows>
+                </ListGroup>
+              );
+            })}
+        </ListPanel>
+      )}
 
       <ActionChecklistModal
         actionId={selectedAction?.id ?? null}
@@ -781,12 +798,12 @@ export default function ActionsPage() {
           onClose={() => setSpesaAction(null)}
         >
           {spesaAction.details ? (
-            <div className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Lista prodotti</p>
-              <pre className="whitespace-pre-wrap text-xs text-zinc-700">{spesaAction.details}</pre>
+            <div className="mb-4 rounded-xl border border-border-strong/12 bg-surface-muted px-4 py-3">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">Lista prodotti</p>
+              <pre className="whitespace-pre-wrap text-xs text-text-primary">{spesaAction.details}</pre>
             </div>
           ) : null}
-          <label className="block text-sm text-zinc-600">
+          <label className="block text-sm text-text-secondary">
             Importo speso (€, opzionale)
             <input
               type="number"
@@ -800,7 +817,7 @@ export default function ActionsPage() {
             />
           </label>
           {spesaAmount.trim() && Number(spesaAmount.replace(",", ".")) > 0 ? (
-            <p className="mt-1 text-xs text-zinc-400">Verrà registrata una spesa di €{Number(spesaAmount.replace(",", ".")).toFixed(2)}</p>
+            <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di €{Number(spesaAmount.replace(",", ".")).toFixed(2)}</p>
           ) : null}
         </ActionModalShell>
       ) : null}
@@ -820,7 +837,7 @@ export default function ActionsPage() {
             fields={LAUNDRY_FIELDS}
             onChange={(key, value) => setLaundryDraft((prev) => ({ ...prev, [key]: value }))}
           />
-          <label className="mt-4 block text-sm text-zinc-600">
+          <label className="mt-4 block text-sm text-text-secondary">
             Costo lavanderia (€, opzionale)
             <input
               type="number"
@@ -834,7 +851,7 @@ export default function ActionsPage() {
             />
           </label>
           {laundryCost.trim() && Number(laundryCost.replace(",", ".")) > 0 ? (
-            <p className="mt-1 text-xs text-zinc-400">Verrà registrata una spesa di €{Number(laundryCost.replace(",", ".")).toFixed(2)}</p>
+            <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di €{Number(laundryCost.replace(",", ".")).toFixed(2)}</p>
           ) : null}
         </ActionModalShell>
       ) : null}

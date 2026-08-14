@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateIT, formatDateLongIT, formatDateRangeIT, formatMonthLongIT } from "@/lib/format";
+import { formatDateHeaderIT, formatDateIT, formatDateLongIT, formatDateRangeIT, formatMonthLongIT } from "@/lib/format";
 
 describe("formatDateIT", () => {
   it("formatta una stringa yyyy-MM-dd in gg/mm/aaaa", () => {
@@ -37,5 +37,11 @@ describe("formatDateLongIT", () => {
 describe("formatMonthLongIT", () => {
   it("formatta il mese esteso con iniziale maiuscola", () => {
     expect(formatMonthLongIT("2026-08-01")).toBe("Agosto 2026");
+  });
+});
+
+describe("formatDateHeaderIT", () => {
+  it("formatta la data estesa senza giorno della settimana", () => {
+    expect(formatDateHeaderIT("2026-08-14")).toBe("14 agosto 2026");
   });
 });

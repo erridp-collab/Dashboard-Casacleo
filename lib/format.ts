@@ -73,6 +73,16 @@ export function formatMonthLongIT(input: string | Date): string {
   return capitalizeFirst(formatted);
 }
 
+/** Titolo giorno esteso senza giorno della settimana, per header di sezione: 14 agosto 2026 */
+export function formatDateHeaderIT(input: string | Date): string {
+  const date = toDisplayDate(input);
+  if (!date) return "";
+  const formatted = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+    date,
+  );
+  return capitalizeFirst(formatted);
+}
+
 export function toNumber(input: unknown, fallback = 0): number {
   const n = Number(input);
   return Number.isFinite(n) ? n : fallback;
