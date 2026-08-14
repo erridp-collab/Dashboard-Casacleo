@@ -1,10 +1,13 @@
+// Colori eventi calendario — allineati alla palette Alva Host in app/globals.css
+// (letterali perche' FullCalendar richiede stringhe colore, non classi Tailwind;
+// vedi IMPLEMENTATION_PLAN_UI_UX.md, sezione 5 "ridurre l'effetto arcobaleno").
 export const ACTION_COLORS = {
-  booking: "#3b82f6",
-  cleaning: "#16a34a",
-  laundry: "#ea580c",
-  linen: "#facc15",
-  maintenance: "#7e22ce",
-  shopping: "#64748b",
+  booking: "#B83560", // --brand-primary
+  cleaning: "#3D7A5E", // --semantic-success
+  laundry: "#E06090", // --brand-secondary
+  linen: "#3A6080", // --semantic-info
+  maintenance: "#C47A20", // --semantic-warning
+  shopping: "#8A2A50", // --text-muted / --border-strong
 } as const;
 
 export function getActionCategory(actionType: string): "cleaning" | "laundry" | "linen" | "maintenance" | "shopping" {
