@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ActionChecklistItem } from "@/types/db";
 import { X } from "lucide-react";
+import { useModalA11y } from "@/lib/useModalA11y";
 
 type Props = {
   actionId: string | null;
@@ -15,6 +16,7 @@ export function ActionChecklistModal({ actionId, title, onClose, onActionStatusC
   const [items, setItems] = useState<ActionChecklistItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const panelRef = useModalA11y(Boolean(actionId), onClose);
 
   async function loadChecklist(id: string) {
     setLoading(true);
@@ -65,27 +67,46 @@ export function ActionChecklistModal({ actionId, title, onClose, onActionStatusC
   if (!actionId) return null;
 
   return (
-    <div className="fixed inset-0 z-40 bg-zinc-900/30 p-4 backdrop-blur-sm">
-      <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl">
+    <div className="fixed inset-0 z-40 bg-black/30 p-4">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        className="mx-auto mt-10 max-w-lg rounded-2xl border border-border-strong/12 bg-surface-raised p-5 shadow-[0_20px_50px_rgba(74,14,36,0.22)] outline-none"
+      >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
-          <button className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100" onClick={onClose}>
-            <X className="h-4 w-4" />
+          <h3 className="text-lg font-bold text-text-primary">{title}</h3>
+          <button
+            type="button"
+            aria-label="Chiudi"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary"
+            onClick={onClose}
+          >
+            <X className="h-[18px] w-[18px]" aria-hidden="true" />
           </button>
         </div>
 
-        {loading && <p className="text-sm text-zinc-500">Caricamento...</p>}
-        {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
+        {loading && <p className="text-sm text-text-secondary">Caricamento...</p>}
+        {error && <p className="mb-3 text-sm text-semantic-error">{error}</p>}
 
         {!loading && items.length === 0 && (
-          <p className="text-sm text-zinc-500">Nessuna checklist per questa azione.</p>
+          <p className="text-sm text-text-secondary">Nessuna checklist per questa azione.</p>
         )}
 
         <div className="space-y-2">
           {items.map((item) => (
-            <label key={item.id} className="flex items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2">
-              <input id={`checklist_item_${item.id}`} name={`checklist_item_${item.id}`} type="checkbox" checked={item.done} onChange={() => void toggleItem(item)} />
-              <span className={item.done ? "text-zinc-500 line-through" : "text-zinc-800"}>{item.label}</span>
+            <label key={item.id} className="flex items-center gap-2 rounded-xl border border-border-strong/12 px-3 py-2">
+              <input
+                id={`checklist_item_${item.id}`}
+                name={`checklist_item_${item.id}`}
+                type="checkbox"
+                checked={item.done}
+                onChange={() => void toggleItem(item)}
+                className="h-4 w-4 accent-brand-primary"
+              />
+              <span className={item.done ? "text-text-secondary line-through" : "text-text-primary"}>{item.label}</span>
             </label>
           ))}
         </div>

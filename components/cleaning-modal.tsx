@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X, Wrench } from "lucide-react";
+import { useModalA11y } from "@/lib/useModalA11y";
 
 type StockStatus = "PIENO" | "A_META" | "TERMINATO";
 type CleaningMode = null | "SELF" | "EXTERNAL";
@@ -36,6 +37,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const panelRef = useModalA11y(Boolean(actionId), onClose);
 
   useEffect(() => {
     if (!actionId) return;
@@ -145,12 +147,24 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
   if (!actionId) return null;
 
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-zinc-900/50 p-4">
-      <div className="mx-auto my-6 max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
-          <h3 className="text-base font-semibold text-zinc-900">Check pulizie</h3>
-          <button className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100" onClick={onClose}>
-            <X className="h-4 w-4" />
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/30 p-4">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Check pulizie"
+        tabIndex={-1}
+        className="mx-auto my-6 max-w-lg rounded-2xl border border-border-strong/12 bg-surface-raised shadow-[0_20px_50px_rgba(74,14,36,0.22)] outline-none"
+      >
+        <div className="flex items-center justify-between border-b border-border-strong/12 px-5 py-4">
+          <h3 className="text-base font-bold text-text-primary">Check pulizie</h3>
+          <button
+            type="button"
+            aria-label="Chiudi"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary"
+            onClick={onClose}
+          >
+            <X className="h-[18px] w-[18px]" aria-hidden="true" />
           </button>
         </div>
 
@@ -274,16 +288,18 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
           {error ? <p className="text-sm text-rose-600">{error}</p> : null}
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-zinc-100 px-5 py-4">
+        <div className="flex flex-col gap-2 border-t border-border-strong/12 px-5 py-4">
           <button
-            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-white shadow-sm hover:opacity-90 active:opacity-80 disabled:opacity-50"
+            type="button"
+            className="btn-primary h-12 w-full disabled:opacity-50"
             onClick={() => void handleSave()}
             disabled={saving || loadingProducts}
           >
             {saving ? "Salvataggio..." : "Salva check pulizie"}
           </button>
           <button
-            className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 text-sm text-zinc-500 hover:bg-zinc-50"
+            type="button"
+            className="btn-secondary h-10 w-full"
             onClick={() => {
               setMode(null);
               setExternalHours("");
