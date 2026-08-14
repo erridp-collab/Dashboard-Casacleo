@@ -7,7 +7,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import itLocale from "@fullcalendar/core/locales/it";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import type { Action, Booking } from "@/types/db";
-import { getActionCategory } from "@/lib/actionMeta";
+import { getActionCategory, getActionTypeLabel } from "@/lib/actionMeta";
 import { formatLocalDateIT, todayLocalIT } from "@/lib/localDate";
 
 type CalendarEvent = {
@@ -21,15 +21,6 @@ type CalendarEvent = {
 type ActionsResponse = {
   actions?: Action[];
 };
-
-function getActionInitial(actionType: string): string {
-  const upper = String(actionType ?? "").toUpperCase();
-  if (upper.includes("BIANCHERIA")) return "B";
-  if (upper.includes("PULIZIA") || upper.includes("LETTO")) return "P";
-  if (upper.includes("LAVATRICI") || upper.includes("LAVAND")) return "L";
-  if (upper.includes("MANUT")) return "M";
-  return "S";
-}
 
 export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
   const [actions, setActions] = useState<Action[]>([]);
@@ -95,10 +86,9 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
 
     const actionEvents: CalendarEvent[] = actions.map((a) => {
       const category = getActionCategory(a.action_type);
-      const actionLabel = getActionInitial(a.action_type);
       return {
         id: `action-${a.id}`,
-        title: actionLabel,
+        title: getActionTypeLabel(a.action_type),
         start: a.action_date,
         category,
       };
@@ -134,6 +124,10 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
         firstDay={1}
         height={520}
         eventClassNames={(info) => ["calendar-event", `calendar-event--${info.event.extendedProps.category}`]}
+        eventDidMount={(info) => {
+          info.el.title = info.event.title;
+          info.el.setAttribute("aria-label", info.event.title);
+        }}
         datesSet={(info) => {
           const nextFrom = info.startStr.slice(0, 10);
           const nextTo = formatLocalDateIT(new Date(info.end.getTime() - 24 * 60 * 60 * 1000));

@@ -240,51 +240,75 @@ body {
 .calendar-modern .fc-event {
   border: 1px solid transparent;
   border-radius: 8px;
-  padding: 0.15rem 0.4rem;
-  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
 
 .calendar-modern .fc-event.calendar-event--booking {
-  background: hsl(var(--brand-primary) / 0.1);
-  border-color: hsl(var(--brand-primary) / 0.28);
-  color: hsl(var(--brand-primary));
+  --fc-event-bg-color: hsl(var(--brand-primary) / 0.2);
+  --fc-event-border-color: hsl(var(--brand-primary) / 0.5);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
 }
 
 .calendar-modern .fc-event.calendar-event--cleaning {
-  background: hsl(var(--semantic-success) / 0.1);
-  border-color: hsl(var(--semantic-success) / 0.28);
-  color: hsl(var(--semantic-success));
+  --fc-event-bg-color: hsl(var(--semantic-success) / 0.18);
+  --fc-event-border-color: hsl(var(--semantic-success) / 0.48);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
 }
 
 .calendar-modern .fc-event.calendar-event--laundry {
-  background: hsl(var(--brand-secondary) / 0.16);
-  border-color: hsl(var(--brand-secondary) / 0.38);
-  color: hsl(var(--brand-dark));
+  --fc-event-bg-color: hsl(var(--brand-secondary) / 0.22);
+  --fc-event-border-color: hsl(var(--brand-secondary) / 0.55);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
 }
 
 .calendar-modern .fc-event.calendar-event--linen {
-  background: hsl(var(--semantic-info) / 0.1);
-  border-color: hsl(var(--semantic-info) / 0.28);
-  color: hsl(var(--semantic-info));
+  --fc-event-bg-color: hsl(var(--semantic-info) / 0.18);
+  --fc-event-border-color: hsl(var(--semantic-info) / 0.48);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
 }
 
 .calendar-modern .fc-event.calendar-event--maintenance {
-  background: hsl(var(--semantic-warning) / 0.12);
-  border-color: hsl(var(--semantic-warning) / 0.35);
-  color: hsl(var(--text-primary));
+  --fc-event-bg-color: hsl(var(--semantic-warning) / 0.2);
+  --fc-event-border-color: hsl(var(--semantic-warning) / 0.52);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
 }
 
 .calendar-modern .fc-event.calendar-event--shopping {
-  background: hsl(var(--border-strong) / 0.1);
-  border-color: hsl(var(--border-strong) / 0.28);
-  color: hsl(var(--text-muted));
+  --fc-event-bg-color: hsl(var(--border-strong) / 0.18);
+  --fc-event-border-color: hsl(var(--border-strong) / 0.48);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+}
+
+.calendar-modern .fc-event .fc-event-main {
+  color: var(--fc-event-text-color);
 }
 
 .calendar-modern .fc-event-title {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .calendar-modern .fc-daygrid-day-events {
