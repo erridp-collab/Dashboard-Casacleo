@@ -564,7 +564,7 @@ export default function BookingsPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex flex-wrap justify-end gap-2">
                               <button type="button" className="btn-secondary btn-sm inline-flex items-center gap-1" onClick={() => void toggleActionsForBooking(b.id)}>
                                 <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                                 Azioni

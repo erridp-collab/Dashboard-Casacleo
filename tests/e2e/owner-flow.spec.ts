@@ -48,7 +48,7 @@ test.describe("owner flow", () => {
     }
     await expect(page.getByRole("heading", { name: "Configura il tuo workspace" })).toBeVisible();
 
-    await page.getByLabel("Nome workspace").fill(fixture.workspaceName);
+    await page.getByLabel("Nome attività").fill(fixture.workspaceName);
     await page.getByLabel("Nome referente").fill("Owner Flow QA");
     await page.getByRole("button", { name: "Completa onboarding" }).click();
 
