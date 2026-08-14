@@ -21,7 +21,7 @@ export default function LoginPage() {
       footer={
         <>
           Primo accesso?{" "}
-          <Link href="/signup" className="font-semibold text-sidebar-bg transition hover:text-primary">
+          <Link href="/signup" className="font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-hover">
             Richiedi accesso
           </Link>
         </>

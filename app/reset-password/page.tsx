@@ -112,7 +112,7 @@ export default function ResetPasswordPage() {
         title="Link non valido"
         subtitle="Il link di reset è mancante, scaduto oppure non è più utilizzabile."
         footer={
-          <Link href="/forgot-password" className="font-semibold text-sidebar-bg transition hover:text-primary">
+          <Link href="/forgot-password" className="font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-hover">
             Richiedi un nuovo link
           </Link>
         }
@@ -130,7 +130,7 @@ export default function ResetPasswordPage() {
       title="Nuova password"
       subtitle="Scegli una password sicura per il tuo account e confermala qui sotto."
       footer={
-        <Link href="/login" className="font-semibold text-sidebar-bg transition hover:text-primary">
+        <Link href="/login" className="font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-hover">
           Torna al login
         </Link>
       }

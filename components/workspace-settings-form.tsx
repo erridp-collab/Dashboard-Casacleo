@@ -34,7 +34,7 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
 
   return (
     <form action={formAction} className="space-y-5">
-      <div className="rounded-[24px] border border-border-subtle bg-white/60 px-4 py-4 text-sm text-text-secondary">
+      <div className="rounded-xl border border-border-strong/12 bg-surface-muted px-4 py-3 text-sm text-text-secondary">
         {helperText}
       </div>
 

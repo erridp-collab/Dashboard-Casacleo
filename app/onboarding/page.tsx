@@ -5,7 +5,11 @@ import { PageHeader } from "@/components/page-header";
 import { WorkspaceSettingsForm } from "@/components/workspace-settings-form";
 
 const ProductCatalogEditor = dynamic(() => import("@/components/product-catalog-editor").then((mod) => mod.ProductCatalogEditor), {
-  loading: () => <div className="rounded-2xl border border-dashed border-border-default bg-white/55 px-4 py-6 text-sm text-text-secondary">Caricamento catalogo prodotti...</div>,
+  loading: () => (
+    <div className="rounded-xl border border-dashed border-border-strong/25 bg-surface-muted px-4 py-6 text-sm text-text-secondary">
+      Caricamento catalogo prodotti...
+    </div>
+  ),
 });
 
 export default async function OnboardingPage() {
@@ -24,21 +28,6 @@ export default async function OnboardingPage() {
         }
       />
 
-      <Card>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-[22px] border border-border-subtle bg-white/60 px-4 py-4">
-            <p className="label-base">Step 1</p>
-            <p className="mt-2 text-sm font-semibold text-text-primary">Configura il workspace</p>
-            <p className="mt-1 text-sm text-text-secondary">Impostiamo i dati minimi che rendono coerenti date, valuta e riferimenti.</p>
-          </div>
-          <div className="rounded-[22px] border border-border-subtle bg-white/60 px-4 py-4">
-            <p className="label-base">Step 2</p>
-            <p className="mt-2 text-sm font-semibold text-text-primary">Prepara il catalogo</p>
-            <p className="mt-1 text-sm text-text-secondary">Aggiungi biancheria e consumabili essenziali per partire senza frizioni.</p>
-          </div>
-        </div>
-      </Card>
-
       <Card className="p-6">
         <CardHeader
           title="Dati base organizzazione"
@@ -55,9 +44,7 @@ export default async function OnboardingPage() {
           title="Prodotti & Biancheria"
           subtitle="Configura il catalogo iniziale del tuo B&B. Potrai rifinirlo in qualsiasi momento da Impostazioni."
         />
-        <div className="px-6 pb-6">
-          <ProductCatalogEditor />
-        </div>
+        <ProductCatalogEditor />
       </Card>
     </section>
   );

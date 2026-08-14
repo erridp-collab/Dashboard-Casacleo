@@ -20,7 +20,7 @@ export default function SignupPage() {
       footer={
         <>
           Hai gia un account?{" "}
-          <Link href="/login" className="font-semibold text-sidebar-bg transition hover:text-primary">
+          <Link href="/login" className="font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-hover">
             Accedi
           </Link>
         </>

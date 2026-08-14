@@ -138,34 +138,13 @@ body {
     @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary;
   }
   .surface-link {
-    @apply rounded-2xl border border-border-subtle bg-surface-1 px-4 py-3 text-sm text-text-primary shadow-[0_8px_24px_rgba(66,32,12,0.04)] transition duration-200 hover:-translate-y-px hover:bg-white;
+    @apply rounded-xl border border-border-strong/12 bg-surface px-4 py-3 text-sm text-text-primary transition-colors duration-150 hover:bg-surface-muted;
   }
   .auth-shell {
-    @apply relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-6 lg:px-8;
-    background:
-      radial-gradient(circle at top, rgba(245, 200, 66, 0.28), transparent 28%),
-      radial-gradient(circle at bottom right, rgba(122, 35, 57, 0.12), transparent 26%),
-      linear-gradient(180deg, #fbf5ec 0%, #f3eadc 100%);
+    @apply relative flex min-h-screen items-center justify-center bg-canvas px-4 py-10 sm:px-6 lg:px-8;
   }
   .auth-shell-panel {
-    @apply relative z-10 w-full max-w-xl rounded-[32px] border border-white/70 bg-[rgba(255,252,247,0.88)] p-6 shadow-[0_24px_80px_rgba(63,30,12,0.14)] backdrop-blur sm:p-8;
-  }
-  .auth-shell-glow {
-    @apply pointer-events-none absolute rounded-full blur-3xl;
-  }
-  .auth-shell-glow--top {
-    top: -8rem;
-    left: 12%;
-    height: 16rem;
-    width: 16rem;
-    background: rgba(245, 200, 66, 0.16);
-  }
-  .auth-shell-glow--bottom {
-    right: 8%;
-    bottom: -10rem;
-    height: 18rem;
-    width: 18rem;
-    background: rgba(122, 35, 57, 0.14);
+    @apply relative z-10 w-full max-w-xl rounded-2xl border border-border-strong/12 bg-surface-raised p-6 sm:p-8;
   }
 }
 
