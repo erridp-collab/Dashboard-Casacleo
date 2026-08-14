@@ -11,6 +11,8 @@ type DrawerProps = {
   children: ReactNode;
   /** Larghezza del pannello da desktop (sm+). Default in linea con il piano UI/UX (480-560px). */
   widthClassName?: string;
+  /** Barra filtri opzionale, sticky fra header e lista scrollabile. */
+  filters?: ReactNode;
 };
 
 const FOCUSABLE_SELECTOR =
@@ -22,7 +24,7 @@ const FOCUSABLE_SELECTOR =
  * focus spostato al pannello, focus trap, Escape chiude, focus restituito
  * al trigger alla chiusura.
  */
-export function Drawer({ open, onClose, title, children, widthClassName = "sm:max-w-[480px]" }: DrawerProps) {
+export function Drawer({ open, onClose, title, children, widthClassName = "sm:max-w-[480px]", filters }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -95,11 +97,12 @@ export function Drawer({ open, onClose, title, children, widthClassName = "sm:ma
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col overflow-y-auto rounded-t-2xl border-t border-border-strong/12 bg-surface-raised p-5 shadow-[0_-16px_40px_rgba(74,14,36,0.18)] outline-none transition-transform duration-200 sm:inset-y-0 sm:left-auto sm:right-0 sm:bottom-0 sm:max-h-none sm:w-full sm:rounded-t-none sm:rounded-l-2xl sm:border-l sm:border-t-0 sm:shadow-[-16px_0_40px_rgba(74,14,36,0.18)] ${widthClassName} ${
+        className={`absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col overflow-hidden rounded-t-2xl border-t border-border-strong/12 bg-surface-raised shadow-[0_-16px_40px_rgba(74,14,36,0.18)] outline-none transition-transform duration-200 sm:inset-y-0 sm:left-auto sm:right-0 sm:bottom-0 sm:h-full sm:max-h-none sm:w-full sm:rounded-t-none sm:rounded-l-2xl sm:border-l sm:border-t-0 sm:shadow-[-16px_0_40px_rgba(74,14,36,0.18)] ${widthClassName} ${
           visible ? "translate-y-0 sm:translate-x-0" : "translate-y-full sm:translate-x-full sm:translate-y-0"
         }`}
       >
-        <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
+        {/* Header sticky */}
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-strong/12 p-5">
           <h2 className="text-lg font-bold text-text-primary">{title}</h2>
           <button
             type="button"
@@ -110,7 +113,10 @@ export function Drawer({ open, onClose, title, children, widthClassName = "sm:ma
             <X className="h-[18px] w-[18px]" aria-hidden="true" />
           </button>
         </div>
-        {children}
+        {/* Filtri sticky, opzionali */}
+        {filters ? <div className="shrink-0 border-b border-border-strong/12 px-5 py-3">{filters}</div> : null}
+        {/* Lista con scroll interno */}
+        <div className="flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );
