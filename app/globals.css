@@ -1,22 +1,48 @@
 @import "tailwindcss";
 
 :root {
+  /* Legacy tokens — consumati da schermate non ancora migrate al piano
+     IMPLEMENTATION_PLAN_UI_UX.md. Da rimuovere quando tutte le pagine
+     useranno la palette sottostante (vedi piano, punto 14). */
   --background: 36 42% 94%;
   --foreground: 35 53% 7%;
   --sidebar-bg: 338 68% 17%;
   --brand: 47 86% 69%;
   --brand-light: 47 86% 69%;
-  --canvas: 338 68% 17%;
-  --surface: 338 56% 27%;
   --primary: 339 55% 46%;
   --surface-1: 42 56% 98%;
   --surface-2: 36 34% 92%;
   --surface-3: 37 28% 88%;
   --border-subtle: 31 31% 84%;
   --border-default: 30 24% 77%;
-  --text-primary: 30 60% 8%;
-  --text-secondary: 28 25% 45%;
   --text-tertiary: 28 20% 55%;
+
+  /* Palette Alva Host (IMPLEMENTATION_PLAN_UI_UX.md) */
+  --canvas: 42 50% 96%;
+  --surface: 0 0% 100%;
+  --surface-muted: 43 45% 91%;
+  --surface-raised: 0 0% 100%;
+
+  --text-primary: 338 68% 17%;
+  --text-secondary: 338 56% 27%;
+  --text-muted: 336 53% 35%;
+
+  --brand-dark: 338 68% 17%;
+  --brand-hover: 338 56% 27%;
+  --brand-primary: 340 55% 46%;
+  --brand-secondary: 338 67% 63%;
+
+  --border-strong: 336 53% 35%;
+  --gold: 44 85% 68%;
+
+  --semantic-error: 16 74% 52%;
+  --semantic-warning: 33 72% 45%;
+  --semantic-success: 152 33% 36%;
+  --semantic-info: 207 38% 36%;
+
+  /* Motion (piano UI/UX, sezione Geometria) */
+  --motion-fast: 150ms;
+  --motion-panel: 200ms;
 }
 
 .dark {
@@ -43,46 +69,59 @@
   --color-surface-3: hsl(var(--surface-3));
   --color-border-subtle: hsl(var(--border-subtle));
   --color-border-default: hsl(var(--border-default));
+  --color-text-tertiary: hsl(var(--text-tertiary));
+
+  /* Palette Alva Host (IMPLEMENTATION_PLAN_UI_UX.md) */
+  --color-surface-muted: hsl(var(--surface-muted));
+  --color-surface-raised: hsl(var(--surface-raised));
   --color-text-primary: hsl(var(--text-primary));
   --color-text-secondary: hsl(var(--text-secondary));
-  --color-text-tertiary: hsl(var(--text-tertiary));
+  --color-text-muted: hsl(var(--text-muted));
+  --color-brand-dark: hsl(var(--brand-dark));
+  --color-brand-hover: hsl(var(--brand-hover));
+  --color-brand-primary: hsl(var(--brand-primary));
+  --color-brand-secondary: hsl(var(--brand-secondary));
+  --color-border-strong: hsl(var(--border-strong));
+  --color-gold: hsl(var(--gold));
+  --color-semantic-error: hsl(var(--semantic-error));
+  --color-semantic-warning: hsl(var(--semantic-warning));
+  --color-semantic-success: hsl(var(--semantic-success));
+  --color-semantic-info: hsl(var(--semantic-info));
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background:
-    radial-gradient(circle at top, rgba(245, 200, 66, 0.2), transparent 32%),
-    linear-gradient(180deg, #fdf8f1 0%, #f4ede2 100%);
+  background: hsl(var(--canvas));
   color: hsl(var(--foreground));
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
   min-height: 100vh;
 }
 
 ::selection {
-  background: rgba(245, 200, 66, 0.35);
+  background: hsl(var(--gold) / 0.35);
   color: hsl(var(--text-primary));
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-black/5 px-4 py-2.5 text-sm font-semibold text-brand shadow-[0_12px_28px_rgba(92,21,38,0.18)] transition duration-200 hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(92,21,38,0.22)] active:translate-y-0 active:scale-[0.99];
-    background: linear-gradient(135deg, #561120 0%, #7a2339 100%);
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-hover active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-border-subtle bg-surface-1 px-4 py-2.5 text-sm font-medium text-text-primary shadow-[0_8px_24px_rgba(66,32,12,0.05)] transition duration-200 hover:-translate-y-px hover:bg-white active:translate-y-0 active:scale-[0.99];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-border-strong/25 bg-surface px-4 py-2.5 text-sm font-medium text-text-primary transition-colors duration-150 hover:bg-surface-muted active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium text-text-secondary transition duration-200 hover:bg-white/60 hover:text-text-primary;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 shadow-[0_8px_20px_rgba(190,24,93,0.08)] transition duration-200 hover:-translate-y-px hover:bg-rose-100 active:translate-y-0 active:scale-[0.99];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-semantic-error/30 bg-semantic-error/10 px-4 py-2.5 text-sm font-medium text-semantic-error transition-colors duration-150 hover:bg-semantic-error/15 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-sm {
-    @apply h-9 rounded-xl px-3 py-0 text-xs;
+    @apply h-9 rounded-lg px-3 py-0 text-xs;
   }
   .input-base {
-    @apply h-11 w-full rounded-2xl border border-border-default bg-surface-1 px-3.5 text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_1px_2px_rgba(80,40,20,0.04)] transition placeholder:text-text-tertiary focus:border-sidebar-bg focus:bg-white focus:outline-none focus:ring-4 focus:ring-sidebar-bg/10;
+    @apply h-11 w-full rounded-xl border border-border-strong/25 bg-surface px-3.5 text-text-primary transition-colors placeholder:text-text-muted focus:border-brand-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-brand-primary/20;
     font-size: 16px;
     line-height: 1.5;
   }
