@@ -6,7 +6,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
 
 export function KpiCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm md:p-5">
+    <div className="rounded-2xl border border-border-strong/12 bg-surface-raised p-4 md:p-5">
       <Skeleton className="h-4 w-24" />
       <Skeleton className="mt-3 h-7 w-16" />
     </div>

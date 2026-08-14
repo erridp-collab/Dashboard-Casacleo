@@ -1,5 +1,5 @@
-import type { KeyboardEvent } from "react";
 import type { LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 type Status = "ok" | "warn" | "critical" | "neutral";
 
@@ -8,83 +8,62 @@ type Props = {
   value: string;
   subtitle?: string;
   status?: Status;
+  /** Testo accessibile per l'indicatore di stato (letto dagli screen reader). */
+  statusLabel?: string;
   icon?: LucideIcon;
   onClick?: () => void;
 };
 
-const statusStyles: Record<
-  Status,
-  { card: string; label: string; value: string; iconBg: string; iconColor: string }
-> = {
-  ok: {
-    card: "border-emerald-200 bg-surface-1",
-    label: "text-emerald-700",
-    value: "text-emerald-800",
-    iconBg: "bg-emerald-100",
-    iconColor: "text-emerald-700",
-  },
-  warn: {
-    card: "border-amber-200 bg-surface-1",
-    label: "text-amber-700",
-    value: "text-amber-800",
-    iconBg: "bg-amber-100",
-    iconColor: "text-amber-700",
-  },
-  critical: {
-    card: "border-rose-200 bg-surface-1",
-    label: "text-rose-700",
-    value: "text-rose-800",
-    iconBg: "bg-rose-100",
-    iconColor: "text-rose-700",
-  },
-  neutral: {
-    card: "border-border-subtle bg-surface-1",
-    label: "text-text-secondary",
-    value: "text-text-primary",
-    iconBg: "bg-surface-2",
-    iconColor: "text-text-secondary",
-  },
+const statusIndicator: Record<Status, { dot: string; text: string; label: string } | null> = {
+  ok: { dot: "bg-semantic-success", text: "text-semantic-success", label: "OK" },
+  warn: { dot: "bg-semantic-warning", text: "text-semantic-warning", label: "Attenzione" },
+  critical: { dot: "bg-semantic-error", text: "text-semantic-error", label: "Critico" },
+  neutral: null,
 };
 
-export function KpiCard({ title, value, subtitle, status = "neutral", icon: Icon, onClick }: Props) {
-  const s = statusStyles[status];
+export function KpiCard({ title, value, subtitle, status = "neutral", statusLabel, icon: Icon, onClick }: Props) {
+  const indicator = statusIndicator[status];
   const clickable = Boolean(onClick);
+  const statusText = indicator ? (statusLabel ?? indicator.label) : null;
 
-  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (!onClick) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onClick();
-    }
-  }
-
-  return (
-    <div
-      className={`relative rounded-[24px] border p-4 shadow-[0_14px_32px_rgba(77,40,17,0.08)] md:p-5 ${s.card} ${
-        clickable
-          ? "cursor-pointer transition hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(77,40,17,0.14)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          : ""
-      }`}
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
-    >
+  const body = (
+    <>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className={`text-[10px] font-bold uppercase tracking-[.06em] ${s.label}`}>{title}</p>
+        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.06em] text-text-secondary">
+          {indicator && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${indicator.dot}`} aria-hidden="true" />}
+          {title}
+        </p>
         {Icon && (
-          <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${s.iconBg}`}>
-            <Icon className={`h-4 w-4 ${s.iconColor}`} />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted">
+            <Icon className="h-4 w-4 text-text-secondary" aria-hidden="true" />
           </div>
         )}
       </div>
-      <p className={`text-[28px] font-extrabold leading-none tracking-tight ${s.value}`}>{value}</p>
-      {subtitle && <p className={`mt-1.5 text-xs ${s.label}`}>{subtitle}</p>}
-      {clickable && (
-        <span className={`absolute bottom-3 right-4 text-sm font-bold ${s.label}`} aria-hidden="true">
-          ›
-        </span>
+      <p className="text-[28px] font-extrabold leading-none tracking-tight text-text-primary">{value}</p>
+      {(subtitle || statusText) && (
+        <p className={`mt-1.5 text-xs ${indicator ? indicator.text : "text-text-secondary"}`}>
+          {[subtitle, statusText].filter(Boolean).join(" · ")}
+        </p>
       )}
-    </div>
+      {clickable && (
+        <ChevronRight className="absolute bottom-3 right-3 h-4 w-4 text-text-secondary" aria-hidden="true" />
+      )}
+    </>
+  );
+
+  if (clickable) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="relative w-full rounded-2xl border border-border-strong/12 bg-surface-raised p-4 text-left transition-colors duration-150 hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary md:p-5"
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative rounded-2xl border border-border-strong/12 bg-surface-raised p-4 md:p-5">{body}</div>
   );
 }

@@ -13,14 +13,15 @@ import {
 } from "lucide-react";
 
 export function StatusBadge({ status }: { status: ActionStatus }) {
+  const done = status === "FATTO";
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-        status === "FATTO" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+        done ? "bg-semantic-success/10 text-semantic-success" : "bg-semantic-warning/10 text-semantic-warning"
       }`}
     >
-      {status === "FATTO" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
-      {status === "FATTO" ? "Completata" : "Da fare"}
+      {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
+      {done ? "Completata" : "Da fare"}
     </span>
   );
 }
