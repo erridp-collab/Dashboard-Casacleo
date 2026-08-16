@@ -294,6 +294,42 @@ Import CSV/Excel:
 - includere import e download template esistenti;
 - non renderlo il contenuto centrale della pagina.
 
+## 8.1 Anteprima urgenze (post-audit, 2026-08-15)
+
+Le KPI restano invariate: il pattern KPI + drawer era la scelta giusta contro scroll e
+confusione. Il problema è che sotto le KPI e sopra “Strumenti” la pagina resta vuota per
+~500px quando non c’è nulla che la occupi. La card di anteprima riempie quello spazio con le
+urgenze reali, non con contenuto decorativo.
+
+Dati:
+
+- deriva da `monitoredProducts`, già disponibile in pagina — nessuna nuova chiamata;
+- filtra i prodotti con `getRefillState() !== "OK"` (`lib/refill.ts`, già unifica lo stato di
+  consumabili e biancheria su una scala comune OK / IN_ESAURIMENTO / DA_RIFORNIRE);
+- ordina `DA_RIFORNIRE` prima di `IN_ESAURIMENTO`;
+- mostra tutti i risultati se sono ≤ 5, altrimenti i 3 più severi con una riga finale
+  “Vedi tutti gli N →”.
+
+Interazione:
+
+- ogni riga è cliccabile e apre il drawer pertinente (Consumabili o Biancheria) tramite lo
+  stesso `setOpenModal` già usato dalle KPI cliccabili;
+- nessuno scroll-to-item dentro il drawer in questa prima versione: il drawer si apre e basta,
+  l’articolo non viene evidenziato né scrollato in vista;
+- la riga “Vedi tutti” apre il drawer della categoria con più urgenze residue.
+
+Stato vuoto:
+
+- quando non c’è nessuna urgenza la card resta visibile con una riga unica (“Tutto a posto,
+  nessun rifornimento necessario”) invece di sparire, così la pagina non cambia altezza tra
+  stato vuoto e stato pieno.
+
+Componenti:
+
+- nuovo `components/refill-urgent-preview.tsx`;
+- riuso di `RefillStateBadge` esistente per lo stato di ogni riga;
+- nessuna modifica ai due drawer esistenti né alla struttura delle KPI.
+
 ## 9. Spese — P1
 
 Portare i filtri vicino all’header:
