@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { ClipboardList, Euro, Home, LogOut, Plus, Settings, User, Warehouse } from "lucide-react";
+import { ClipboardList, Euro, Home, LayoutDashboard, LogOut, Plus, Settings, User, Warehouse } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 
 const NAV_ITEMS = [
+  { href: "/", label: "Riepilogo", icon: LayoutDashboard },
   { href: "/actions", label: "Azioni", icon: ClipboardList },
   { href: "/bookings", label: "Prenotazioni", icon: Home },
   { href: "/inventory", label: "Rifornimento", icon: Warehouse },
@@ -26,6 +27,7 @@ export function TopBar() {
   ) {
     return null;
   }
+  const hasOwnPrimaryCta = pathname.startsWith("/bookings");
 
   return (
     <header className="sticky top-0 z-40 bg-brand-dark">
@@ -37,7 +39,7 @@ export function TopBar() {
           <Image src="/alva-logo.png" alt="" width={30} height={30} className="h-7 w-7 shrink-0 rounded-lg" priority />
           <div className="hidden leading-none sm:block">
             <div className="font-display text-[13px] font-semibold tracking-[0.08em] text-white/92">ALVA HOST</div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/80">Gestione operativa</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Gestione operativa</div>
           </div>
         </Link>
 
@@ -50,6 +52,8 @@ export function TopBar() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                aria-label={item.label}
+                title={item.label}
                 className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-2.5 text-sm transition-colors duration-150 ${
                   active ? "bg-white/12 text-white" : "text-white/68 hover:bg-white/10 hover:text-white"
                 }`}
@@ -63,13 +67,16 @@ export function TopBar() {
 
         <div className="flex-1 md:hidden" />
 
-        <Link
-          href="/bookings?new=1"
-          className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-lg bg-brand-primary px-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-hover"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden lg:inline">Nuova prenotazione</span>
-        </Link>
+        {!hasOwnPrimaryCta && (
+          <Link
+            href="/bookings?new=1"
+            aria-label="Nuova prenotazione"
+            className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-lg bg-brand-primary px-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-hover"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden lg:inline">Nuova prenotazione</span>
+          </Link>
+        )}
 
         <ProfileMenu />
       </div>
@@ -117,6 +124,14 @@ function ProfileMenu() {
           className="absolute right-0 top-[calc(100%+8px)] w-52 rounded-xl border border-border-strong/12 bg-surface-raised p-1.5 shadow-[0_12px_28px_rgba(74,14,36,0.18)]"
         >
           {logoutState?.error ? <p className="px-3 py-1.5 text-xs text-semantic-error">{logoutState.error}</p> : null}
+          <Link
+            href="/settings"
+            role="menuitem"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-text-primary transition-colors duration-150 hover:bg-surface-muted md:hidden"
+          >
+            <Settings className="h-4 w-4" aria-hidden="true" />
+            Impostazioni
+          </Link>
           <form action={logoutFormAction}>
             <button
               type="submit"
