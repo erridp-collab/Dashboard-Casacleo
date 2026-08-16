@@ -247,7 +247,7 @@ export default function BookingsPage() {
         title="Prenotazioni"
         subtitle={headerSubtitle}
         actions={
-          <button type="button" className="btn-primary" onClick={() => setShowForm(true)}>
+          <button type="button" className="btn-primary hidden md:inline-flex" onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4" aria-hidden="true" />
             Nuova prenotazione
           </button>
