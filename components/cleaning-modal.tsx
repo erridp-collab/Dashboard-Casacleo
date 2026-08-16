@@ -205,7 +205,6 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                   : "border-border-strong/20 text-text-secondary hover:border-brand-primary/35 hover:bg-brand-primary/5"
               }`}
             >
-              <span className="text-2xl">Pulizia</span>
               Fatta da me
             </button>
             <button
@@ -217,8 +216,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                   : "border-border-strong/20 text-text-secondary hover:border-brand-primary/35 hover:bg-brand-primary/5"
               }`}
             >
-              <span className="text-2xl">Servizio</span>
-              Esterna
+              Servizio esterno
             </button>
           </div>
           {mode === "EXTERNAL" ? (
