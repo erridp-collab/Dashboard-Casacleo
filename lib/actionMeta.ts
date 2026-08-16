@@ -3,11 +3,11 @@
 // vedi IMPLEMENTATION_PLAN_UI_UX.md, sezione 5 "ridurre l'effetto arcobaleno").
 export const ACTION_COLORS = {
   booking: "#B83560", // --brand-primary
-  cleaning: "#3D7A5E", // --semantic-success
+  cleaning: "#3E7D8A", // categoriale, teal — non riusa --semantic-success
   laundry: "#E06090", // --brand-secondary
-  linen: "#3A6080", // --semantic-info
-  maintenance: "#C47A20", // --semantic-warning
-  shopping: "#8A2A50", // --text-muted / --border-strong
+  linen: "#6B5B95", // categoriale, prugna — non riusa --semantic-info
+  maintenance: "#8C6239", // categoriale, bronzo — non riusa --semantic-warning
+  shopping: "#8A2A50", // --border-strong
 } as const;
 
 export function getActionCategory(actionType: string): "cleaning" | "laundry" | "linen" | "maintenance" | "shopping" {

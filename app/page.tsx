@@ -128,7 +128,7 @@ export default function DashboardPage() {
       <Card className="p-4">
         <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
         <CalendarClient bookings={bookings} />
-        <div className="calendar-legend mt-4">
+        <div className="calendar-legend mt-4 hidden sm:flex">
           <span className="calendar-legend-label">Legenda</span>
           {CALENDAR_LEGEND.map((item) => (
             <span key={item.label} className="inline-flex items-center gap-1.5">
