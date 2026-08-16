@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import type { ProductRow, RestockDraft } from "@/lib/inventory-types";
 import { RefillConsumablesModal } from "@/components/refill-consumables-modal";
 import { RefillLinenModal } from "@/components/refill-linen-modal";
+import { RefillUrgentPreview } from "@/components/refill-urgent-preview";
 
 type CsvPreviewRow = {
   id: string;
@@ -504,6 +505,12 @@ export default function InventoryPage() {
           onClick={() => setOpenModal("biancheria")}
         />
       </div>
+
+      <RefillUrgentPreview
+        products={monitoredProducts}
+        onOpenConsumables={() => setOpenModal("consumabili")}
+        onOpenLinen={() => setOpenModal("biancheria")}
+      />
 
       <div className="flex justify-end">
         <button
