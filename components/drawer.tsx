@@ -13,6 +13,8 @@ type DrawerProps = {
   widthClassName?: string;
   /** Barra filtri opzionale, sticky fra header e lista scrollabile. */
   filters?: ReactNode;
+  /** Footer opzionale, sticky in fondo al pannello (es. azioni di conferma/annulla). */
+  footer?: ReactNode;
 };
 
 const FOCUSABLE_SELECTOR =
@@ -24,7 +26,7 @@ const FOCUSABLE_SELECTOR =
  * focus spostato al pannello, focus trap, Escape chiude, focus restituito
  * al trigger alla chiusura.
  */
-export function Drawer({ open, onClose, title, children, widthClassName = "sm:max-w-[480px]", filters }: DrawerProps) {
+export function Drawer({ open, onClose, title, children, widthClassName = "sm:max-w-[480px]", filters, footer }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -117,6 +119,8 @@ export function Drawer({ open, onClose, title, children, widthClassName = "sm:ma
         {filters ? <div className="shrink-0 border-b border-border-strong/12 px-5 py-3">{filters}</div> : null}
         {/* Lista con scroll interno */}
         <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        {/* Footer sticky, opzionale */}
+        {footer ? <div className="shrink-0 border-t border-border-strong/12 p-5">{footer}</div> : null}
       </div>
     </div>
   );
