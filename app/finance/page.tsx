@@ -218,11 +218,11 @@ export default function FinancePage() {
         ) : (
           <>
             <KpiCard title="Entrate" value={formatCurrencyIT(monthTotals.income)} status={monthTotals.income > 0 ? "ok" : "neutral"} />
-            <KpiCard title="Spese" value={formatCurrencyIT(monthTotals.outcome)} status={monthTotals.outcome > 0 ? "warn" : "neutral"} />
+            <KpiCard title="Spese" value={formatCurrencyIT(monthTotals.outcome)} status="neutral" />
             <KpiCard
               title="Netto"
               value={formatCurrencyIT(netto)}
-              status={netto > 0 ? "ok" : netto < 0 ? "critical" : "neutral"}
+              status={netto > 0 ? "ok" : netto < 0 ? "warn" : "neutral"}
             />
           </>
         )}
