@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { CalendarDays, CalendarOff, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
 import { addDaysLocalIT, parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
-import { formatDateIT, formatMonthLongIT } from "@/lib/format";
+import { formatCurrencyIT, formatDateIT, formatMonthLongIT } from "@/lib/format";
 
 type BookingForm = {
   check_in: string;
@@ -336,7 +336,7 @@ export default function BookingsPage() {
                         {cleaningDone ? "Pulito" : "Da pulire"}
                       </span>
                       <span className="text-base font-extrabold text-text-primary">
-                        {displayAmount != null && displayAmount !== "" ? `€${displayAmount}` : "—"}
+                        {displayAmount != null && displayAmount !== "" ? formatCurrencyIT(Number(String(displayAmount).replace(",", "."))) : "—"}
                       </span>
                     </div>
 
@@ -541,7 +541,7 @@ export default function BookingsPage() {
                               />
                             ) : (
                               <span className="font-semibold text-text-primary">
-                                {amountDraftById[b.id] ? `€${amountDraftById[b.id]}` : "—"}
+                                {amountDraftById[b.id] ? formatCurrencyIT(Number(amountDraftById[b.id].replace(",", "."))) : "—"}
                               </span>
                             )}
                           </TableCell>

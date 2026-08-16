@@ -8,7 +8,7 @@ import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card } from "@/components/card";
 import { CleaningModal } from "@/components/cleaning-modal";
 import { clientFetchJson } from "@/lib/http/clientFetch";
-import { formatDateHeaderIT } from "@/lib/format";
+import { formatCurrencyIT, formatDateHeaderIT } from "@/lib/format";
 import { getActionTypeLabel } from "@/lib/actionMeta";
 import { InlineAlert } from "@/components/inline-alert";
 import { ListGroup, ListPanel, ListRow, ListRows, ListSectionHeader } from "@/components/grouped-list";
@@ -817,7 +817,7 @@ export default function ActionsPage() {
             />
           </label>
           {spesaAmount.trim() && Number(spesaAmount.replace(",", ".")) > 0 ? (
-            <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di €{Number(spesaAmount.replace(",", ".")).toFixed(2)}</p>
+            <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di {formatCurrencyIT(Number(spesaAmount.replace(",", ".")))}</p>
           ) : null}
         </ActionModalShell>
       ) : null}
@@ -851,7 +851,7 @@ export default function ActionsPage() {
             />
           </label>
           {laundryCost.trim() && Number(laundryCost.replace(",", ".")) > 0 ? (
-            <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di €{Number(laundryCost.replace(",", ".")).toFixed(2)}</p>
+            <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di {formatCurrencyIT(Number(laundryCost.replace(",", ".")))}</p>
           ) : null}
         </ActionModalShell>
       ) : null}

@@ -88,3 +88,13 @@ export function toNumber(input: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/** Formato valuta italiano standard: 25,00 € (con spazio non-interrompibile prima del simbolo). */
+export function formatCurrencyIT(amount: number): string {
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+

@@ -10,7 +10,7 @@ import { InlineAlert } from "@/components/inline-alert";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { KpiCardSkeleton, Skeleton } from "@/components/skeleton";
-import { formatDateIT, formatMonthLongIT, monthLabel } from "@/lib/format";
+import { formatCurrencyIT, formatDateIT, formatMonthLongIT, monthLabel } from "@/lib/format";
 import { todayLocalIT } from "@/lib/localDate";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import type { MonthlyFinancePoint } from "@/types/db";
@@ -217,11 +217,11 @@ export default function FinancePage() {
           </>
         ) : (
           <>
-            <KpiCard title="Entrate" value={`€ ${monthTotals.income.toFixed(0)}`} status={monthTotals.income > 0 ? "ok" : "neutral"} />
-            <KpiCard title="Spese" value={`€ ${monthTotals.outcome.toFixed(0)}`} status={monthTotals.outcome > 0 ? "warn" : "neutral"} />
+            <KpiCard title="Entrate" value={formatCurrencyIT(monthTotals.income)} status={monthTotals.income > 0 ? "ok" : "neutral"} />
+            <KpiCard title="Spese" value={formatCurrencyIT(monthTotals.outcome)} status={monthTotals.outcome > 0 ? "warn" : "neutral"} />
             <KpiCard
               title="Netto"
-              value={`€ ${netto.toFixed(0)}`}
+              value={formatCurrencyIT(netto)}
               status={netto > 0 ? "ok" : netto < 0 ? "critical" : "neutral"}
             />
           </>
@@ -284,7 +284,7 @@ export default function FinancePage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <span className={`text-sm font-semibold ${isIncome ? "text-semantic-success" : "text-semantic-error"}`}>
-                        {isIncome ? "+" : "-"} EUR {row.amount.toFixed(2)}
+                        {isIncome ? "+" : "-"} {formatCurrencyIT(row.amount)}
                       </span>
                       {row.detail && (
                         <button
