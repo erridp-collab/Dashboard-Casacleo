@@ -93,6 +93,23 @@ body {
       line-height: 1.25rem;
     }
   }
+  select.input-base {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238A2A50' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px;
+    padding-right: 2.5rem;
+  }
+  input[type="date"].input-base,
+  input[type="month"].input-base {
+    color-scheme: light;
+  }
+  input[type="date"].input-base::-webkit-calendar-picker-indicator,
+  input[type="month"].input-base::-webkit-calendar-picker-indicator {
+    filter: invert(17%) sepia(45%) saturate(1874%) hue-rotate(305deg) brightness(92%) contrast(93%);
+    cursor: pointer;
+  }
   .label-base {
     @apply text-[11px] font-bold uppercase tracking-[.06em] text-text-secondary;
   }
