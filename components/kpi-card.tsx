@@ -29,7 +29,7 @@ export function KpiCard({ title, value, subtitle, status = "neutral", statusLabe
   const body = (
     <>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.06em] text-text-secondary">
+        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[.06em] text-text-secondary">
           {indicator && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${indicator.dot}`} aria-hidden="true" />}
           {title}
         </p>

@@ -1,22 +1,6 @@
 @import "tailwindcss";
 
 :root {
-  /* Legacy tokens — consumati da schermate non ancora migrate al piano
-     IMPLEMENTATION_PLAN_UI_UX.md. Da rimuovere quando tutte le pagine
-     useranno la palette sottostante (vedi piano, punto 14). */
-  --background: 42 50% 96%;
-  --foreground: 338 68% 17%;
-  --sidebar-bg: 338 68% 17%;
-  --brand: 47 86% 69%;
-  --brand-light: 47 86% 69%;
-  --primary: 339 55% 46%;
-  --surface-1: 0 0% 100%;
-  --surface-2: 338 24% 96%;
-  --surface-3: 338 18% 92%;
-  --border-subtle: 336 22% 86%;
-  --border-default: 336 24% 76%;
-  --text-tertiary: 336 53% 35%;
-
   /* Palette Alva Host (IMPLEMENTATION_PLAN_UI_UX.md) */
   --canvas: 42 50% 96%;
   --surface: 0 0% 100%;
@@ -24,8 +8,8 @@
   --surface-raised: 0 0% 100%;
 
   --text-primary: 338 68% 17%;
-  --text-secondary: 338 56% 27%;
-  --text-muted: 336 53% 35%;
+  --text-secondary: 338 12% 27%;
+  --text-muted: 336 12% 35%;
 
   --brand-dark: 338 68% 17%;
   --brand-hover: 338 56% 27%;
@@ -45,31 +29,9 @@
   --motion-panel: 200ms;
 }
 
-.dark {
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
-  --sidebar-bg: 224 71% 5%;
-  --brand: 47 86% 69%;
-  --brand-light: 47 86% 69%;
-  --canvas: 338 68% 17%;
-  --surface: 338 56% 27%;
-  --primary: 221 83% 53%;
-}
-
 @theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-sidebar-bg: hsl(var(--sidebar-bg));
-  --color-brand: hsl(var(--brand));
   --color-canvas: hsl(var(--canvas));
   --color-surface: hsl(var(--surface));
-  --color-primary: hsl(var(--primary));
-  --color-surface-1: hsl(var(--surface-1));
-  --color-surface-2: hsl(var(--surface-2));
-  --color-surface-3: hsl(var(--surface-3));
-  --color-border-subtle: hsl(var(--border-subtle));
-  --color-border-default: hsl(var(--border-default));
-  --color-text-tertiary: hsl(var(--text-tertiary));
 
   /* Palette Alva Host (IMPLEMENTATION_PLAN_UI_UX.md) */
   --color-surface-muted: hsl(var(--surface-muted));
@@ -132,7 +94,7 @@ body {
     }
   }
   .label-base {
-    @apply text-[10px] font-bold uppercase tracking-[.06em] text-text-secondary;
+    @apply text-[11px] font-bold uppercase tracking-[.06em] text-text-secondary;
   }
   .page-header-eyebrow {
     @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary;
