@@ -34,6 +34,7 @@ export function TopBar() {
       <div className="mx-auto flex w-full max-w-[1240px] items-center gap-2 px-4 py-3 sm:px-6 lg:px-6">
         <Link
           href="/"
+          aria-label="Alva Host — Riepilogo"
           className="flex shrink-0 items-center gap-2.5 rounded-xl px-1.5 py-1 text-white transition-colors duration-150 hover:bg-white/10"
         >
           <Image src="/alva-logo.png" alt="" width={30} height={30} className="h-7 w-7 shrink-0 rounded-lg" priority />

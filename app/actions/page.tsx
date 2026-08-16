@@ -2,12 +2,13 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCheck, ChevronLeft, ChevronRight, ClipboardList, RefreshCw, X } from "lucide-react";
+import { CheckCheck, ChevronLeft, ChevronRight, ClipboardList, RefreshCw } from "lucide-react";
 import { ActionChecklistModal } from "@/components/action-checklist-modal";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
 import { Card } from "@/components/card";
 import { CleaningModal } from "@/components/cleaning-modal";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { Drawer } from "@/components/drawer";
 import { formatCurrencyIT, formatDateHeaderIT } from "@/lib/format";
 import { getActionTypeLabel } from "@/lib/actionMeta";
 import { InlineAlert } from "@/components/inline-alert";
@@ -230,6 +231,7 @@ function QuantityInputs<T extends string>({
 }
 
 function ActionModalShell({
+  open,
   title,
   subtitle,
   error,
@@ -240,6 +242,7 @@ function ActionModalShell({
   onClose,
   children,
 }: {
+  open: boolean;
   title: string;
   subtitle?: string;
   error?: string;
@@ -251,30 +254,13 @@ function ActionModalShell({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-black/30">
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden bg-surface-raised shadow-[0_20px_50px_rgba(74,14,36,0.22)] sm:my-6 sm:max-h-[90vh] sm:rounded-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border-strong/12 px-5 py-4">
-          <div>
-            <h3 className="text-base font-bold text-text-primary">{title}</h3>
-            {subtitle ? <p className="mt-1 text-sm text-text-secondary">{subtitle}</p> : null}
-          </div>
-          <button
-            type="button"
-            aria-label="Chiudi"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary"
-            onClick={onClose}
-          >
-            <X className="h-[18px] w-[18px]" aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {loadingLabel && isBusy ? <p className="text-sm text-text-secondary">{loadingLabel}</p> : null}
-          {error ? <p className="mb-3 text-sm text-semantic-error">{error}</p> : null}
-          {children}
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-2 border-t border-border-strong/12 px-5 py-4">
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title={title}
+      subtitle={subtitle}
+      footer={
+        <div className="flex flex-col gap-2">
           <button type="button" className="btn-primary w-full disabled:opacity-50" onClick={onSave} disabled={isBusy}>
             {isBusy ? "Salvataggio..." : saveLabel}
           </button>
@@ -282,8 +268,12 @@ function ActionModalShell({
             Annulla
           </button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      {loadingLabel && isBusy ? <p className="text-sm text-text-secondary">{loadingLabel}</p> : null}
+      {error ? <p className="mb-3 text-sm text-semantic-error">{error}</p> : null}
+      {children}
+    </Drawer>
   );
 }
 
@@ -769,92 +759,89 @@ export default function ActionsPage() {
         }}
       />
 
-      {linenAction ? (
-        <ActionModalShell
-          title="Cambio biancheria"
-          error={linenError}
-          loadingLabel="Caricamento suggerimenti..."
-          isBusy={linenLoading}
-          saveLabel="Salva"
-          onSave={() => void confirmLinenUsage()}
-          onClose={() => setLinenAction(null)}
-        >
-          <QuantityInputs
-            draft={linenDraft}
-            fields={LINEN_FIELDS}
-            onChange={(key, value) => setLinenDraft((prev) => ({ ...prev, [key]: value }))}
-          />
-        </ActionModalShell>
-      ) : null}
+      <ActionModalShell
+        open={Boolean(linenAction)}
+        title="Cambio biancheria"
+        error={linenError}
+        loadingLabel="Caricamento suggerimenti..."
+        isBusy={linenLoading}
+        saveLabel="Salva"
+        onSave={() => void confirmLinenUsage()}
+        onClose={() => setLinenAction(null)}
+      >
+        <QuantityInputs
+          draft={linenDraft}
+          fields={LINEN_FIELDS}
+          onChange={(key, value) => setLinenDraft((prev) => ({ ...prev, [key]: value }))}
+        />
+      </ActionModalShell>
 
-      {spesaAction ? (
-        <ActionModalShell
-          title="Registra spesa"
-          subtitle={spesaAction.status === "FATTO" ? "Già segnata come fatta" : "Inserisci l'importo speso per registrare la spesa"}
-          error={spesaError}
-          isBusy={spesaSaving}
-          saveLabel="Segna come fatto"
-          onSave={() => void confirmSpesa()}
-          onClose={() => setSpesaAction(null)}
-        >
-          {spesaAction.details ? (
-            <div className="mb-4 rounded-xl border border-border-strong/12 bg-surface-muted px-4 py-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">Lista prodotti</p>
-              <pre className="whitespace-pre-wrap text-xs text-text-primary">{spesaAction.details}</pre>
-            </div>
-          ) : null}
-          <label className="block text-sm text-text-secondary">
-            Importo speso (€, opzionale)
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              inputMode="decimal"
-              placeholder="es. 34.50"
-              value={spesaAmount}
-              onChange={(e) => setSpesaAmount(e.target.value)}
-              className="input-base mt-1"
-            />
-          </label>
-          {spesaAmount.trim() && Number(spesaAmount.replace(",", ".")) > 0 ? (
-            <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di {formatCurrencyIT(Number(spesaAmount.replace(",", ".")))}</p>
-          ) : null}
-        </ActionModalShell>
-      ) : null}
-
-      {laundryAction ? (
-        <ActionModalShell
-          title="Lavatrici"
-          subtitle="Indica solo cosa hai lavato: il magazzino si ricarica su quei pezzi fino al massimo."
-          error={laundryError}
-          isBusy={laundryLoading}
-          saveLabel="Registra lavaggio"
-          onSave={() => void confirmLaundryUsage()}
-          onClose={() => setLaundryAction(null)}
-        >
-          <QuantityInputs
-            draft={laundryDraft}
-            fields={LAUNDRY_FIELDS}
-            onChange={(key, value) => setLaundryDraft((prev) => ({ ...prev, [key]: value }))}
+      <ActionModalShell
+        open={Boolean(spesaAction)}
+        title="Registra spesa"
+        subtitle={spesaAction?.status === "FATTO" ? "Già segnata come fatta" : "Inserisci l'importo speso per registrare la spesa"}
+        error={spesaError}
+        isBusy={spesaSaving}
+        saveLabel="Segna come fatto"
+        onSave={() => void confirmSpesa()}
+        onClose={() => setSpesaAction(null)}
+      >
+        {spesaAction?.details ? (
+          <div className="mb-4 rounded-xl border border-border-strong/12 bg-surface-muted px-4 py-3">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">Lista prodotti</p>
+            <pre className="whitespace-pre-wrap text-xs text-text-primary">{spesaAction.details}</pre>
+          </div>
+        ) : null}
+        <label className="block text-sm text-text-secondary">
+          Importo speso (€, opzionale)
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            placeholder="es. 34.50"
+            value={spesaAmount}
+            onChange={(e) => setSpesaAmount(e.target.value)}
+            className="input-base mt-1"
           />
-          <label className="mt-4 block text-sm text-text-secondary">
-            Costo lavanderia (€, opzionale)
-            <input
-              type="number"
-              min="0"
-              step="0.5"
-              inputMode="decimal"
-              placeholder="es. 15"
-              value={laundryCost}
-              onChange={(e) => setLaundryCost(e.target.value)}
-              className="input-base mt-1"
-            />
-          </label>
-          {laundryCost.trim() && Number(laundryCost.replace(",", ".")) > 0 ? (
-            <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di {formatCurrencyIT(Number(laundryCost.replace(",", ".")))}</p>
-          ) : null}
-        </ActionModalShell>
-      ) : null}
+        </label>
+        {spesaAmount.trim() && Number(spesaAmount.replace(",", ".")) > 0 ? (
+          <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di {formatCurrencyIT(Number(spesaAmount.replace(",", ".")))}</p>
+        ) : null}
+      </ActionModalShell>
+
+      <ActionModalShell
+        open={Boolean(laundryAction)}
+        title="Lavatrici"
+        subtitle="Indica solo cosa hai lavato: il magazzino si ricarica su quei pezzi fino al massimo."
+        error={laundryError}
+        isBusy={laundryLoading}
+        saveLabel="Registra lavaggio"
+        onSave={() => void confirmLaundryUsage()}
+        onClose={() => setLaundryAction(null)}
+      >
+        <QuantityInputs
+          draft={laundryDraft}
+          fields={LAUNDRY_FIELDS}
+          onChange={(key, value) => setLaundryDraft((prev) => ({ ...prev, [key]: value }))}
+        />
+        <label className="mt-4 block text-sm text-text-secondary">
+          Costo lavanderia (€, opzionale)
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            inputMode="decimal"
+            placeholder="es. 15"
+            value={laundryCost}
+            onChange={(e) => setLaundryCost(e.target.value)}
+            className="input-base mt-1"
+          />
+        </label>
+        {laundryCost.trim() && Number(laundryCost.replace(",", ".")) > 0 ? (
+          <p className="mt-1 text-xs text-text-muted">Verrà registrata una spesa di {formatCurrencyIT(Number(laundryCost.replace(",", ".")))}</p>
+        ) : null}
+      </ActionModalShell>
     </section>
   );
 }

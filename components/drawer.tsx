@@ -8,6 +8,8 @@ type DrawerProps = {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** Sottotitolo opzionale, sotto il titolo nell'header. */
+  subtitle?: string;
   children: ReactNode;
   /** Larghezza del pannello da desktop (sm+). Default in linea con il piano UI/UX (480-560px). */
   widthClassName?: string;
@@ -26,7 +28,7 @@ const FOCUSABLE_SELECTOR =
  * focus spostato al pannello, focus trap, Escape chiude, focus restituito
  * al trigger alla chiusura.
  */
-export function Drawer({ open, onClose, title, children, widthClassName = "sm:max-w-[480px]", filters, footer }: DrawerProps) {
+export function Drawer({ open, onClose, title, subtitle, children, widthClassName = "sm:max-w-[480px]", filters, footer }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -105,7 +107,10 @@ export function Drawer({ open, onClose, title, children, widthClassName = "sm:ma
       >
         {/* Header sticky */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-strong/12 p-5">
-          <h2 className="text-lg font-bold text-text-primary">{title}</h2>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-text-primary">{title}</h2>
+            {subtitle ? <p className="mt-1 text-sm text-text-secondary">{subtitle}</p> : null}
+          </div>
           <button
             type="button"
             onClick={onClose}

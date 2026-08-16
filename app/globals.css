@@ -212,8 +212,8 @@ body {
 }
 
 .calendar-modern .fc-daygrid-day.fc-day-today {
-  background: hsl(var(--gold) / 0.14);
-  box-shadow: inset 0 0 0 1px hsl(var(--gold) / 0.45);
+  background: hsl(var(--brand-primary) / 0.1);
+  box-shadow: inset 0 0 0 1px hsl(var(--brand-primary) / 0.5);
 }
 
 .calendar-modern .fc-event {
@@ -334,8 +334,8 @@ body {
   }
 
   .calendar-modern .fc-daygrid-day.fc-day-today {
-    background: hsl(var(--gold) / 0.32);
-    box-shadow: inset 0 0 0 1.5px hsl(var(--gold) / 0.85);
+    background: hsl(var(--brand-primary) / 0.16);
+    box-shadow: inset 0 0 0 1.5px hsl(var(--brand-primary) / 0.7);
   }
 
   .calendar-shell {
