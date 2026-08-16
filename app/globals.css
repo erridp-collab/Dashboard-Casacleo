@@ -50,14 +50,14 @@
   --color-semantic-success: hsl(var(--semantic-success));
   --color-semantic-info: hsl(var(--semantic-info));
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-public-sans);
+  --font-display: var(--font-fraunces);
 }
 
 body {
   background: hsl(var(--canvas));
   color: hsl(var(--text-primary));
-  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+  font-family: var(--font-public-sans), "Segoe UI", sans-serif;
   min-height: 100vh;
 }
 
@@ -117,7 +117,7 @@ body {
 }
 
 .calendar-modern .fc {
-  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+  font-family: var(--font-public-sans), "Segoe UI", sans-serif;
   color: hsl(var(--text-primary));
 }
 

@@ -39,7 +39,7 @@ export function KpiCard({ title, value, subtitle, status = "neutral", statusLabe
           </div>
         )}
       </div>
-      <p className="text-[28px] font-extrabold leading-none tracking-tight text-text-primary">{value}</p>
+      <p className="font-display text-[28px] font-extrabold leading-none tracking-tight text-text-primary">{value}</p>
       {(subtitle || statusText) && (
         <p className={`mt-1.5 text-xs ${indicator ? indicator.text : "text-text-secondary"}`}>
           {[subtitle, statusText].filter(Boolean).join(" · ")}

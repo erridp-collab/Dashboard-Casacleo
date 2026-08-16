@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Public_Sans } from "next/font/google";
 import "./globals.css";
 import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
@@ -8,14 +8,14 @@ import { ToastContainer } from "@/components/toast";
 import { SwRegister } from "@/components/sw-register";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const publicSans = Public_Sans({
+  variable: "--font-public-sans",
   subsets: ["latin"],
   display: "swap",
 });
@@ -47,7 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-canvas text-text-primary antialiased`}>
+      <body className={`${fraunces.variable} ${publicSans.variable} min-h-screen bg-canvas text-text-primary antialiased`}>
         <SwRegister />
         <PwaInstallPrompt />
         <div className="min-h-screen">
