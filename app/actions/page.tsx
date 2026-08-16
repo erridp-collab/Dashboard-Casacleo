@@ -191,7 +191,7 @@ function summarizeSelection<T extends string>(
 }
 
 function getActionLabel(action: Action): string {
-  if (!action.details) return action.action_type;
+  if (!action.details) return "";
   const parsed = parseActionDetails(action.details);
   return (
     summarizeSelection(parsed.linen, LINEN_FIELDS, "Biancheria")

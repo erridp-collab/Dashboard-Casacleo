@@ -6,7 +6,7 @@ import { isQuantityManagedRefillProduct, type StockStatus } from "@/lib/refill";
 import { parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
 import { LINEN_ROLES, LINEN_ROLE_VALUES, isLinenRole, type LinenRole } from "@/lib/linen-roles";
 
-type StockProduct = {
+export type StockProduct = {
   id: string;
   name: string;
   category?: string | null;
@@ -67,10 +67,10 @@ export function getLinenRoleConsumptionMap(guests: number): Map<LinenRole, numbe
   return map;
 }
 
-function shoppingDetails(products: StockProduct[]): string {
+export function shoppingDetails(products: StockProduct[]): string {
   const rows = products.map((p) => {
-    if (p.stock_status === "TERMINATO") return `- ${p.name}: FINITO`;
-    if (p.stock_status === "A_META") return `- ${p.name}: A_META`;
+    if (p.stock_status === "TERMINATO") return `- ${p.name}: finito`;
+    if (p.stock_status === "A_META") return `- ${p.name}: a metà`;
     const unit = p.unit ? ` ${p.unit}` : "";
     return `- ${p.name}: ${p.quantity}${unit}`;
   });
