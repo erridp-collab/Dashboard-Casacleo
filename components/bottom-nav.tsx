@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, Euro, Home, Settings, Warehouse } from "lucide-react";
+import { ClipboardList, Euro, Home, LayoutDashboard, Warehouse } from "lucide-react";
 
 const NAV_ITEMS = [
+  { href: "/", label: "Riepilogo", icon: LayoutDashboard },
   { href: "/actions", label: "Azioni", icon: ClipboardList },
   { href: "/bookings", label: "Prenotazioni", icon: Home },
   { href: "/inventory", label: "Rifornimento", icon: Warehouse },
   { href: "/finance", label: "Spese", icon: Euro },
-  { href: "/settings", label: "Impostazioni", icon: Settings },
 ];
 
 export function BottomNav() {
@@ -43,13 +43,13 @@ export function BottomNav() {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={`relative flex min-h-[54px] flex-col items-center justify-center gap-0.5 px-1 py-2 transition-colors duration-150 ${
-                active ? "text-gold" : "text-white/55 hover:text-white"
+                active ? "text-white" : "text-white/55 hover:text-white"
               }`}
             >
-              {active && <span className="absolute inset-x-3 top-0 h-[3px] rounded-b-sm bg-gold" aria-hidden="true" />}
+              {active && <span className="absolute inset-x-3 top-0 h-[3px] rounded-b-sm bg-brand-secondary" aria-hidden="true" />}
               <Icon className="h-5 w-5 shrink-0" aria-hidden="true" strokeWidth={active ? 2.5 : 1.75} />
               <span
-                className={`w-full truncate text-center text-[10px] leading-tight ${active ? "font-bold" : "font-medium"}`}
+                className={`w-full truncate text-center text-[11px] leading-tight ${active ? "font-bold" : "font-medium"}`}
               >
                 {item.label}
               </span>
