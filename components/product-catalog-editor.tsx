@@ -248,47 +248,56 @@ export function ProductCatalogEditor() {
         </div>
       ) : (
         <div className="space-y-2">
-          {(activeTab === "biancheria" ? linenProducts : consumableProducts).map((product) => (
-            <div
-              key={product.id}
-              className="flex items-center gap-3 rounded-xl border border-border-strong/12 bg-surface-raised px-4 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-text-primary">{product.name}</p>
-                <p className="text-xs text-text-secondary">
-                  {activeTab === "biancheria"
-                    ? product.linen_role
-                      ? LINEN_ROLES.find((r) => r.value === product.linen_role)?.label ?? product.linen_role
-                      : "Nessun ruolo"
-                    : `${product.category ?? "—"} · ${product.unit ?? "pz"}`}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setModal(
-                      activeTab === "biancheria"
-                        ? { mode: "edit-linen", product }
-                        : { mode: "edit-consumable", product },
-                    )
-                  }
-                  className="rounded-lg p-2 text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary"
-                  aria-label="Modifica"
-                >
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModal({ mode: "delete", product })}
-                  className="rounded-lg p-2 text-text-secondary transition-colors duration-150 hover:bg-semantic-error/10 hover:text-semantic-error"
-                  aria-label="Elimina"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-          ))}
+          <div className="divide-y divide-border-strong/10 rounded-xl border border-border-strong/12">
+            {(activeTab === "biancheria" ? linenProducts : consumableProducts).map((product) => {
+              const roleLabel =
+                activeTab === "biancheria" && product.linen_role
+                  ? LINEN_ROLES.find((r) => r.value === product.linen_role)?.label ?? product.linen_role
+                  : null;
+              const roleMatchesName = roleLabel != null && roleLabel.trim().toLowerCase() === product.name.trim().toLowerCase();
+              const secondaryText =
+                activeTab === "biancheria"
+                  ? roleLabel == null
+                    ? "Nessun ruolo"
+                    : roleMatchesName
+                      ? null
+                      : roleLabel
+                  : `${product.category ?? "—"} · ${product.unit ?? "pz"}`;
+
+              return (
+                <div key={product.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-text-primary">{product.name}</p>
+                    {secondaryText ? <p className="text-xs text-text-secondary">{secondaryText}</p> : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModal(
+                          activeTab === "biancheria"
+                            ? { mode: "edit-linen", product }
+                            : { mode: "edit-consumable", product },
+                        )
+                      }
+                      className="rounded-lg p-2 text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary"
+                      aria-label="Modifica"
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModal({ mode: "delete", product })}
+                      className="rounded-lg p-2 text-text-secondary transition-colors duration-150 hover:bg-semantic-error/10 hover:text-semantic-error"
+                      aria-label="Elimina"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           <button
             type="button"
             onClick={() =>
