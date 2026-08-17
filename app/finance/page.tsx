@@ -14,6 +14,7 @@ import { formatCurrencyIT, formatDateIT, formatMonthLongIT, monthLabel } from "@
 import { todayLocalIT } from "@/lib/localDate";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import type { MonthlyFinancePoint } from "@/types/db";
+import { markDataVisible } from "@/lib/perf/navMarks";
 
 // Recharts is a heavy dependency (~390 KB) used only by these two charts —
 // load it on the client only, after the rest of the page is interactive.
@@ -92,6 +93,7 @@ export default function FinancePage() {
       return;
     }
     setData(result.data);
+    markDataVisible("finance");
   }
 
   useEffect(() => {
