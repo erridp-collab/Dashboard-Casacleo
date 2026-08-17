@@ -17,6 +17,7 @@ import { todayLocalIT } from "@/lib/localDate";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "@/components/toast";
 import type { Action, Booking } from "@/types/db";
+import { markDataVisible } from "@/lib/perf/navMarks";
 
 function groupByDate(actions: Action[]) {
   return actions.reduce<Record<string, Action[]>>((acc, action) => {
@@ -316,6 +317,7 @@ export default function ActionsPage() {
         return;
       }
       setActions(result.data.actions ?? []);
+      markDataVisible("actions");
     } catch (e: unknown) {
       console.error("Actions load failed", e);
       setError("Non è stato possibile caricare le azioni");
