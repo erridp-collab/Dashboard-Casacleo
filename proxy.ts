@@ -10,10 +10,17 @@ import {
   verifySessionTokens,
   writeSessionCookies,
 } from "@/lib/supabaseAuth";
+import { serverTimingHeader, timed, type TimingEntry } from "@/lib/timing/serverTiming";
+import { logRequestTiming } from "@/lib/timing/requestTiming";
 
 export async function proxy(request: NextRequest) {
+  const reqId = crypto.randomUUID();
+  const phases: TimingEntry[] = [];
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-request-id", reqId);
+
   const tokens = readSessionTokens(request.cookies);
-  const verified = await verifySessionTokens(tokens);
+  const verified = await timed(phases, "mw-auth", () => verifySessionTokens(tokens));
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === "/login" || pathname.startsWith("/login/");
   const isSignupPage = pathname === "/signup" || pathname.startsWith("/signup/");
@@ -23,7 +30,14 @@ export async function proxy(request: NextRequest) {
   const isPublicPage = isPublicPath(pathname);
   const isAuthenticated = Boolean(verified.user);
   const isPlatformAdmin = isPlatformAdminClaims(verified.user?.app_metadata);
-  const response = NextResponse.next();
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+
+  function finish(res: NextResponse): NextResponse {
+    res.headers.set("x-request-id", reqId);
+    res.headers.set("Server-Timing", serverTimingHeader(phases));
+    logRequestTiming(reqId, "middleware", pathname, phases);
+    return res;
+  }
 
   if (verified.refreshed && verified.session) {
     writeSessionCookies(response.cookies, verified.session);
@@ -35,42 +49,45 @@ export async function proxy(request: NextRequest) {
 
   if (!isAuthenticated) {
     if (isApiRoute) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return finish(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
     }
     if (!isPublicPage) {
       const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
       if (tokens?.accessToken) {
         clearAuthCookies(redirectResponse.cookies);
       }
-      return redirectResponse;
+      return finish(redirectResponse);
     }
   }
 
   if (isAuthenticated && (isLoginPage || isSignupPage)) {
-    return NextResponse.redirect(new URL(isPlatformAdmin ? "/platform" : "/", request.url));
+    return finish(NextResponse.redirect(new URL(isPlatformAdmin ? "/platform" : "/", request.url)));
   }
 
   if (isAuthenticated && isPlatformPage) {
     if (!isPlatformAdmin) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return finish(NextResponse.redirect(new URL("/", request.url)));
     }
-    return response;
+    return finish(response);
   }
 
   if (isAuthenticated && !isApiRoute && !isPublicPage && !isOnboardingPage && verified.user) {
     const activeOrganizationId = readActiveOrganizationId(request.cookies);
-    const organization = await findPrimaryOrganizationForUser(verified.user.id, activeOrganizationId);
+    const userId = verified.user.id;
+    const organization = await timed(phases, "mw-org", () =>
+      findPrimaryOrganizationForUser(userId, activeOrganizationId),
+    );
 
     if (!organization && isPlatformAdmin) {
-      return NextResponse.redirect(new URL("/platform", request.url));
+      return finish(NextResponse.redirect(new URL("/platform", request.url)));
     }
 
     if (organization && !isOnboardingComplete(organization.settings)) {
-      return NextResponse.redirect(new URL("/onboarding", request.url));
+      return finish(NextResponse.redirect(new URL("/onboarding", request.url)));
     }
   }
 
-  return response;
+  return finish(response);
 }
 
 export const config = {
