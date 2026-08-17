@@ -4,6 +4,8 @@ import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 import { isLinenRole } from "@/lib/linen-roles";
+import { attachRouteTiming, requestId } from "@/lib/timing/requestTiming";
+import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 type ProductPatch = {
   id: string;
@@ -11,15 +13,19 @@ type ProductPatch = {
   threshold?: number;
 };
 
-export async function GET() {
+export async function GET(req: Request) {
+  const reqId = requestId(req);
   try {
     const auth = await requireRouteContext();
     if (!auth.ok) return auth.response;
     const { organizationId } = auth.context;
+    const phases: TimingEntry[] = [...auth.timing];
 
     const supabase = supabaseAdmin();
-    const schema = await resolveProductSchema(supabase);
-    const { data, error } = await supabase.from("products").select("*").eq("organization_id", organizationId).order("name", { ascending: true });
+    const schema = await timed(phases, "schema", () => resolveProductSchema(supabase));
+    const { data, error } = await timed(phases, "db-products", () =>
+      supabase.from("products").select("*").eq("organization_id", organizationId).order("name", { ascending: true }),
+    );
 
     if (error) return errJson(error.message, 400);
     const products = (data ?? []).map((raw) => {
@@ -41,7 +47,7 @@ export async function GET() {
         updated_at: row.updated_at === null || row.updated_at === undefined ? undefined : String(row.updated_at),
       };
     });
-    return okJson({ products });
+    return attachRouteTiming(okJson({ products }), reqId, "/api/products", phases);
   } catch (e: unknown) {
     console.error("[GET /api/products]", e);
     return errJson("Errore interno del server", 500);
