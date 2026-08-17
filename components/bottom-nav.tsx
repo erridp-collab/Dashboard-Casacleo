@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ClipboardList, Euro, Home, LayoutDashboard, Warehouse } from "lucide-react";
+import { markNavClick } from "@/lib/perf/navMarks";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Riepilogo", icon: LayoutDashboard },
-  { href: "/actions", label: "Azioni", icon: ClipboardList },
-  { href: "/bookings", label: "Prenotazioni", icon: Home },
-  { href: "/inventory", label: "Rifornimento", icon: Warehouse },
-  { href: "/finance", label: "Spese", icon: Euro },
+  { href: "/", label: "Riepilogo", icon: LayoutDashboard, key: "dashboard" },
+  { href: "/actions", label: "Azioni", icon: ClipboardList, key: "actions" },
+  { href: "/bookings", label: "Prenotazioni", icon: Home, key: "bookings" },
+  { href: "/inventory", label: "Rifornimento", icon: Warehouse, key: "inventory" },
+  { href: "/finance", label: "Spese", icon: Euro, key: "finance" },
 ];
 
 export function BottomNav() {
@@ -41,6 +42,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => markNavClick(item.key)}
               aria-current={active ? "page" : undefined}
               className={`relative flex min-h-[54px] flex-col items-center justify-center gap-0.5 px-1 py-2 transition-colors duration-150 ${
                 active ? "text-white" : "text-white/55 hover:text-white"
