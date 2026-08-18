@@ -15,6 +15,7 @@ import { CalendarDays, CalendarOff, PenLine, Plus, Save, Trash2 } from "lucide-r
 import type { Action, Booking } from "@/types/db";
 import { addDaysLocalIT, parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
 import { formatCurrencyIT, formatDateIT, formatMonthLongIT } from "@/lib/format";
+import { markDataVisible } from "@/lib/perf/navMarks";
 
 type BookingForm = {
   check_in: string;
@@ -108,6 +109,7 @@ export default function BookingsPage() {
         rows.map((b: Booking) => [b.id, b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount)]),
       ),
     );
+    markDataVisible("bookings");
   }
 
   async function createBooking() {

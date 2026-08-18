@@ -7,7 +7,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import itLocale from "@fullcalendar/core/locales/it";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import type { Action, Booking } from "@/types/db";
-import { getActionCategory, getActionTypeLabel } from "@/lib/actionMeta";
+import { ACTION_ABBR, getActionCategory, getActionTypeLabel } from "@/lib/actionMeta";
 import { formatLocalDateIT, todayLocalIT } from "@/lib/localDate";
 
 type CalendarEvent = {
@@ -124,6 +124,17 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
         firstDay={1}
         height={520}
         eventClassNames={(info) => ["calendar-event", `calendar-event--${info.event.extendedProps.category}`]}
+        eventContent={(info) => {
+          const category = info.event.extendedProps.category as CalendarEvent["category"];
+          return (
+            <div className="calendar-event-content">
+              <span className="calendar-event-full">{info.event.title}</span>
+              <span className="calendar-event-abbr" aria-hidden="true">
+                {ACTION_ABBR[category]}
+              </span>
+            </div>
+          );
+        }}
         eventDidMount={(info) => {
           info.el.title = info.event.title;
           info.el.setAttribute("aria-label", info.event.title);

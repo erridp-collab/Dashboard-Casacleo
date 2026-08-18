@@ -321,6 +321,15 @@ body {
   display: none;
 }
 
+.calendar-event-content {
+  width: 100%;
+  overflow: hidden;
+}
+
+.calendar-event-abbr {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .calendar-modern .fc-toolbar-title {
     font-size: 1rem;
@@ -331,6 +340,17 @@ body {
     line-height: 1.15;
     padding: 0.1rem 0.3rem;
     white-space: normal;
+  }
+
+  .calendar-event-full {
+    display: none;
+  }
+
+  .calendar-event-abbr {
+    display: block;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
   }
 
   .calendar-modern .fc-daygrid-day.fc-day-today {

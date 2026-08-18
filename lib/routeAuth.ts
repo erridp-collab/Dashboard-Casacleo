@@ -5,14 +5,16 @@ import {
   type OrganizationContext,
   requireOrganizationContext,
 } from "@/lib/organizationContext";
+import type { TimingEntry } from "@/lib/timing/serverTiming";
 
 export async function requireRouteContext(): Promise<
-  { ok: true; context: OrganizationContext } |
+  { ok: true; context: OrganizationContext; timing: TimingEntry[] } |
   { ok: false; response: Response }
 > {
+  const timing: TimingEntry[] = [];
   try {
-    const context = await requireOrganizationContext();
-    return { ok: true, context };
+    const context = await requireOrganizationContext(timing);
+    return { ok: true, context, timing };
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return { ok: false, response: errJson("Unauthorized", 401) };

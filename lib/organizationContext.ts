@@ -8,6 +8,7 @@ import {
   writeActiveOrganizationCookie,
   writeSessionCookies,
 } from "@/lib/supabaseAuth";
+import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 export type OrganizationRole = "owner" | "admin" | "staff";
 
@@ -117,10 +118,10 @@ export async function findPrimaryOrganizationForUser(
   return getOrganizationRecord(targetOrganizationId);
 }
 
-export async function requireOrganizationContext(): Promise<OrganizationContext> {
+export async function requireOrganizationContext(phases: TimingEntry[] = []): Promise<OrganizationContext> {
   const cookieStore = await cookies();
   const tokens = readSessionTokens(cookieStore);
-  const verified = await verifySessionTokens(tokens);
+  const verified = await timed(phases, "auth", () => verifySessionTokens(tokens));
 
   if (!verified.user) {
     throw new UnauthorizedError("Unauthorized");
@@ -130,12 +131,15 @@ export async function requireOrganizationContext(): Promise<OrganizationContext>
     writeSessionCookies(cookieStore, verified.session);
   }
 
+  const userId = verified.user.id;
   const supabase = supabaseAdmin();
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("organization_id, role")
-    .eq("user_id", verified.user.id)
-    .order("created_at", { ascending: true });
+  const { data, error } = await timed(phases, "roles", () =>
+    supabase
+      .from("user_roles")
+      .select("organization_id, role")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true }),
+  );
 
   if (error) {
     throw new Error(error.message);

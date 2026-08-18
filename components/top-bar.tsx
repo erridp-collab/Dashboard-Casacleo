@@ -6,14 +6,15 @@ import { usePathname } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { ClipboardList, Euro, Home, LayoutDashboard, LogOut, Plus, Settings, User, Warehouse } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
+import { markNavClick } from "@/lib/perf/navMarks";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Riepilogo", icon: LayoutDashboard },
-  { href: "/actions", label: "Azioni", icon: ClipboardList },
-  { href: "/bookings", label: "Prenotazioni", icon: Home },
-  { href: "/inventory", label: "Rifornimento", icon: Warehouse },
-  { href: "/finance", label: "Spese", icon: Euro },
-  { href: "/settings", label: "Impostazioni", icon: Settings },
+  { href: "/", label: "Riepilogo", icon: LayoutDashboard, key: "dashboard" },
+  { href: "/actions", label: "Azioni", icon: ClipboardList, key: "actions" },
+  { href: "/bookings", label: "Prenotazioni", icon: Home, key: "bookings" },
+  { href: "/inventory", label: "Rifornimento", icon: Warehouse, key: "inventory" },
+  { href: "/finance", label: "Spese", icon: Euro, key: "finance" },
+  { href: "/settings", label: "Impostazioni", icon: Settings, key: null },
 ];
 
 export function TopBar() {
@@ -30,7 +31,10 @@ export function TopBar() {
   const hasOwnPrimaryCta = pathname.startsWith("/bookings");
 
   return (
-    <header className="sticky top-0 z-40 bg-brand-dark">
+    <header
+      className="sticky top-0 z-40 bg-brand-dark"
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+    >
       <div className="mx-auto flex w-full max-w-[1240px] items-center gap-2 px-4 py-3 sm:px-6 lg:px-6">
         <Link
           href="/"
@@ -52,6 +56,7 @@ export function TopBar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={item.key ? () => markNavClick(item.key as string) : undefined}
                 aria-current={active ? "page" : undefined}
                 aria-label={item.label}
                 title={item.label}

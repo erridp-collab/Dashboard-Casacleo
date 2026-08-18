@@ -3,6 +3,8 @@ import { errJson, okJson } from "@/lib/http/apiResponse";
 import { formatLocalDateIT } from "@/lib/localDate";
 import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { attachRouteTiming, requestId } from "@/lib/timing/requestTiming";
+import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 type FinanceEntry = {
   id: string;
@@ -49,10 +51,12 @@ function parseMonthInput(monthInput: string | null): Date {
 }
 
 export async function GET(req: Request) {
+  const reqId = requestId(req);
   try {
     const auth = await requireRouteContext();
     if (!auth.ok) return auth.response;
     const { organizationId } = auth.context;
+    const phases: TimingEntry[] = [...auth.timing];
 
     const { searchParams } = new URL(req.url);
     const months = Math.max(1, Math.min(24, Number(searchParams.get("months") ?? 6)));
@@ -64,21 +68,25 @@ export async function GET(req: Request) {
     const monthEnd = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0);
 
     const supabase = supabaseAdmin();
-    const [{ data: bookings, error: bookingsErr }, expensesRes] =
-      await Promise.all([
-        supabase
-          .from("bookings")
-          .select("*")
-          .eq("organization_id", organizationId)
-          .gte("check_out", formatLocalDateIT(start))
-          .lte("check_in", formatLocalDateIT(end)),
-        supabase
-          .from("expenses")
-          .select("*")
-          .eq("organization_id", organizationId)
-          .gte("expense_date", formatLocalDateIT(start))
-          .lte("expense_date", formatLocalDateIT(end)),
-      ]);
+    const [{ data: bookings, error: bookingsErr }, expensesRes] = await timed(
+      phases,
+      "db-bookings-expenses",
+      () =>
+        Promise.all([
+          supabase
+            .from("bookings")
+            .select("*")
+            .eq("organization_id", organizationId)
+            .gte("check_out", formatLocalDateIT(start))
+            .lte("check_in", formatLocalDateIT(end)),
+          supabase
+            .from("expenses")
+            .select("*")
+            .eq("organization_id", organizationId)
+            .gte("expense_date", formatLocalDateIT(start))
+            .lte("expense_date", formatLocalDateIT(end)),
+        ]),
+    );
 
     let expenses = expensesRes.data;
     let expensesErr = expensesRes.error;
@@ -224,8 +232,8 @@ export async function GET(req: Request) {
       return a.date > b.date ? -1 : 1;
     });
 
-    return okJson(
-      {
+    return attachRouteTiming(
+      okJson({
         selectedMonth,
         monthly,
         entries,
@@ -234,7 +242,10 @@ export async function GET(req: Request) {
           expenses: Number(totals.expenses.toFixed(2)),
           netProfit: Number(totals.netProfit.toFixed(2)),
         },
-      },
+      }),
+      reqId,
+      "/api/finance",
+      phases,
     );
   } catch (e: unknown) {
     console.error("[GET /api/finance]", e);

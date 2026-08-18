@@ -2,6 +2,8 @@ import { errJson, okJson } from "@/lib/http/apiResponse";
 import { scheduleBookingDomainResync } from "@/lib/booking-automation";
 import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { attachRouteTiming, requestId } from "@/lib/timing/requestTiming";
+import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 type CreateBookingPayload = {
   check_in: string;
@@ -44,18 +46,22 @@ async function hasDateConflict(checkIn: string, checkOut: string, organizationId
   return (data ?? []).length > 0;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const reqId = requestId(req);
   try {
     const auth = await requireRouteContext();
     if (!auth.ok) return auth.response;
     const { organizationId } = auth.context;
+    const phases: TimingEntry[] = [...auth.timing];
 
     const supabase = supabaseAdmin();
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("id, check_in, check_out, guests, channel, notes, total_amount")
-      .eq("organization_id", organizationId)
-      .order("check_in", { ascending: true });
+    const { data, error } = await timed(phases, "db-bookings", () =>
+      supabase
+        .from("bookings")
+        .select("id, check_in, check_out, guests, channel, notes, total_amount")
+        .eq("organization_id", organizationId)
+        .order("check_in", { ascending: true }),
+    );
 
     if (error) {
       console.error("[GET /api/bookings] db error", error);
@@ -67,11 +73,13 @@ export async function GET() {
     const cleaningStatusByBookingId = new Map<string, "DA_FARE" | "FATTO" | null>();
 
     if (bookingIds.length > 0) {
-      const { data: actionsData, error: actionsErr } = await supabase
-        .from("actions")
-        .select("booking_id, action_type, status")
-        .eq("organization_id", organizationId)
-        .in("booking_id", bookingIds);
+      const { data: actionsData, error: actionsErr } = await timed(phases, "db-actions-status", () =>
+        supabase
+          .from("actions")
+          .select("booking_id, action_type, status")
+          .eq("organization_id", organizationId)
+          .in("booking_id", bookingIds),
+      );
 
       if (actionsErr) {
         console.error("[GET /api/bookings] actions db error", actionsErr);
@@ -87,12 +95,17 @@ export async function GET() {
       }
     }
 
-    return okJson({
-      bookings: bookings.map((row: Record<string, unknown>) => ({
-        ...row,
-        cleaning_status: cleaningStatusByBookingId.get(String(row.id)) ?? null,
-      })),
-    });
+    return attachRouteTiming(
+      okJson({
+        bookings: bookings.map((row: Record<string, unknown>) => ({
+          ...row,
+          cleaning_status: cleaningStatusByBookingId.get(String(row.id)) ?? null,
+        })),
+      }),
+      reqId,
+      "/api/bookings",
+      phases,
+    );
   } catch (e: unknown) {
     console.error("[GET /api/bookings]", e);
     return errJson("Errore interno del server", 500);

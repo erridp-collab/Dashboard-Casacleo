@@ -14,6 +14,7 @@ import type { Action, Booking } from "@/types/db";
 import { todayLocalIT } from "@/lib/localDate";
 import { formatDateLongIT } from "@/lib/format";
 import { ACTION_COLORS } from "@/lib/actionMeta";
+import { markDataVisible } from "@/lib/perf/navMarks";
 
 type BookingsResponse = {
   bookings?: Booking[];
@@ -62,6 +63,7 @@ export default function DashboardPage() {
 
       setBookings(bookingsRes.data.bookings ?? []);
       setActions(actionsRes.data.actions ?? []);
+      markDataVisible("dashboard");
     } catch (e: unknown) {
       console.error("Dashboard load failed", e);
       setError("Non è stato possibile caricare i dati");

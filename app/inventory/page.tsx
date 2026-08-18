@@ -14,6 +14,7 @@ import type { ProductRow, RestockDraft } from "@/lib/inventory-types";
 import { RefillConsumablesModal } from "@/components/refill-consumables-modal";
 import { RefillLinenModal } from "@/components/refill-linen-modal";
 import { RefillUrgentPreview } from "@/components/refill-urgent-preview";
+import { markDataVisible } from "@/lib/perf/navMarks";
 
 type CsvPreviewRow = {
   id: string;
@@ -160,6 +161,7 @@ export default function InventoryPage() {
         }
         return next;
       });
+      markDataVisible("inventory");
     } catch (e: unknown) {
       console.error("Failed to load products", e);
       setError("Non è stato possibile caricare i prodotti");

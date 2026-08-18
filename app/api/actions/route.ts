@@ -3,6 +3,8 @@ import { errJson, okJson } from "@/lib/http/apiResponse";
 import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { ActionStatus } from "@/types/db";
+import { attachRouteTiming, requestId } from "@/lib/timing/requestTiming";
+import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 type PatchActionPayload =
   | { id: string; status: ActionStatus; completion?: CleaningCompletion }
@@ -50,10 +52,12 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  const reqId = requestId(req);
   try {
     const auth = await requireRouteContext();
     if (!auth.ok) return auth.response;
     const { organizationId } = auth.context;
+    const phases: TimingEntry[] = [...auth.timing];
 
     const { searchParams } = new URL(req.url);
     const from = searchParams.get("from");
@@ -71,7 +75,7 @@ export async function GET(req: Request) {
     if (to) q = q.lte("action_date", to);
     if (bookingId) q = q.eq("booking_id", bookingId);
 
-    let { data, error } = await q;
+    let { data, error } = await timed(phases, "db-actions", () => q);
 
     if (error && String(error.code) === "42703") {
       let retryQ = supabase
@@ -82,13 +86,13 @@ export async function GET(req: Request) {
       if (from) retryQ = retryQ.gte("action_date", from);
       if (to) retryQ = retryQ.lte("action_date", to);
       if (bookingId) retryQ = retryQ.eq("booking_id", bookingId);
-      const retry = await retryQ;
+      const retry = await timed(phases, "db-actions-retry", () => retryQ);
       data = (retry.data ?? []).map((row: Record<string, unknown>) => ({ ...row, amount: null })) as typeof data;
       error = retry.error;
     }
 
     if (error) return errJson(error.message, 400);
-    return okJson({ actions: data ?? [] });
+    return attachRouteTiming(okJson({ actions: data ?? [] }), reqId, "/api/actions", phases);
   } catch (e: unknown) {
     console.error("[GET /api/actions]", e);
     return errJson("Errore interno del server", 500);

@@ -465,6 +465,45 @@ Nota sui test di integrazione: girano contro il DB hosted. Ogni test crea e puli
 
 Migration: nuove migration vanno create in `supabase/migrations/` e applicate manualmente dalla dashboard Supabase hosted (SQL editor) oppure via `npx.cmd supabase db push --db-url <connection_string>`.
 
+### Sessione browser reale per test/misure manuali (senza fixture Playwright)
+
+Per verifiche che servono una sessione autenticata *vera* (non la fixture `createOwnerFlowFixture` di `tests/e2e/helpers.ts`, che crea un'org temporanea) — es. misurare performance reali, controllare un flusso a occhio, prendere uno screenshot di stato — si può aprire un Chromium visibile, far loggare l'utente a mano, e poi guidare quella stessa sessione via CDP. Non serve `chromium-cli` (non disponibile su Windows in questo ambiente): basta `playwright`, già presente in `node_modules` (dipendenza di `@playwright/test`).
+
+**1. Apri un Chromium visibile con debug remoto** (in background, resta acceso):
+
+```bash
+NODE_PATH="<repo>/node_modules" node script-lancio.js
+```
+dove `script-lancio.js`:
+```js
+const { chromium } = require("playwright");
+(async () => {
+  const browser = await chromium.launch({ headless: false, args: ["--remote-debugging-port=9222"] });
+  const page = await (await browser.newContext()).newPage();
+  await page.goto("http://localhost:3000/login");
+  await new Promise(() => {}); // resta vivo
+})();
+```
+
+**2. L'utente fa login a mano** nella finestra che si apre — niente credenziali gestite dall'agente.
+
+**3. Un secondo script si riconnette alla stessa sessione già autenticata** e la guida:
+
+```js
+const { chromium } = require("playwright");
+const browser = await chromium.connectOverCDP("http://localhost:9222");
+const page = browser.contexts()[0].pages()[0]; // la pagina già loggata
+// da qui: page.click(...), page.on("console", ...), page.on("response", ...), ecc.
+```
+
+**Gotcha:**
+- `NODE_PATH` è necessario solo se lo script vive fuori dalla repo (es. scratchpad): la risoluzione dei moduli di Node parte dalla directory dello script, non dalla cwd.
+- **Mai chiamare `browser.close()`** sul browser ottenuto da `connectOverCDP` — su una connessione CDP chiude anche la finestra reale dell'utente, non solo la disconnessione logica. Per chiudere davvero: `taskkill` sul PID in ascolto sulla porta di debug (`netstat -ano | grep :9222`).
+- Per una baseline di produzione: build (`npm run build`), poi `PORT=3002 npm start` (porta diversa per non toccare il dev server esistente su 3000), nuova finestra Chromium su una nuova porta di debug (es. 9223), nuovo login.
+- Redirigere `npm start`/`npm run dev` su file (`... | tee server.log`) per poter leggere i log `[perf]` lato server dopo, non solo l'header HTTP di risposta.
+
+Usato per la prima volta il 2026-08-17 per misurare la baseline performance reale (vedi "Audit Performance & Sicurezza Tenant" sopra) — click reali, console reale, sessione reale, zero fixture temporanee nel DB.
+
 ## Verification Status
 
 Ultimo stato verde verificato (2026-07-09):
@@ -549,6 +588,81 @@ Scelte tecniche ancora transitorie:
 | yes M2 | errori DB non esposti raw nelle API principali | `app/api/bookings/route.ts`, `app/api/finance/route.ts` |
 | yes M3 | rimossa `create_booking()` SQL inutilizzata | migration `20260508120000` |
 | yes H1 | overlap concorrenti bloccati a livello DB | migration `20260508130000`, `app/api/bookings/route.ts` |
+
+## Audit Performance & Sicurezza Tenant — 2026-08-16/17
+
+Audit sistematico su richiesta utente: 27 punti di performance forniti dall'utente, verificati uno per uno sul codice reale e sul DB di produzione (non per assunzione), più una verifica indipendente di sicurezza sul confine tenant. Analisi completa nella conversazione del 2026-08-16/17; qui solo stato e prossimi passi.
+
+### Esito verifica dei 27 punti utente
+
+- **Confermati e prioritari**: data loading lato client (nessuna pagina fa SSR dei dati), auth ripetuta (fino a 3 `getUser()` per navigazione), side effect sincroni su ogni PATCH azione, assenza totale di misurazione
+- **Confermati, impatto medio**: cache client assente, prefetch dati assente, SWR/skeleton-su-refresh assente, service worker no-op
+- **Ridimensionati**: dashboard multi-fetch (già in parallelo, guadagno reale solo se fuso con SSR), `resolveProductSchema()` dinamico (già cache-ato, verificato `{id, qty}` stabile su DB), fallback schema legacy `expenses.date` (verificato: colonna non esiste, codice morto)
+- **Scartati**: region Vercel↔Supabase (già in Europa), indici DB (tutti presenti e verificati sul DB di produzione), bundle JS (già code-split correttamente: Recharts/XLSX/FullCalendar dietro `dynamic()`), piano Vercel/Supabase (non è il collo di bottiglia)
+
+### Sei problemi di sicurezza tenant trovati indipendentemente (non nella lista dell'utente)
+
+Verificati sul codice e sul DB di produzione (`ymthmncbuomtshulexkh`, org "Casa Cleo"). Tracciati come backlog in `### BT-7..BT-11` sotto; qui solo il riepilogo:
+
+| # | Problema | File |
+|---|----------|------|
+| PT-1 | RLS scritta e attiva su tutte le tabelle ma bypassata al 100%: ogni query passa da `supabaseAdmin()` con `service_role` | `lib/supabaseAdmin.ts`, tutte le route |
+| PT-2 | `resolveOrganizationId()` fallisce aperto: se il parametro manca, opera sull'organizzazione più vecchia del DB invece di lanciare | `lib/organizationContext.ts:66` |
+| PT-3 | `applyBookingConsumptions()` è codice morto che imbocca il default pericoloso di PT-2 (nessun `organizationId` passato) | `lib/stock.ts:260` |
+| PT-4 | RPC `apply_product_quantity_deltas_atomic` — percorso principale di scrittura magazzino — senza `organization_id` nella firma, `security definer` | migration `20260507123000` |
+| PT-5 | Due `.eq("organization_id")` mancanti (non sfruttabili oggi, difesa in profondità) | `lib/stock.ts:184`, `lib/product-quantity.ts:80` |
+| PT-6 | `/api/bookings` senza filtro data: carica tutte le prenotazioni di sempre ad ogni Dashboard | `app/api/bookings/route.ts` |
+
+PT-1 è coerente con quanto già annotato sotto "Postura di sicurezza attuale" ("RLS presente ma secondaria... dato l'uso di `service_role` lato server") — qui solo quantificato e reso azionabile.
+
+### Fase 1 (Misurazione) — COMPLETATA e mergiata su `dev`
+
+Piano: `docs/superpowers/plans/2026-08-17-performance-measurement.md` (18 task, 17 eseguiti, Speed Insights saltato su richiesta esplicita, riprendibile).
+
+Aggiunto:
+- `lib/timing/serverTiming.ts`, `lib/timing/requestTiming.ts` — timing puro + header `Server-Timing` + log strutturato `[perf]` con `x-request-id` di correlazione middleware↔route
+- `lib/perf/navMarks.ts` — marchi click→dato-visibile lato client (User Timing API, `performance.mark/measure`)
+- Strumentati: `proxy.ts`, `lib/organizationContext.ts`, `lib/routeAuth.ts`, GET di `/api/bookings`, `/api/actions`, `/api/products`, `/api/finance`
+- Marchi di click su `components/bottom-nav.tsx` / `components/top-bar.tsx`, marchi di dato-visibile su Dashboard/Azioni/Prenotazioni/Rifornimento/Spese
+- `docs/perf/measuring.md` — protocollo di misurazione ripetibile (sessione calda, mediana su 5 campioni)
+
+Verificato: 120/120 test passano, build pulita, verifica end-to-end reale con browser autenticato via Playwright/CDP (login manuale dell'utente, poi guida automatica), sia in dev mode che su build di produzione locale.
+
+**Baseline raccolta il 2026-08-17** (click→dato-visibile, mediana su 5 campioni, sessione calda):
+
+| Pagina | Dev mode | Produzione (`npm run build && npm start`) |
+|---|---|---|
+| Riepilogo | 1381 ms | 618 ms |
+| Azioni | 785 ms | 418 ms |
+| Prenotazioni | 848 ms | 531 ms |
+| Rifornimento | 953 ms | 427 ms |
+| Spese | 948 ms | 526 ms |
+
+**Numero chiave da tagliare in Fase 2**: su 88 chiamate API reali in produzione, l'overhead di autenticazione duplicata (`mw-auth` nel middleware + `auth`+`roles` rifatti nella route) è **229ms di mediana per chiamata**, quasi quanto l'intera route (236ms totali, query dati inclusa). Fase 2 punta a portarlo a ~76ms condividendo il contesto auth invece di rifare `getUser()` + `user_roles` due volte per la stessa richiesta.
+
+**Nota tecnica emersa durante l'esecuzione**: l'header HTTP `Server-Timing` che arriva al browser mostra solo la fase `mw-auth` del middleware — Next.js sovrascrive l'header della route con quello del middleware quando entrambi scrivono lo stesso nome header su `NextResponse.next()`. Il dettaglio route (`auth`/`roles`/`db-*`) è comunque sempre presente nei log server-side (`[perf]` con `"layer":"route"`), solo non nell'header HTTP. Lasciato così di proposito — la Fase 2 rende `mw-auth` ridondante comunque, non vale la pena un fix dedicato ora.
+
+**Bug reale trovato da `npm run build`** (non previsto dal piano): narrowing TypeScript su `verified.user.id` letto dentro una closure passata a `timed()` — corretto in `proxy.ts` e `lib/organizationContext.ts` catturando l'id in una `const` prima della closure.
+
+### Piano di fasi concordato (per riprendere)
+
+```
+Fase 1 — Misurazione                                    FATTA (mergiata su dev)
+Fase 2 — DAL + getRequestContext() request-scoped        PROSSIMA
+Fase 3 — Server Components con dati iniziali             (il sintomo dichiarato: "ci mette un attimo")
+Fase 4 — Cache client + stale-while-revalidate
+Fase 5 — Chiusura PT-2/PT-3/PT-4/PT-5 sopra
+Fase 6 — Verifica JWT locale (signing key asimmetriche) + prefetch route probabili
+Fase 7 — Round-trip delle mutazioni (syncShoppingAction condizionale, ecc.)
+Fase 8 — Valutazione client RLS-enforced per PT-1 (il più invasivo, va fatto a DAL consolidato)
+Fase 9 — Cleanup: schema {id,qty} hardcoded, fallback date rimossi, select espliciti, service worker
+```
+
+**Regola cache tenant — sempre esplicita, vale per tutte le fasi successive**: mai memorizzare sessione, `userId`, `organizationId`, `role`, membership o dati tenant in variabili globali/module-scope. Solo memoization request-scoped o cache con chiave tenant esplicita e isolamento verificato. Dati globali/immutabili/tecnici (es. lo schema prodotti in `lib/products-schema.ts:10`, TTL 30s) possono restare in cache di modulo — è il precedente già in codice, citato come esempio di cosa NON copiare per dati tenant quando si tocca la Fase 2.
+
+Altre decisioni valide per le fasi successive:
+- Il redirect onboarding nel proxy va **spostato, non eliminato**, quando si alleggerisce il middleware in Fase 2/3.
+- Ogni accesso ai dati (letture incluse, non solo mutazioni) deve passare dal DAL futuro con filtro tenant applicato *dentro* la funzione, mai come parametro opzionale dimenticabile (vedi PT-2).
 
 ## Postura di sicurezza attuale
 
@@ -654,11 +768,33 @@ Chiuso il 2026-06-13. Configurazione confermata funzionante in produzione.
 - `sendSignupRequestNotification` inviata all'admin (`erri.dp@gmail.com`) per ogni nuova richiesta
 - test email reale inviato e ricevuto correttamente
 
+### BT-7: RLS scritta e attiva ma bypassata al 100% da `service_role`
+
+Aperto. Vedi PT-1 in "Audit Performance & Sicurezza Tenant — 2026-08-16/17". Il confine fra i 6 tenant oggi è solo la presenza manuale di `.eq("organization_id", ...)` nel codice applicativo — nessuna verifica DB indipendente. Fix previsto in Fase 8 del piano performance: client RLS-enforced con JWT utente per le letture di dominio, `service_role` riservato a provisioning/cron/platform admin.
+
+### BT-8: `resolveOrganizationId()` fallisce aperto
+
+Aperto. Vedi PT-2. Se il parametro manca, `lib/organizationContext.ts:66` opera sull'organizzazione più vecchia dell'intero DB invece di lanciare. Nessun call site attuale lo sfrutta (tracciato: `action-effects.ts:567`, `booking-automation.ts:132/217`, `stock.ts:191/275` passano tutti l'org), ma è un default pericoloso per il refactor DAL della Fase 2. Fix: deve lanciare, non indovinare.
+
+### BT-9: `applyBookingConsumptions()` codice morto su path pericoloso
+
+Aperto. Vedi PT-3. `lib/stock.ts:260` chiama `applyBookingConsumptionDelta()` senza `organizationId`, imboccando il default di BT-8. Nessun chiamante nel codebase. Da rimuovere.
+
+### BT-10: RPC `apply_product_quantity_deltas_atomic` senza scoping tenant
+
+Aperto. Vedi PT-4. Percorso principale di scrittura magazzino, `security definer`, nessun `organization_id` nella firma — sicura solo perché i chiamanti filtrano prima (corretta per costruzione, non per verifica). Fix: aggiungere `p_organization_id` e filtrare dentro la RPC.
+
+### BT-11: Filtri tenant/data mancanti minori
+
+Aperto. Vedi PT-5 (due `.eq("organization_id")` mancanti in `lib/stock.ts:184` e `lib/product-quantity.ts:80`, non sfruttabili oggi) e PT-6 (`/api/bookings` senza filtro data, cresce senza limite). Bassa priorità, da chiudere insieme al refactor DAL.
+
 ### Prossimi passi
 
 ```
-1. U1–U3 Miglioramenti UX (vedi sezione dedicata)
-2. F1–F4 Miglioramenti funzionali (vedi sezione dedicata)
+1. Fase 2 performance — DAL + getRequestContext() request-scoped (vedi "Audit Performance & Sicurezza Tenant")
+2. BT-7..BT-11 — sicurezza tenant, da chiudere insieme al DAL della Fase 2
+3. U1–U3 Miglioramenti UX (vedi sezione dedicata)
+4. F1–F4 Miglioramenti funzionali (vedi sezione dedicata)
 ```
 
 Dopo ogni modifica: `npm test` + `npx tsc --noEmit` + `npm run lint` devono passare tutti.
@@ -784,6 +920,8 @@ Aprire subito questi file per riprendere:
 - `supabase/migrations/20260507150000_add_multi_tenant_foundation.sql`
 - `supabase/migrations/20260618100000_add_linen_role.sql`
 - `tests/integration/helpers.ts`
+- `docs/perf/measuring.md` — protocollo di misurazione prima/dopo
+- `lib/timing/serverTiming.ts`, `lib/timing/requestTiming.ts`, `lib/perf/navMarks.ts` — strumentazione Fase 1
 
 ## Bottom Line
 
@@ -796,11 +934,14 @@ Stato attuale:
 - organizzazione "Casa Cleo" configurata con owner `erri.dp@gmail.com`
 - repo di riferimento: `Dashboard-Casacleo/main` su GitHub (watched da Vercel)
 - remote git locale: solo `casacleo` (alva rimosso)
-- backlog tecnico BT-1/2/3/4/5/6 tutti chiusi
+- backlog tecnico BT-1/2/3/4/5/6 tutti chiusi; BT-7/8/9/10/11 aperti (sicurezza tenant, vedi sotto)
 - email transazionale attiva: `noreply@mail.alva.land` via Resend, dominio verificato
 - linen_role system e ProductCatalogEditor live (2026-06-18/19)
 - copy UI interamente in italiano, senza stati DB grezzi né anglicismi decorativi (2026-07-09)
+- audit performance + Fase 1 (misurazione) completata e mergiata su `dev` (2026-08-17): vedi "Audit Performance & Sicurezza Tenant" sopra per baseline e piano di fasi
 
 Prossimi passi in ordine:
 
-1. U1–U3 / F1–F4 — miglioramenti UX e funzionali low effort (vedi sezione dedicata)
+1. Fase 2 performance — DAL + `getRequestContext()` request-scoped, poi Fase 3 (Server Components), Fase 4 (cache client) — vedi piano di fasi in "Audit Performance & Sicurezza Tenant"
+2. BT-7..BT-11 — chiudere insieme al DAL della Fase 2
+3. U1–U3 / F1–F4 — miglioramenti UX e funzionali low effort (vedi sezione dedicata)
