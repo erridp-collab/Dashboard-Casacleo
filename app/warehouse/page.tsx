@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Card, CardHeader } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
+import { InlineAlert } from "@/components/inline-alert";
+import { PageHeader } from "@/components/page-header";
 
 type StockStatus = "PIENO" | "A_META" | "TERMINATO";
 
@@ -21,9 +23,24 @@ type ProductsResponse = {
 
 const STATUS_CYCLE: StockStatus[] = ["PIENO", "A_META", "TERMINATO"];
 const STATUS_CONFIG: Record<StockStatus, { label: string; bg: string; text: string; dot: string }> = {
-  PIENO:     { label: "Pieno",  bg: "bg-emerald-100", text: "text-emerald-700", dot: "bg-emerald-500" },
-  A_META:    { label: "A metà", bg: "bg-amber-100",   text: "text-amber-700",   dot: "bg-amber-400"   },
-  TERMINATO: { label: "Finito", bg: "bg-rose-100",    text: "text-rose-700",    dot: "bg-rose-500"    },
+  PIENO: {
+    label: "Pieno",
+    bg: "bg-semantic-success/10",
+    text: "text-semantic-success",
+    dot: "bg-semantic-success",
+  },
+  A_META: {
+    label: "A metà",
+    bg: "bg-semantic-warning/10",
+    text: "text-text-primary",
+    dot: "bg-semantic-warning",
+  },
+  TERMINATO: {
+    label: "Finito",
+    bg: "bg-semantic-error/10",
+    text: "text-text-primary",
+    dot: "bg-semantic-error",
+  },
 };
 
 function isCleaningProduct(category: string | null): boolean {
@@ -96,20 +113,17 @@ export default function WarehousePage() {
 
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-zinc-900">Magazzino</h1>
-        <p className="text-sm text-zinc-500">Stato scorte prodotti consumabili</p>
-      </header>
+      <PageHeader title="Magazzino" subtitle="Stato scorte prodotti consumabili" />
 
       <Card>
         <CardHeader title="Prodotti" subtitle="Clicca sul badge per aggiornare lo stato" />
 
-        {error && <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+        {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
         {loading ? (
-          <p className="py-8 text-center text-sm text-zinc-500">Caricamento...</p>
+          <p className="py-8 text-center text-sm text-text-secondary">Caricamento...</p>
         ) : rows.length === 0 ? (
-          <p className="py-8 text-center text-sm text-zinc-500">Nessun prodotto disponibile.</p>
+          <p className="py-8 text-center text-sm text-text-secondary">Nessun prodotto disponibile.</p>
         ) : (
           <>
             {/* Desktop */}
@@ -126,7 +140,7 @@ export default function WarehousePage() {
                 <TableBody>
                   {rows.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell className="font-medium text-zinc-900">{row.name}</TableCell>
+                      <TableCell className="font-medium text-text-primary">{row.name}</TableCell>
                       <TableCell>{row.category ?? "-"}</TableCell>
                       <TableCell>{row.unit ?? "-"}</TableCell>
                       <TableCell>
@@ -139,7 +153,7 @@ export default function WarehousePage() {
                             {STATUS_CONFIG[row.stock_status].label}
                           </button>
                         ) : (
-                          <span className="text-zinc-400">-</span>
+                          <span className="text-text-muted">-</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -151,10 +165,10 @@ export default function WarehousePage() {
             {/* Mobile */}
             <div className="space-y-2 md:hidden">
               {rows.map((row) => (
-                <article key={row.id} className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                <article key={row.id} className="flex items-center justify-between rounded-xl border border-border-strong/12 bg-surface px-4 py-3">
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900">{row.name}</p>
-                    <p className="text-xs text-zinc-500">{row.category ?? "Senza categoria"} · {row.unit ?? "-"}</p>
+                    <p className="text-sm font-semibold text-text-primary">{row.name}</p>
+                    <p className="text-xs text-text-secondary">{row.category ?? "Senza categoria"} · {row.unit ?? "-"}</p>
                   </div>
                   {isCleaningProduct(row.category) && row.stock_status ? (
                     <button

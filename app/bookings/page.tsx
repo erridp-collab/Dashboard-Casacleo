@@ -2,16 +2,19 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ActionTypeBadge, StatusBadge } from "@/components/action-badges";
-import { Card, CardHeader } from "@/components/card";
+import { Card } from "@/components/card";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Drawer } from "@/components/drawer";
 import { InlineAlert } from "@/components/inline-alert";
 import { PageHeader } from "@/components/page-header";
 import { RowSkeleton } from "@/components/skeleton";
 import { toast } from "@/components/toast";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/table";
-import { BedDouble, CalendarDays, CalendarOff, ChevronDown, PenLine, Plus, Save, Trash2 } from "lucide-react";
+import { CalendarDays, CalendarOff, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
-import { addDaysLocalIT, todayLocalIT } from "@/lib/localDate";
+import { addDaysLocalIT, parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
+import { formatCurrencyIT, formatDateIT, formatMonthLongIT } from "@/lib/format";
 
 type BookingForm = {
   check_in: string;
@@ -49,19 +52,22 @@ function parseAmountInput(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : NaN;
 }
 
-function formatDateRange(checkIn: string, checkOut: string): string {
-  const start = new Date(checkIn + "T00:00:00");
-  const end = new Date(checkOut + "T00:00:00");
-  const nights = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  const fmt = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
-  return `${fmt.format(start)}–${fmt.format(end)} · ${nights} ${nights === 1 ? "notte" : "notti"}`;
+function nightsBetween(checkIn: string, checkOut: string): number {
+  const start = parseLocalDateIT(checkIn);
+  const end = parseLocalDateIT(checkOut);
+  if (!start || !end) return 0;
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function channelChipClass(channel: string | null): string {
   const ch = (channel ?? "").toLowerCase();
-  if (ch.includes("airbnb")) return "bg-sidebar-bg text-[#f5c842]";
-  if (ch.includes("booking")) return "bg-[#1a3a6b] text-white";
-  return "bg-zinc-600 text-white";
+  if (ch.includes("airbnb")) return "bg-brand-primary/10 text-brand-primary";
+  if (ch.includes("booking")) return "bg-semantic-info/10 text-semantic-info";
+  return "bg-surface-muted text-text-secondary";
+}
+
+function cleaningStatusChipClass(done: boolean): string {
+  return done ? "bg-semantic-success/10 text-semantic-success" : "bg-semantic-warning/10 text-semantic-warning";
 }
 
 export default function BookingsPage() {
@@ -73,15 +79,13 @@ export default function BookingsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(true);
-  // Starts open when arriving from the "+ Nuova prenotazione" button in the
-  // top bar (?new=1) — that button lives in a different component/page and
-  // can only signal intent through the URL, mirroring what the mobile FAB
-  // does locally by calling setShowForm(true) directly.
-  const [showForm, setShowForm] = useState(
-    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1",
-  );
+  // Il drawer nuova prenotazione parte sempre chiuso (server e primo render
+  // client identici, niente lettura di window durante il render) e si apre
+  // via effect quando arriva ?new=1 dal CTA globale nella TopBar.
+  const [showForm, setShowForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [expandedMenuId, setExpandedMenuId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const bookingsAbortRef = useRef<AbortController | null>(null);
   const bookingsRequestSeqRef = useRef(0);
@@ -176,7 +180,6 @@ export default function BookingsPage() {
   }
 
   async function deleteBooking(id: string) {
-    if (!confirm("Eliminare prenotazione e azioni collegate?")) return;
     const result = await clientFetchJson<{ ok?: boolean }>(`/api/bookings/${id}`, { method: "DELETE" });
     if (!result.ok) {
       const msg = result.error ?? "Non è stato possibile eliminare la prenotazione";
@@ -217,16 +220,18 @@ export default function BookingsPage() {
     };
   }, []);
 
-  // showForm's initial value already reacted to ?new=1 (see useState above);
-  // this just scrolls the now-open form into view and drops the param so it
-  // doesn't linger in the URL bar or re-trigger on a later soft navigation.
-  // Plain History API on purpose (no next/navigation hook): useSearchParams
-  // would force this whole page behind a <Suspense> boundary just for a
-  // one-off, mount-time URL check.
+  // Apre il drawer quando si arriva dal CTA globale "+ Nuova prenotazione"
+  // (?new=1) e ripulisce l'URL. Solo dopo il mount (niente lettura di window
+  // durante il primo render, ne' server ne' client, per evitare mismatch di
+  // idratazione). Plain History API di proposito: useSearchParams costringerebbe
+  // l'intera pagina dentro un <Suspense> solo per questo controllo one-off.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("new") !== "1") return;
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    window.history.replaceState(null, "", "/bookings");
+    const t = setTimeout(() => {
+      if (new URLSearchParams(window.location.search).get("new") !== "1") return;
+      setShowForm(true);
+      window.history.replaceState(null, "", "/bookings");
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const visibleBookings = useMemo(
@@ -234,364 +239,454 @@ export default function BookingsPage() {
     [bookings, showCompleted],
   );
 
+  const headerSubtitle = `${bookings.length} prenotazion${bookings.length === 1 ? "e" : "i"} · ${formatMonthLongIT(todayLocalIT())}`;
+
   return (
     <section className="space-y-6">
       <PageHeader
         title="Prenotazioni"
-        subtitle="Gestione soggiorni, importi e azioni collegate in un'unica vista operativa."
-        icon={<BedDouble className="h-5 w-5 text-sidebar-bg" />}
-        eyebrow="Incassi"
+        subtitle={headerSubtitle}
+        actions={
+          <button type="button" className="btn-primary hidden md:inline-flex" onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nuova prenotazione
+          </button>
+        }
       />
 
-      <Card>
-        {/* Header con toggle su mobile, statico su desktop */}
-        <button
-          className="flex w-full items-center justify-between md:cursor-default"
-          onClick={() => setShowForm((v) => !v)}
-        >
-          <div className="text-left">
-            <p className="text-base font-semibold text-zinc-900">Nuova prenotazione</p>
-            <p className="mt-0.5 text-sm text-zinc-500">Inserisci i dati principali</p>
-          </div>
-          <ChevronDown
-            className={`h-5 w-5 text-zinc-400 transition-transform md:hidden ${showForm ? "rotate-180" : ""}`}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-text-secondary">
+          Visibili: {visibleBookings.length} su {bookings.length}
+        </p>
+        <label className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-strong/20 px-3 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            checked={showCompleted}
+            onChange={(e) => setShowCompleted(e.target.checked)}
+            className="h-4 w-4 accent-brand-primary"
           />
-        </button>
-
-        <div className={`${showForm ? "block" : "hidden"} md:block`}>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="booking-check-in" className="label-base">Check-in</label>
-              <input id="booking-check-in" name="check_in" className="input-base" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="booking-check-out" className="label-base">Check-out</label>
-              <input id="booking-check-out" name="check_out" className="input-base" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="booking-guests" className="label-base">Ospiti</label>
-              <input id="booking-guests" name="guests" className="input-base" type="number" inputMode="numeric" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="booking-channel" className="label-base">Canale</label>
-              <input id="booking-channel" name="channel" className="input-base" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="es. airbnb" autoComplete="off" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="booking-total-amount" className="label-base">Importo (€)</label>
-              <input id="booking-total-amount" name="total_amount" className="input-base" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="0.00" />
-            </div>
-            <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
-              <label htmlFor="booking-notes" className="label-base">Note</label>
-              <input id="booking-notes" name="notes" className="input-base" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note aggiuntive..." />
-            </div>
-          </div>
-          <button className="btn-primary mt-4 disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
-            <Plus className="h-4 w-4" />
-            {loading ? "Creazione..." : "Crea prenotazione"}
-          </button>
-        </div>
-      </Card>
+          Mostra completate
+        </label>
+      </div>
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
       <Card>
-        <CardHeader
-          title="Lista prenotazioni"
-          subtitle={showCompleted ? "Tutte le prenotazioni" : "Solo prenotazioni ancora da pulire"}
-        />
-
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-xs text-zinc-500">Visibili: {visibleBookings.length} su {bookings.length}</p>
-          <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm text-zinc-600">
-            <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
-            Mostra completate
-          </label>
-        </div>
-
         {loadingBookings ? (
           <>
             <div className="hidden md:block">
               <Table>
-                <TableHead><tr><TableHeaderCell>Check-in</TableHeaderCell><TableHeaderCell>Check-out</TableHeaderCell><TableHeaderCell>Ospiti</TableHeaderCell><TableHeaderCell>Canale</TableHeaderCell><TableHeaderCell>Importo</TableHeaderCell><TableHeaderCell>Note</TableHeaderCell><TableHeaderCell>Azioni</TableHeaderCell></tr></TableHead>
-                <TableBody>{[1,2,3].map((i) => <RowSkeleton key={i} cols={7} />)}</TableBody>
+                <TableHead>
+                  <tr>
+                    <TableHeaderCell>Soggiorno</TableHeaderCell>
+                    <TableHeaderCell>Ospiti</TableHeaderCell>
+                    <TableHeaderCell>Canale</TableHeaderCell>
+                    <TableHeaderCell>Importo</TableHeaderCell>
+                    <TableHeaderCell>Stato</TableHeaderCell>
+                    <TableHeaderCell>Note</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Azioni</TableHeaderCell>
+                  </tr>
+                </TableHead>
+                <TableBody>
+                  {[1, 2, 3].map((i) => (
+                    <RowSkeleton key={i} cols={7} />
+                  ))}
+                </TableBody>
               </Table>
             </div>
             <div className="space-y-3 md:hidden">
-              {[1,2,3].map((i) => (
-                <div key={i} className="animate-pulse rounded-xl border border-zinc-100 p-4">
-                  <div className="h-4 w-40 rounded bg-zinc-200" />
-                  <div className="mt-2 h-3 w-28 rounded bg-zinc-200" />
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse rounded-xl border border-border-strong/12 p-4">
+                  <div className="h-4 w-40 rounded bg-surface-muted" />
+                  <div className="mt-2 h-3 w-28 rounded bg-surface-muted" />
                 </div>
               ))}
             </div>
           </>
         ) : visibleBookings.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
-              <CalendarOff className="h-8 w-8" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-muted text-text-secondary">
+              <CalendarOff className="h-8 w-8" aria-hidden="true" />
             </div>
-            <p className="text-base font-medium text-zinc-800">Nessuna prenotazione visibile</p>
-            <p className="max-w-[280px] text-sm text-zinc-500">
+            <p className="text-base font-medium text-text-primary">Nessuna prenotazione visibile</p>
+            <p className="max-w-[280px] text-sm text-text-secondary">
               {bookings.length === 0
-                ? "Aggiungi la prima prenotazione usando il modulo qui sopra per iniziare."
+                ? "Aggiungi la prima prenotazione con il pulsante 'Nuova prenotazione' qui sopra."
                 : "Tutte le prenotazioni sono già state pulite (le prenotazioni completate sono nascoste)."}
             </p>
           </div>
         ) : (
           <>
-          <div className="space-y-3 md:hidden">
-            {visibleBookings.map((b) => {
-              const isEditing = editId === b.id;
-              const linked = bookingActions[b.id] ?? [];
-              const menuOpen = expandedMenuId === b.id;
-              const cleaningDone = b.cleaning_status === "FATTO";
-              const displayAmount = amountDraftById[b.id] !== "" ? amountDraftById[b.id] : b.total_amount;
-
-              return (
-                <article key={b.id} className="rounded-xl border border-zinc-200 bg-white p-3">
-                  {/* Riga 1: stato pulizia + prezzo */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                        cleaningDone
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {cleaningDone ? "✓ Pulito" : "⚠ Da pulire"}
-                    </span>
-                    <span className="text-base font-extrabold text-primary">
-                      {displayAmount != null && displayAmount !== "" ? `€${displayAmount}` : "—"}
-                    </span>
-                  </div>
-
-                  {/* Riga 2: date leggibili */}
-                  <p className="mt-1.5 text-sm font-bold text-text-primary">
-                    {formatDateRange(b.check_in, b.check_out)}
-                  </p>
-
-                  {/* Riga 3: canale + ospiti + note */}
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${channelChipClass(b.channel)}`}>
-                      {b.channel ?? "—"}
-                    </span>
-                    <span className="text-xs text-text-secondary">{b.guests} ospiti</span>
-                    {b.notes && <span className="text-xs text-text-secondary">· {b.notes}</span>}
-                  </div>
-
-                  {/* Form modifica inline (solo quando isEditing) */}
-                  {isEditing && (
-                    <div className="mt-3 grid gap-2">
-                      <input name={`check_in_m_${b.id}`} className="input-base" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
-                      <input name={`check_out_m_${b.id}`} className="input-base" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
-                      <input name={`guests_m_${b.id}`} className="input-base" type="number" value={b.guests} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
-                      <input name={`channel_m_${b.id}`} className="input-base" value={b.channel ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
-                      <input name={`total_amount_m_${b.id}`} className="input-base" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
-                      <input name={`notes_m_${b.id}`} className="input-base" value={b.notes ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
-                    </div>
-                  )}
-
-                  {/* Footer: CTA principale + menu ··· */}
-                  <div className="mt-3 flex items-center justify-end gap-2">
-                    {isEditing ? (
-                      <button
-                        className="btn-primary btn-sm inline-flex items-center gap-1"
-                        onClick={() => void updateBooking(b.id)}
-                      >
-                        <Save className="h-3.5 w-3.5" />
-                        Salva
-                      </button>
-                    ) : (
-                      <button
-                        className="btn-primary btn-sm inline-flex items-center gap-1"
-                        onClick={() => void toggleActionsForBooking(b.id)}
-                      >
-                        <CalendarDays className="h-3.5 w-3.5" />
-                        Azioni ›
-                      </button>
-                    )}
-                    {!isEditing && (
-                      <button
-                        aria-label={menuOpen ? "Chiudi menu" : "Apri menu prenotazione"}
-                        className="btn-secondary btn-sm inline-flex items-center justify-center px-2.5 font-bold tracking-widest"
-                        onClick={() => setExpandedMenuId(menuOpen ? null : b.id)}
-                      >
-                        ···
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Menu ··· espanso: Modifica / Elimina */}
-                  {menuOpen && !isEditing && (
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        className="btn-secondary btn-sm inline-flex flex-1 items-center justify-center gap-1"
-                        onClick={() => {
-                          setAmountDraftById((prev) => ({
-                            ...prev,
-                            [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
-                          }));
-                          setEditId(b.id);
-                          setExpandedMenuId(null);
-                        }}
-                      >
-                        <PenLine className="h-3.5 w-3.5" />
-                        Modifica
-                      </button>
-                      <button
-                        className="btn-danger btn-sm inline-flex flex-1 items-center justify-center gap-1"
-                        onClick={() => void deleteBooking(b.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Elimina
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Accordion azioni collegate */}
-                  {expandedBookingId === b.id && (
-                    <div className="mt-3 space-y-2 rounded-xl bg-zinc-50 p-2">
-                      {linked.length === 0 ? (
-                        <p className="text-xs text-zinc-500">Nessuna azione collegata</p>
-                      ) : (
-                        linked.map((a) => (
-                          <div key={a.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-2 py-1.5">
-                            <div className="flex items-center gap-2">
-                              <ActionTypeBadge actionType={a.action_type} />
-                              <span className="text-xs text-zinc-500">{a.action_date}</span>
-                            </div>
-                            <StatusBadge status={a.status} />
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-          <div className="hidden md:block">
-          <Table>
-            <TableHead>
-              <tr>
-                <TableHeaderCell>Check-in</TableHeaderCell>
-                <TableHeaderCell>Check-out</TableHeaderCell>
-                <TableHeaderCell>Ospiti</TableHeaderCell>
-                <TableHeaderCell>Canale</TableHeaderCell>
-                <TableHeaderCell>Importo</TableHeaderCell>
-                <TableHeaderCell>Note</TableHeaderCell>
-                <TableHeaderCell className="text-right">Azioni</TableHeaderCell>
-              </tr>
-            </TableHead>
-            <TableBody>
+            {/* Mobile: card text-first */}
+            <div className="space-y-3 md:hidden">
               {visibleBookings.map((b) => {
                 const isEditing = editId === b.id;
+                const linked = bookingActions[b.id] ?? [];
+                const menuOpen = expandedMenuId === b.id;
+                const cleaningDone = b.cleaning_status === "FATTO";
+                const displayAmount = amountDraftById[b.id] !== "" ? amountDraftById[b.id] : b.total_amount;
+                const nights = nightsBetween(b.check_in, b.check_out);
 
                 return (
-                  <Fragment key={b.id}>
-                    <TableRow>
-                      <TableCell>
-                        <input name={`check_in_${b.id}`} id={`check_in_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_in} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
-                      </TableCell>
-                      <TableCell>
-                        <input name={`check_out_${b.id}`} id={`check_out_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="date" value={b.check_out} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
-                      </TableCell>
-                      <TableCell>
-                        <input name={`guests_${b.id}`} id={`guests_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" type="number" value={b.guests} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
-                      </TableCell>
-                      <TableCell>
-                        <input name={`channel_${b.id}`} id={`channel_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.channel ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
-                      </TableCell>
-                      <TableCell>
-                        <input
-                          className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50"
-                          name={`total_amount_${b.id}`}
-                          id={`total_amount_${b.id}`}
-                          type="text"
-                          inputMode="decimal"
-                          value={amountDraftById[b.id] ?? ""}
-                          disabled={!isEditing}
-                          onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <input name={`notes_${b.id}`} id={`notes_${b.id}`} className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs disabled:border-transparent disabled:bg-zinc-50" value={b.notes ?? ""} disabled={!isEditing} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <button className="btn-secondary btn-sm inline-flex items-center gap-1" onClick={() => void toggleActionsForBooking(b.id)}>
-                            <CalendarDays className="h-3.5 w-3.5" />
-                            Azioni
-                          </button>
+                  <article key={b.id} className="rounded-xl border border-border-strong/12 bg-surface-raised p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cleaningStatusChipClass(cleaningDone)}`}
+                      >
+                        {cleaningDone ? "Pulito" : "Da pulire"}
+                      </span>
+                      <span className="text-base font-extrabold text-text-primary">
+                        {displayAmount != null && displayAmount !== "" ? formatCurrencyIT(Number(String(displayAmount).replace(",", "."))) : "—"}
+                      </span>
+                    </div>
 
-                          {isEditing ? (
-                            <button className="btn-primary btn-sm inline-flex items-center gap-1" onClick={() => void updateBooking(b.id)}>
-                              <Save className="h-3.5 w-3.5" />
-                              Salva
-                            </button>
-                          ) : (
-                            <button className="btn-secondary btn-sm inline-flex items-center gap-1" onClick={() => {
-                              setAmountDraftById((prev) => ({
-                                ...prev,
-                                [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
-                              }));
-                              setEditId(b.id);
-                            }}>
-                              <PenLine className="h-3.5 w-3.5" />
-                              Modifica
-                            </button>
-                          )}
+                    <p className="mt-1.5 text-sm font-bold text-text-primary">
+                      {formatDateIT(b.check_in)} → {formatDateIT(b.check_out)}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {nights} {nights === 1 ? "notte" : "notti"}
+                    </p>
 
-                          <button className="btn-danger btn-sm inline-flex items-center gap-1" onClick={() => void deleteBooking(b.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Elimina
-                          </button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${channelChipClass(b.channel)}`}>
+                        {b.channel ?? "—"}
+                      </span>
+                      <span className="text-xs text-text-secondary">{b.guests} ospiti</span>
+                      {b.notes && <span className="text-xs text-text-secondary">· {b.notes}</span>}
+                    </div>
+
+                    {isEditing && (
+                      <div className="mt-3 grid gap-2">
+                        <input name={`check_in_m_${b.id}`} className="input-base" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
+                        <input name={`check_out_m_${b.id}`} className="input-base" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
+                        <input name={`guests_m_${b.id}`} className="input-base" type="number" value={b.guests} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
+                        <input name={`channel_m_${b.id}`} className="input-base" value={b.channel ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
+                        <input name={`total_amount_m_${b.id}`} className="input-base" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
+                        <input name={`notes_m_${b.id}`} className="input-base" value={b.notes ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      {isEditing ? (
+                        <button type="button" className="btn-primary btn-sm inline-flex items-center gap-1" onClick={() => void updateBooking(b.id)}>
+                          <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                          Salva
+                        </button>
+                      ) : (
+                        <button type="button" className="btn-primary btn-sm inline-flex items-center gap-1" onClick={() => void toggleActionsForBooking(b.id)}>
+                          <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                          Azioni
+                        </button>
+                      )}
+                      {!isEditing && (
+                        <button
+                          type="button"
+                          aria-label={menuOpen ? "Chiudi menu" : "Apri menu prenotazione"}
+                          aria-expanded={menuOpen}
+                          className="btn-secondary btn-sm inline-flex items-center justify-center px-2.5 font-bold tracking-widest"
+                          onClick={() => setExpandedMenuId(menuOpen ? null : b.id)}
+                        >
+                          ···
+                        </button>
+                      )}
+                    </div>
+
+                    {menuOpen && !isEditing && (
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm inline-flex flex-1 items-center justify-center gap-1"
+                          onClick={() => {
+                            setAmountDraftById((prev) => ({
+                              ...prev,
+                              [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
+                            }));
+                            setEditId(b.id);
+                            setExpandedMenuId(null);
+                          }}
+                        >
+                          <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
+                          Modifica
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-danger btn-sm inline-flex flex-1 items-center justify-center gap-1"
+                          onClick={() => {
+                            setExpandedMenuId(null);
+                            setDeleteTargetId(b.id);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          Elimina
+                        </button>
+                      </div>
+                    )}
 
                     {expandedBookingId === b.id && (
-                      <TableRow key={`${b.id}-actions`} className="bg-zinc-50">
-                        <TableCell className="py-4" colSpan={7}>
-                          <div className="space-y-2">
-                            {(bookingActions[b.id] ?? []).length === 0 ? (
-                              <p className="text-xs text-zinc-500">Nessuna azione collegata</p>
-                            ) : (
-                              (bookingActions[b.id] ?? []).map((a) => (
-                                <div key={a.id} className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2">
-                                  <div className="flex items-center gap-2">
-                                    <ActionTypeBadge actionType={a.action_type} />
-                                    <span className="text-xs text-zinc-500">{a.action_date}</span>
-                                  </div>
-                                  <StatusBadge status={a.status} />
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      <div className="mt-3 space-y-2 rounded-xl bg-surface-muted p-2">
+                        {linked.length === 0 ? (
+                          <p className="text-xs text-text-secondary">Nessuna azione collegata</p>
+                        ) : (
+                          linked.map((a) => (
+                            <div key={a.id} className="flex items-center justify-between rounded-lg border border-border-strong/12 bg-surface-raised px-2 py-1.5">
+                              <div className="flex items-center gap-2">
+                                <ActionTypeBadge actionType={a.action_type} />
+                                <span className="text-xs text-text-secondary">{formatDateIT(a.action_date)}</span>
+                              </div>
+                              <StatusBadge status={a.status} />
+                            </div>
+                          ))
+                        )}
+                      </div>
                     )}
-                  </Fragment>
+                  </article>
                 );
               })}
-            </TableBody>
-          </Table>
-          </div>
+            </div>
+
+            {/* Desktop: tabella text-first, input solo in modifica */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHead>
+                  <tr>
+                    <TableHeaderCell>Soggiorno</TableHeaderCell>
+                    <TableHeaderCell>Ospiti</TableHeaderCell>
+                    <TableHeaderCell>Canale</TableHeaderCell>
+                    <TableHeaderCell>Importo</TableHeaderCell>
+                    <TableHeaderCell>Stato</TableHeaderCell>
+                    <TableHeaderCell>Note</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Azioni</TableHeaderCell>
+                  </tr>
+                </TableHead>
+                <TableBody>
+                  {visibleBookings.map((b) => {
+                    const isEditing = editId === b.id;
+                    const cleaningDone = b.cleaning_status === "FATTO";
+                    const nights = nightsBetween(b.check_in, b.check_out);
+
+                    return (
+                      <Fragment key={b.id}>
+                        <TableRow>
+                          <TableCell>
+                            {isEditing ? (
+                              <div className="flex flex-col gap-1.5">
+                                <input
+                                  aria-label="Check-in"
+                                  name={`check_in_${b.id}`}
+                                  className="input-base h-9 text-xs"
+                                  type="date"
+                                  value={b.check_in}
+                                  onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))}
+                                />
+                                <input
+                                  aria-label="Check-out"
+                                  name={`check_out_${b.id}`}
+                                  className="input-base h-9 text-xs"
+                                  type="date"
+                                  value={b.check_out}
+                                  onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))}
+                                />
+                              </div>
+                            ) : (
+                              <div>
+                                <p className="font-semibold text-text-primary">
+                                  {formatDateIT(b.check_in)} → {formatDateIT(b.check_out)}
+                                </p>
+                                <p className="text-xs text-text-secondary">
+                                  {nights} {nights === 1 ? "notte" : "notti"}
+                                </p>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <input
+                                aria-label="Ospiti"
+                                name={`guests_${b.id}`}
+                                className="input-base h-9 w-20 text-xs"
+                                type="number"
+                                min={1}
+                                value={b.guests}
+                                onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))}
+                              />
+                            ) : (
+                              <span className="text-text-primary">{b.guests}</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <input
+                                aria-label="Canale"
+                                name={`channel_${b.id}`}
+                                className="input-base h-9 text-xs"
+                                value={b.channel ?? ""}
+                                onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))}
+                              />
+                            ) : (
+                              <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${channelChipClass(b.channel)}`}>
+                                {b.channel ?? "—"}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <input
+                                aria-label="Importo"
+                                name={`total_amount_${b.id}`}
+                                className="input-base h-9 w-24 text-xs"
+                                type="text"
+                                inputMode="decimal"
+                                value={amountDraftById[b.id] ?? ""}
+                                onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                              />
+                            ) : (
+                              <span className="font-semibold text-text-primary">
+                                {amountDraftById[b.id] ? formatCurrencyIT(Number(amountDraftById[b.id].replace(",", "."))) : "—"}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${cleaningStatusChipClass(cleaningDone)}`}>
+                              {cleaningDone ? "Pulito" : "Da pulire"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <input
+                                aria-label="Note"
+                                name={`notes_${b.id}`}
+                                className="input-base h-9 text-xs"
+                                value={b.notes ?? ""}
+                                onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))}
+                              />
+                            ) : (
+                              <span className="text-text-secondary">{b.notes || "—"}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <button type="button" className="btn-secondary btn-sm inline-flex items-center gap-1" onClick={() => void toggleActionsForBooking(b.id)}>
+                                <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                                Azioni
+                              </button>
+
+                              {isEditing ? (
+                                <button type="button" className="btn-primary btn-sm inline-flex items-center gap-1" onClick={() => void updateBooking(b.id)}>
+                                  <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Salva
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn-secondary btn-sm inline-flex items-center gap-1"
+                                  onClick={() => {
+                                    setAmountDraftById((prev) => ({
+                                      ...prev,
+                                      [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
+                                    }));
+                                    setEditId(b.id);
+                                  }}
+                                >
+                                  <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Modifica
+                                </button>
+                              )}
+
+                              <button type="button" className="btn-danger btn-sm inline-flex items-center gap-1" onClick={() => setDeleteTargetId(b.id)}>
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                Elimina
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+
+                        {expandedBookingId === b.id && (
+                          <TableRow key={`${b.id}-actions`} className="bg-surface-muted">
+                            <TableCell className="py-4" colSpan={7}>
+                              <div className="space-y-2">
+                                {(bookingActions[b.id] ?? []).length === 0 ? (
+                                  <p className="text-xs text-text-secondary">Nessuna azione collegata</p>
+                                ) : (
+                                  (bookingActions[b.id] ?? []).map((a) => (
+                                    <div key={a.id} className="flex items-center justify-between rounded-xl border border-border-strong/12 bg-surface-raised px-3 py-2">
+                                      <div className="flex items-center gap-2">
+                                        <ActionTypeBadge actionType={a.action_type} />
+                                        <span className="text-xs text-text-secondary">{formatDateIT(a.action_date)}</span>
+                                      </div>
+                                      <StatusBadge status={a.status} />
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </>
         )}
       </Card>
 
-      {/* FAB mobile — apre il form nuova prenotazione */}
+      {/* FAB mobile — apre il drawer nuova prenotazione */}
       <button
-        className="btn-primary fixed bottom-[72px] right-4 z-40 flex h-12 w-12 items-center justify-center rounded-[14px] shadow-[0_4px_16px_rgba(181,40,88,0.35)] md:hidden"
-        onClick={() => {
-          setShowForm(true);
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        type="button"
+        className="btn-primary fixed bottom-[72px] right-4 z-40 flex h-12 w-12 items-center justify-center rounded-2xl p-0 md:hidden"
+        onClick={() => setShowForm(true)}
         aria-label="Nuova prenotazione"
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-6 w-6" aria-hidden="true" />
       </button>
+
+      <Drawer open={showForm} onClose={() => setShowForm(false)} title="Nuova prenotazione">
+        <div className="grid gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="booking-check-in" className="label-base">Check-in</label>
+            <input id="booking-check-in" name="check_in" className="input-base" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="booking-check-out" className="label-base">Check-out</label>
+            <input id="booking-check-out" name="check_out" className="input-base" type="date" value={form.check_out} onChange={(e) => setForm((p) => ({ ...p, check_out: e.target.value }))} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="booking-guests" className="label-base">Ospiti</label>
+            <input id="booking-guests" name="guests" className="input-base" type="number" inputMode="numeric" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="booking-channel" className="label-base">Canale</label>
+            <input id="booking-channel" name="channel" className="input-base" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} placeholder="es. airbnb" autoComplete="off" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="booking-total-amount" className="label-base">Importo (€)</label>
+            <input id="booking-total-amount" name="total_amount" className="input-base" type="text" inputMode="decimal" value={form.total_amount} onChange={(e) => setForm((p) => ({ ...p, total_amount: e.target.value }))} placeholder="0.00" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="booking-notes" className="label-base">Note</label>
+            <input id="booking-notes" name="notes" className="input-base" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Note aggiuntive..." />
+          </div>
+        </div>
+        <button type="button" className="btn-primary mt-4 w-full disabled:opacity-50" onClick={() => void createBooking()} disabled={loading}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {loading ? "Creazione..." : "Crea prenotazione"}
+        </button>
+      </Drawer>
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Eliminare la prenotazione?"
+        description="Verranno eliminate anche le azioni collegate. L'operazione non è reversibile."
+        confirmLabel="Elimina"
+        danger
+        onCancel={() => setDeleteTargetId(null)}
+        onConfirm={() => {
+          const id = deleteTargetId;
+          setDeleteTargetId(null);
+          if (id) void deleteBooking(id);
+        }}
+      />
     </section>
   );
 }

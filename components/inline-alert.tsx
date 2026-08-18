@@ -7,15 +7,15 @@ type InlineAlertProps = {
 };
 
 const toneClassName: Record<NonNullable<InlineAlertProps["tone"]>, string> = {
-  error: "border-rose-200/90 bg-rose-50/95 text-rose-800",
-  success: "border-emerald-200/90 bg-emerald-50/95 text-emerald-800",
-  info: "border-amber-200/80 bg-amber-50/90 text-amber-900",
-  warning: "border-amber-200/80 bg-amber-50/90 text-amber-900",
+  error: "border-semantic-error/30 bg-semantic-error/8 text-text-primary",
+  success: "border-semantic-success/25 bg-semantic-success/8 text-semantic-success",
+  info: "border-semantic-info/25 bg-semantic-info/8 text-semantic-info",
+  warning: "border-semantic-warning/30 bg-semantic-warning/8 text-text-primary",
 };
 
 export function InlineAlert({ children, title, tone = "error" }: InlineAlertProps) {
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-sm shadow-[0_10px_30px_rgba(15,23,42,0.05)] ${toneClassName[tone]}`}>
+    <div className={`rounded-xl border px-4 py-3 text-sm ${toneClassName[tone]}`}>
       {title ? <p className="font-semibold">{title}</p> : null}
       <div className={title ? "mt-1.5" : ""}>{children}</div>
     </div>

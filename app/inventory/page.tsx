@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, Package, ShoppingCart } from "lucide-react";
-import { Card, CardHeader } from "@/components/card";
+import { AlertTriangle, MoreHorizontal, Package, ShoppingCart } from "lucide-react";
 import { clientFetchJson } from "@/lib/http/clientFetch";
+import { Drawer } from "@/components/drawer";
 import { InlineAlert } from "@/components/inline-alert";
 import { getRefillState, isMonitoredRefillProduct, isStatusManagedRefillProduct, type StockStatus } from "@/lib/refill";
 import { KpiCard } from "@/components/kpi-card";
@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import type { ProductRow, RestockDraft } from "@/lib/inventory-types";
 import { RefillConsumablesModal } from "@/components/refill-consumables-modal";
 import { RefillLinenModal } from "@/components/refill-linen-modal";
+import { RefillUrgentPreview } from "@/components/refill-urgent-preview";
 
 type CsvPreviewRow = {
   id: string;
@@ -111,7 +112,7 @@ export default function InventoryPage() {
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvColumns, setCsvColumns] = useState({ threshold: false, maxQty: false, consumption: false });
-  const [showImport, setShowImport] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [openModal, setOpenModal] = useState<"consumabili" | "biancheria" | null>(null);
   const productsAbortRef = useRef<AbortController | null>(null);
   const productsRequestSeqRef = useRef(0);
@@ -471,12 +472,9 @@ export default function InventoryPage() {
 
   return (
     <section className="space-y-6">
-      
       <PageHeader
         title="Rifornimento"
-        subtitle="Consumabili monitorati a stati e biancheria gestita a quantità in una sola console."
-        icon={<Package className="h-5 w-5 text-sidebar-bg" />}
-        eyebrow="Magazzino"
+        subtitle={`${monitoredProducts.length} prodotti monitorati`}
       />
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
@@ -508,142 +506,130 @@ export default function InventoryPage() {
         />
       </div>
 
-      <Card>
-        <div className="flex items-start justify-between gap-4">
-          <CardHeader
-            title="Import CSV / Excel"
-            subtitle="Aggiorna i valori del magazzino in blocco solo quando hai molte modifiche da applicare insieme."
-          />
-          <button
-            type="button"
-            className="btn-secondary btn-sm mt-1"
-            onClick={() => setShowImport((v) => !v)}
-          >
-            {showImport ? "Nascondi" : "Apri import"}
-            <ChevronDown className={`h-4 w-4 transition-transform ${showImport ? "rotate-180" : ""}`} />
-          </button>
-        </div>
+      <RefillUrgentPreview
+        products={monitoredProducts}
+        onOpenConsumables={() => setOpenModal("consumabili")}
+        onOpenLinen={() => setOpenModal("biancheria")}
+      />
 
-        {showImport && (
-          <div className="space-y-4 px-6 pb-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={downloadTemplate}
-                className="btn-secondary"
-              >
-                Scarica template CSV
-              </button>
-              <button
-                type="button"
-                onClick={downloadTemplateXlsx}
-                className="btn-secondary"
-              >
-                Scarica template Excel
-              </button>
-              <label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-dashed border-border-default bg-white/50 px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-white">
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleCsvFile(file);
-                  }}
-                />
-                Carica CSV o Excel
-              </label>
-              {csvFileName && <span className="text-xs text-zinc-500">File: {csvFileName}</span>}
-            </div>
-            <p className="text-xs text-text-tertiary">
-              Carica un file CSV o Excel (.xlsx) per aggiornare i valori del magazzino in blocco.
+      <div className="flex justify-end">
+        <button
+          type="button"
+          className="btn-ghost btn-sm inline-flex items-center gap-1.5"
+          onClick={() => setToolsOpen(true)}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+          Strumenti
+        </button>
+      </div>
+
+      <RefillConsumablesModal
+        open={openModal === "consumabili"}
+        products={statusManagedProducts}
+        loadingProducts={loadingProducts}
+        savingStatusId={savingStatusId}
+        onUpdateStatus={updateProductStatus}
+        onClose={() => setOpenModal(null)}
+      />
+
+      <RefillLinenModal
+        open={openModal === "biancheria"}
+        products={visibleQuantityProducts}
+        loadingProducts={loadingProducts}
+        drafts={drafts}
+        setDrafts={setDrafts}
+        restockPending={loading}
+        onRestock={restockProduct}
+        onClose={() => setOpenModal(null)}
+      />
+
+      <Drawer open={toolsOpen} onClose={() => setToolsOpen(false)} title="Strumenti" widthClassName="sm:max-w-[560px]">
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-text-primary">Import CSV / Excel</h3>
+            <p className="mt-1 text-xs text-text-secondary">
+              Aggiorna i valori del magazzino in blocco solo quando hai molte modifiche da applicare insieme.
             </p>
-
-            {csvErrors.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                {csvErrors.map((err) => (
-                  <p key={err}>{err}</p>
-                ))}
-              </div>
-            )}
-
-            {csvPreview.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-zinc-700">Anteprima aggiornamenti</p>
-                <div className="overflow-hidden rounded-xl border border-zinc-200">
-                  <Table>
-                    <TableHead>
-                      <tr>
-                        <TableHeaderCell>Prodotto</TableHeaderCell>
-                        <TableHeaderCell>Qtà attuale</TableHeaderCell>
-                        <TableHeaderCell>Qtà nuova</TableHeaderCell>
-                        <TableHeaderCell>Soglia</TableHeaderCell>
-                        <TableHeaderCell>Massimo</TableHeaderCell>
-                        <TableHeaderCell>Consumo</TableHeaderCell>
-                      </tr>
-                    </TableHead>
-                    <TableBody>
-                      {csvPreview.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="font-medium text-zinc-900">{row.name}</TableCell>
-                          <TableCell>{row.quantityNow}</TableCell>
-                          <TableCell className="text-zinc-900">{row.quantityNext}</TableCell>
-                          <TableCell>{row.thresholdNext}</TableCell>
-                          <TableCell>{row.maxQtyNext ?? "-"}</TableCell>
-                          <TableCell>{row.consumptionNext ?? "-"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void applyCsvImport()}
-                    disabled={csvLoading}
-                    className="btn-primary btn-sm"
-                  >
-                    Applica import
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCsvPreview([]);
-                      setCsvErrors([]);
-                      setCsvFileName("");
-                    }}
-                    className="text-xs text-zinc-500 hover:text-zinc-700"
-                  >
-                    Pulisci selezione
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
-        )}
-      </Card>
 
-      {openModal === "consumabili" && (
-        <RefillConsumablesModal
-          products={statusManagedProducts}
-          loadingProducts={loadingProducts}
-          savingStatusId={savingStatusId}
-          onUpdateStatus={updateProductStatus}
-          onClose={() => setOpenModal(null)}
-        />
-      )}
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={downloadTemplate} className="btn-secondary btn-sm">
+              Scarica template CSV
+            </button>
+            <button type="button" onClick={downloadTemplateXlsx} className="btn-secondary btn-sm">
+              Scarica template Excel
+            </button>
+          </div>
 
-      {openModal === "biancheria" && (
-        <RefillLinenModal
-          products={visibleQuantityProducts}
-          loadingProducts={loadingProducts}
-          drafts={drafts}
-          setDrafts={setDrafts}
-          restockPending={loading}
-          onRestock={restockProduct}
-          onClose={() => setOpenModal(null)}
-        />
-      )}
+          <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-border-strong/30 bg-surface-muted px-4 py-3 text-sm font-medium text-text-secondary transition-colors duration-150 hover:bg-surface-raised">
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleCsvFile(file);
+              }}
+            />
+            Carica CSV o Excel
+          </label>
+          {csvFileName && <p className="text-xs text-text-secondary">File: {csvFileName}</p>}
+
+          {csvErrors.length > 0 && (
+            <div className="rounded-xl border border-semantic-warning/30 bg-semantic-warning/10 p-3 text-xs text-text-primary">
+              {csvErrors.map((err) => (
+                <p key={err}>{err}</p>
+              ))}
+            </div>
+          )}
+
+          {csvPreview.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-text-primary">Anteprima aggiornamenti</p>
+              <Table>
+                <TableHead>
+                  <tr>
+                    <TableHeaderCell>Prodotto</TableHeaderCell>
+                    <TableHeaderCell>Attuale</TableHeaderCell>
+                    <TableHeaderCell>Nuova</TableHeaderCell>
+                    <TableHeaderCell>Soglia</TableHeaderCell>
+                    <TableHeaderCell>Massimo</TableHeaderCell>
+                    <TableHeaderCell>Consumo</TableHeaderCell>
+                  </tr>
+                </TableHead>
+                <TableBody>
+                  {csvPreview.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="font-medium text-text-primary">{row.name}</TableCell>
+                      <TableCell>{row.quantityNow}</TableCell>
+                      <TableCell className="text-text-primary">{row.quantityNext}</TableCell>
+                      <TableCell>{row.thresholdNext}</TableCell>
+                      <TableCell>{row.maxQtyNext ?? "-"}</TableCell>
+                      <TableCell>{row.consumptionNext ?? "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => void applyCsvImport()} disabled={csvLoading} className="btn-primary btn-sm">
+                  Applica import
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCsvPreview([]);
+                    setCsvErrors([]);
+                    setCsvFileName("");
+                  }}
+                  className="btn-ghost btn-sm"
+                >
+                  Pulisci selezione
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Drawer>
     </section>
   );
 }

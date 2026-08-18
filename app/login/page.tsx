@@ -21,7 +21,7 @@ export default function LoginPage() {
       footer={
         <>
           Primo accesso?{" "}
-          <Link href="/signup" className="font-semibold text-sidebar-bg transition hover:text-primary">
+          <Link href="/signup" className="font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-hover">
             Richiedi accesso
           </Link>
         </>
@@ -66,7 +66,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowPassword((value) => !value)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary transition hover:text-text-primary"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted transition hover:text-text-primary"
               aria-label={showPassword ? "Nascondi password" : "Mostra password"}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

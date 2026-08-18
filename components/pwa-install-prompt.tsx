@@ -61,17 +61,17 @@ export function PwaInstallPrompt() {
   if (!deferredPrompt && !showIosHint) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-50 rounded-xl border border-border bg-card p-4 shadow-lg">
+    <div className="fixed bottom-20 left-4 right-4 z-50 rounded-xl border border-border-strong/15 bg-surface-raised p-4 shadow-[0_12px_28px_rgba(74,14,36,0.18)]">
       <div className="flex items-start gap-3">
         <span className="text-2xl">📲</span>
         <div className="flex-1 text-sm">
-          <p className="font-semibold text-foreground">Installa l&apos;app</p>
+          <p className="font-semibold text-text-primary">Installa l&apos;app</p>
           {deferredPrompt ? (
-            <p className="mt-0.5 text-muted-foreground">
+            <p className="mt-0.5 text-text-secondary">
               Aggiungi Alva Host alla schermata Home per un accesso rapido.
             </p>
           ) : (
-            <p className="mt-0.5 text-muted-foreground">
+            <p className="mt-0.5 text-text-secondary">
               Tocca <strong>condividi</strong>{" "}
               <ShareIcon />{" "}
               poi <strong>«Aggiungi alla schermata Home»</strong>
@@ -79,7 +79,9 @@ export function PwaInstallPrompt() {
           )}
         </div>
         <button
-          className="shrink-0 text-muted-foreground hover:text-foreground"
+          type="button"
+          aria-label="Chiudi suggerimento installazione"
+          className="shrink-0 rounded-lg p-1 text-text-muted transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
           onClick={dismiss}
         >
           ✕
@@ -87,7 +89,8 @@ export function PwaInstallPrompt() {
       </div>
       {deferredPrompt && (
         <button
-          className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-medium text-primary-foreground"
+          type="button"
+          className="btn-primary mt-3 w-full"
           onClick={installAndroid}
         >
           Installa
@@ -99,7 +102,7 @@ export function PwaInstallPrompt() {
 
 function ShareIcon() {
   return (
-    <svg className="inline h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+    <svg className="inline h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 2l-3 3h2v8h2V5h2l-3-3zm-7 9v8h14v-8h-2v6H7v-6H5z" />
     </svg>
   );

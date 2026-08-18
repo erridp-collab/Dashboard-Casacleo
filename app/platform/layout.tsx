@@ -35,20 +35,20 @@ export default async function PlatformLayout({
 
   return (
     <section className="mx-auto max-w-6xl space-y-6">
-      <header className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <header className="rounded-2xl border border-border-strong/12 bg-surface-raised p-6">
         <div className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">
+          <p className="text-sm font-medium uppercase tracking-[0.14em] text-brand-primary">
             Platform
           </p>
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold text-zinc-900">Console piattaforma</h1>
-              <p className="max-w-3xl text-sm text-zinc-600">
+              <h1 className="text-3xl font-semibold text-text-primary">Console piattaforma</h1>
+              <p className="max-w-3xl text-sm text-text-secondary">
                 Gestione richieste accesso, provisioning account e operazioni amministrative.
               </p>
             </div>
-            <div className="rounded-2xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-              <span className="font-medium text-zinc-900">Admin:</span>{" "}
+            <div className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-text-secondary">
+              <span className="font-medium text-text-primary">Admin:</span>{" "}
               {admin.email ?? admin.userId}
             </div>
           </div>
@@ -59,7 +59,7 @@ export default async function PlatformLayout({
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
+              className="rounded-xl border border-border-strong/18 px-4 py-2 text-sm font-medium text-text-secondary transition-colors duration-150 hover:bg-brand-primary/6 hover:text-text-primary"
             >
               {item.label}
             </Link>

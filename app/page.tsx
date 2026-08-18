@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutDashboard } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const CalendarClient = dynamic(() => import("@/app/calendar/calendar-client"), { ssr: false });
@@ -13,6 +12,8 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCardSkeleton } from "@/components/skeleton";
 import type { Action, Booking } from "@/types/db";
 import { todayLocalIT } from "@/lib/localDate";
+import { formatDateLongIT } from "@/lib/format";
+import { ACTION_COLORS } from "@/lib/actionMeta";
 
 type BookingsResponse = {
   bookings?: Booking[];
@@ -22,12 +23,20 @@ type ActionsResponse = {
   actions?: Action[];
 };
 
+const CALENDAR_LEGEND: { label: string; color: string }[] = [
+  { label: "Prenotazioni", color: ACTION_COLORS.booking },
+  { label: "Pulizia", color: ACTION_COLORS.cleaning },
+  { label: "Biancheria", color: ACTION_COLORS.linen },
+  { label: "Lavatrici", color: ACTION_COLORS.laundry },
+  { label: "Manutenzione", color: ACTION_COLORS.maintenance },
+  { label: "Spesa", color: ACTION_COLORS.shopping },
+];
+
 export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isClient, setIsClient] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   async function loadData(signal?: AbortSignal) {
@@ -62,7 +71,6 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    setIsClient(true);
     const t = setTimeout(() => {
       abortRef.current?.abort();
       const ctrl = new AbortController();
@@ -75,24 +83,22 @@ export default function DashboardPage() {
     };
   }, []);
 
+  const today = todayLocalIT();
   const openActions = useMemo(() => actions.filter((a) => a.status === "DA_FARE").length, [actions]);
-  const todayActions = actions.length;
+  const activeOrUpcomingBookings = useMemo(
+    () => bookings.filter((b) => b.check_out >= today).length,
+    [bookings, today],
+  );
 
   return (
     <section className="space-y-6">
-      <PageHeader
-        title="Riepilogo"
-        subtitle="Panoramica operativa giornaliera con focus su attività, prenotazioni e calendario."
-        icon={<LayoutDashboard className="h-5 w-5 text-sidebar-bg" />}
-        eyebrow="Oggi"
-      />
+      <PageHeader title="Riepilogo" subtitle={formatDateLongIT(today)} />
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {loading ? (
           <>
-            <KpiCardSkeleton />
             <KpiCardSkeleton />
             <KpiCardSkeleton />
             <KpiCardSkeleton />
@@ -100,25 +106,20 @@ export default function DashboardPage() {
         ) : (
           <>
             <KpiCard
-              title="Prenotazioni Totali"
-              value={String(bookings.length)}
-              status={bookings.length > 0 ? "ok" : "neutral"}
-            />
-            <KpiCard
-              title="Azioni Oggi"
-              value={String(todayActions)}
+              title="Azioni oggi"
+              value={String(actions.length)}
               subtitle={`${openActions} da fare`}
-              status={todayActions === 0 ? "neutral" : openActions > 0 ? "warn" : "ok"}
+              status={actions.length === 0 ? "neutral" : openActions > 0 ? "warn" : "ok"}
             />
             <KpiCard
-              title="Azioni Aperte"
+              title="Da completare"
               value={String(openActions)}
               status={openActions === 0 ? "ok" : openActions >= 3 ? "critical" : "warn"}
             />
             <KpiCard
-              title="Giorno"
-              value={isClient ? new Date().toLocaleDateString("it-IT") : ""}
-              status="neutral"
+              title="Prenotazioni attive/prossime"
+              value={String(activeOrUpcomingBookings)}
+              status={activeOrUpcomingBookings > 0 ? "ok" : "neutral"}
             />
           </>
         )}
@@ -127,20 +128,18 @@ export default function DashboardPage() {
       <Card className="p-4">
         <CardHeader title="Calendario" subtitle="Prenotazioni e azioni" />
         <CalendarClient bookings={bookings} />
-        <div className="calendar-legend mt-4">
+        <div className="calendar-legend mt-4 hidden sm:flex">
           <span className="calendar-legend-label">Legenda</span>
-          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#3b82f6]" />
-          <span className="calendar-legend-text">Prenotazioni</span>
-          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#16a34a]" />
-          <span className="calendar-legend-text">Pulizia</span>
-          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#facc15]" />
-          <span className="calendar-legend-text">Biancheria</span>
-          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#ea580c]" />
-          <span className="calendar-legend-text">Lavatrici</span>
-          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#7e22ce]" />
-          <span className="calendar-legend-text">Manutenzione</span>
-          <span className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px] bg-[#64748b]" />
-          <span className="calendar-legend-text">Spesa</span>
+          {CALENDAR_LEGEND.map((item) => (
+            <span key={item.label} className="inline-flex items-center gap-1.5">
+              <span
+                className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px]"
+                style={{ backgroundColor: item.color }}
+                aria-hidden="true"
+              />
+              <span className="calendar-legend-text">{item.label}</span>
+            </span>
+          ))}
         </div>
       </Card>
     </section>

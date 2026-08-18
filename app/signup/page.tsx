@@ -20,7 +20,7 @@ export default function SignupPage() {
       footer={
         <>
           Hai gia un account?{" "}
-          <Link href="/login" className="font-semibold text-sidebar-bg transition hover:text-primary">
+          <Link href="/login" className="font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-hover">
             Accedi
           </Link>
         </>
@@ -60,7 +60,7 @@ export default function SignupPage() {
               className="input-base"
               placeholder="Mario Rossi"
             />
-            <p className="text-xs text-text-tertiary">Facoltativo, utile per facilitare l&apos;approvazione.</p>
+            <p className="text-xs text-text-muted">Facoltativo, utile per facilitare l&apos;approvazione.</p>
           </div>
 
           <div className="space-y-1.5">

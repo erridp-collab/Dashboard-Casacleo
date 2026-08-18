@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import { toast } from "@/components/toast";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { LINEN_ROLES, LINEN_ROLE_VALUES, type LinenRole } from "@/lib/linen-roles";
 
 type ProductRow = {
@@ -60,6 +61,8 @@ export function ProductCatalogEditor() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"biancheria" | "consumabili">("biancheria");
   const abortRef = useRef<AbortController | null>(null);
+  const closeModal = () => setModal({ mode: "closed" });
+  const modalPanelRef = useModalA11y(modal.mode !== "closed", closeModal);
 
   async function loadProducts(signal?: AbortSignal) {
     setLoading(true);
@@ -86,16 +89,8 @@ export function ProductCatalogEditor() {
     };
   }, []);
 
-  useEffect(() => {
-    if (modal.mode !== "closed") {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [modal.mode]);
+  // Lo scroll del body durante il modal e' gia' gestito da useModalA11y
+  // (modalPanelRef sopra), insieme a focus trap/Escape/focus di ritorno.
 
   const linenProducts = products.filter(isLinenProduct);
   const consumableProducts = products.filter((p) => !isLinenProduct(p));
@@ -206,30 +201,40 @@ export function ProductCatalogEditor() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-1 rounded-[13px] bg-[#f4ede6] p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1">
         <button
-          className={`rounded-[10px] py-2 text-sm font-semibold transition-colors ${
+          type="button"
+          className={`rounded-lg py-2 text-sm font-semibold transition-colors duration-150 ${
             activeTab === "biancheria"
-              ? "bg-surface text-text-primary shadow-sm"
+              ? "bg-surface-raised text-text-primary shadow-sm"
               : "text-text-secondary hover:text-text-primary"
           }`}
           onClick={() => setActiveTab("biancheria")}
         >
           Biancheria{" "}
-          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === "biancheria" ? "bg-primary/10 text-primary" : "bg-zinc-200 text-zinc-500"}`}>
+          <span
+            className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+              activeTab === "biancheria" ? "bg-brand-primary/10 text-brand-primary" : "bg-surface-raised text-text-secondary"
+            }`}
+          >
             {linenProducts.length}
           </span>
         </button>
         <button
-          className={`rounded-[10px] py-2 text-sm font-semibold transition-colors ${
+          type="button"
+          className={`rounded-lg py-2 text-sm font-semibold transition-colors duration-150 ${
             activeTab === "consumabili"
-              ? "bg-surface text-text-primary shadow-sm"
+              ? "bg-surface-raised text-text-primary shadow-sm"
               : "text-text-secondary hover:text-text-primary"
           }`}
           onClick={() => setActiveTab("consumabili")}
         >
           Consumabili{" "}
-          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === "consumabili" ? "bg-primary/10 text-primary" : "bg-zinc-200 text-zinc-500"}`}>
+          <span
+            className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+              activeTab === "consumabili" ? "bg-brand-primary/10 text-brand-primary" : "bg-surface-raised text-text-secondary"
+            }`}
+          >
             {consumableProducts.length}
           </span>
         </button>
@@ -238,60 +243,69 @@ export function ProductCatalogEditor() {
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-12 animate-pulse rounded-xl bg-zinc-100" />
+            <div key={i} className="h-12 animate-pulse rounded-xl bg-surface-muted" />
           ))}
         </div>
       ) : (
         <div className="space-y-2">
-          {(activeTab === "biancheria" ? linenProducts : consumableProducts).map((product) => (
-            <div
-              key={product.id}
-              className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-zinc-900">{product.name}</p>
-                <p className="text-xs text-zinc-500">
-                  {activeTab === "biancheria"
-                    ? product.linen_role
-                      ? LINEN_ROLES.find((r) => r.value === product.linen_role)?.label ?? product.linen_role
-                      : "Nessun ruolo"
-                    : `${product.category ?? "—"} · ${product.unit ?? "pz"}`}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setModal(
-                      activeTab === "biancheria"
-                        ? { mode: "edit-linen", product }
-                        : { mode: "edit-consumable", product },
-                    )
-                  }
-                  className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700"
-                  aria-label="Modifica"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModal({ mode: "delete", product })}
-                  className="rounded-lg p-2 text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
-                  aria-label="Elimina"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+          <div className="divide-y divide-border-strong/10 rounded-xl border border-border-strong/12">
+            {(activeTab === "biancheria" ? linenProducts : consumableProducts).map((product) => {
+              const roleLabel =
+                activeTab === "biancheria" && product.linen_role
+                  ? LINEN_ROLES.find((r) => r.value === product.linen_role)?.label ?? product.linen_role
+                  : null;
+              const roleMatchesName = roleLabel != null && roleLabel.trim().toLowerCase() === product.name.trim().toLowerCase();
+              const secondaryText =
+                activeTab === "biancheria"
+                  ? roleLabel == null
+                    ? "Nessun ruolo"
+                    : roleMatchesName
+                      ? null
+                      : roleLabel
+                  : `${product.category ?? "—"} · ${product.unit ?? "pz"}`;
+
+              return (
+                <div key={product.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-text-primary">{product.name}</p>
+                    {secondaryText ? <p className="text-xs text-text-secondary">{secondaryText}</p> : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModal(
+                          activeTab === "biancheria"
+                            ? { mode: "edit-linen", product }
+                            : { mode: "edit-consumable", product },
+                        )
+                      }
+                      className="rounded-lg p-2 text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary"
+                      aria-label="Modifica"
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModal({ mode: "delete", product })}
+                      className="rounded-lg p-2 text-text-secondary transition-colors duration-150 hover:bg-semantic-error/10 hover:text-semantic-error"
+                      aria-label="Elimina"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           <button
             type="button"
             onClick={() =>
               setModal(activeTab === "biancheria" ? { mode: "add-linen" } : { mode: "add-consumable" })
             }
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 py-3 text-sm font-medium text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border-strong/25 py-3 text-sm font-medium text-text-secondary transition-colors duration-150 hover:border-border-strong/40 hover:bg-surface-muted"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />
             {activeTab === "biancheria" ? "Aggiungi biancheria" : "Aggiungi consumabile"}
           </button>
         </div>
@@ -308,16 +322,31 @@ export function ProductCatalogEditor() {
       {modal.mode !== "closed" && createPortal(
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center">
           <div
-            className="w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl"
+            ref={modalPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              modal.mode === "add-linen"
+                ? "Aggiungi biancheria"
+                : modal.mode === "add-consumable"
+                  ? "Aggiungi consumabile"
+                  : modal.mode === "edit-linen"
+                    ? "Modifica biancheria"
+                    : modal.mode === "edit-consumable"
+                      ? "Modifica consumabile"
+                      : "Elimina prodotto"
+            }
+            tabIndex={-1}
+            className="w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface-raised p-6 shadow-[0_20px_50px_rgba(74,14,36,0.22)] outline-none sm:rounded-2xl"
             style={{ maxHeight: "90dvh", paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
           >
             {/* Drag handle — visible only on mobile bottom sheet */}
             <div className="mb-4 flex justify-center sm:hidden">
-              <div className="h-1 w-10 rounded-full bg-zinc-300" />
+              <div className="h-1 w-10 rounded-full bg-border-strong/30" />
             </div>
 
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-zinc-900">
+              <h2 className="text-base font-bold text-text-primary">
                 {modal.mode === "add-linen" && "Aggiungi biancheria"}
                 {modal.mode === "add-consumable" && "Aggiungi consumabile"}
                 {modal.mode === "edit-linen" && "Modifica biancheria"}
@@ -326,10 +355,11 @@ export function ProductCatalogEditor() {
               </h2>
               <button
                 type="button"
-                onClick={() => setModal({ mode: "closed" })}
-                className="rounded-lg p-1 text-zinc-400 hover:text-zinc-700"
+                onClick={closeModal}
+                aria-label="Chiudi"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary"
               >
-                <X className="h-5 w-5" />
+                <X className="h-[18px] w-[18px]" aria-hidden="true" />
               </button>
             </div>
 
@@ -339,7 +369,7 @@ export function ProductCatalogEditor() {
                 assignedRoles={assignedRoles}
                 saving={saving}
                 onSave={handleSaveLinenProduct}
-                onCancel={() => setModal({ mode: "closed" })}
+                onCancel={closeModal}
               />
             )}
 
@@ -348,7 +378,7 @@ export function ProductCatalogEditor() {
                 product={modal.mode === "edit-consumable" ? modal.product : undefined}
                 saving={saving}
                 onSave={handleSaveConsumable}
-                onCancel={() => setModal({ mode: "closed" })}
+                onCancel={closeModal}
               />
             )}
 
@@ -357,7 +387,7 @@ export function ProductCatalogEditor() {
                 product={modal.product}
                 saving={saving}
                 onConfirm={() => void handleDelete(modal.product)}
-                onCancel={() => setModal({ mode: "closed" })}
+                onCancel={closeModal}
               />
             )}
           </div>
@@ -409,7 +439,7 @@ function LinenForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-700">Nome prodotto</label>
+        <label className="mb-1.5 block text-xs font-medium text-text-secondary">Nome prodotto</label>
         <input
           className="input-base w-full"
           value={name}
@@ -419,7 +449,7 @@ function LinenForm({
         />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-700">Collegato a</label>
+        <label className="mb-1.5 block text-xs font-medium text-text-secondary">Collegato a</label>
         <select
           className="input-base w-full"
           value={linenRole ?? ""}
@@ -435,11 +465,11 @@ function LinenForm({
             );
           })}
         </select>
-        <p className="mt-1 text-xs text-blue-600">{formulaLabel}</p>
+        <p className="mt-1 text-xs text-semantic-info">{formulaLabel}</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-700">
+          <label className="mb-1.5 block text-xs font-medium text-text-secondary">
             {product ? "Qtà totale" : "Qtà iniziale"}
           </label>
           <input
@@ -452,7 +482,7 @@ function LinenForm({
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-700">Unità</label>
+          <label className="mb-1.5 block text-xs font-medium text-text-secondary">Unità</label>
           <input
             className="input-base w-full"
             value={unit}
@@ -461,7 +491,7 @@ function LinenForm({
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-700">Soglia minima</label>
+          <label className="mb-1.5 block text-xs font-medium text-text-secondary">Soglia minima</label>
           <input
             className="input-base w-full"
             type="number"
@@ -480,7 +510,7 @@ function LinenForm({
         >
           {saving ? "Salvataggio..." : "Salva"}
         </button>
-        <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+        <button type="button" onClick={onCancel} className="btn-secondary flex-1">
           Annulla
         </button>
       </div>
@@ -512,7 +542,7 @@ function ConsumableForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-700">Nome prodotto</label>
+        <label className="mb-1.5 block text-xs font-medium text-text-secondary">Nome prodotto</label>
         <input
           className="input-base w-full"
           value={name}
@@ -522,7 +552,7 @@ function ConsumableForm({
         />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-700">Categoria</label>
+        <label className="mb-1.5 block text-xs font-medium text-text-secondary">Categoria</label>
         <input
           className="input-base w-full"
           value={category}
@@ -531,7 +561,7 @@ function ConsumableForm({
         />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-700">Unità di misura</label>
+        <label className="mb-1.5 block text-xs font-medium text-text-secondary">Unità di misura</label>
         <input
           className="input-base w-full"
           value={unit}
@@ -539,7 +569,7 @@ function ConsumableForm({
           placeholder="Es. pz, ml, gr, rotoli..."
         />
       </div>
-      <p className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+      <p className="rounded-xl border border-semantic-info/20 bg-semantic-info/10 px-3 py-2 text-xs text-semantic-info">
         Tracciato a 3 stati: Pieno / A metà / Finito
       </p>
       <div className="flex gap-3 pt-1">
@@ -550,7 +580,7 @@ function ConsumableForm({
         >
           {saving ? "Salvataggio..." : "Salva"}
         </button>
-        <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+        <button type="button" onClick={onCancel} className="btn-secondary flex-1">
           Annulla
         </button>
       </div>
@@ -571,24 +601,20 @@ function DeleteConfirm({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-700">
-        Vuoi eliminare <span className="font-semibold">{product.name}</span>?
+      <p className="text-sm text-text-secondary">
+        Vuoi eliminare <span className="font-semibold text-text-primary">{product.name}</span>? L&apos;operazione non è reversibile.
       </p>
       {product.linen_role && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          ⚠️ Questo prodotto è collegato al rifornimento automatico di {LINEN_ROLES.find((r) => r.value === product.linen_role)?.label}. Eliminandolo, questo tipo di biancheria non verrà più scalato automaticamente dalle prenotazioni future.
+        <p className="rounded-xl border border-semantic-warning/30 bg-semantic-warning/10 px-3 py-2 text-xs text-text-primary">
+          Questo prodotto è collegato al rifornimento automatico di {LINEN_ROLES.find((r) => r.value === product.linen_role)?.label}.
+          Eliminandolo, questo tipo di biancheria non verrà più scalato automaticamente dalle prenotazioni future.
         </p>
       )}
       <div className="flex gap-3">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={onConfirm}
-          className="flex-1 rounded-xl bg-rose-600 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
-        >
+        <button type="button" disabled={saving} onClick={onConfirm} className="btn-danger flex-1">
           {saving ? "Eliminazione..." : "Elimina"}
         </button>
-        <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+        <button type="button" onClick={onCancel} className="btn-secondary flex-1">
           Annulla
         </button>
       </div>

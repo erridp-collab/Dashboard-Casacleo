@@ -7,7 +7,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import itLocale from "@fullcalendar/core/locales/it";
 import { clientFetchJson } from "@/lib/http/clientFetch";
 import type { Action, Booking } from "@/types/db";
-import { ACTION_COLORS, getActionCategory } from "@/lib/actionMeta";
+import { getActionCategory, getActionTypeLabel } from "@/lib/actionMeta";
 import { formatLocalDateIT, todayLocalIT } from "@/lib/localDate";
 
 type CalendarEvent = {
@@ -15,21 +15,12 @@ type CalendarEvent = {
   title: string;
   start: string;
   end?: string;
-  color: string;
+  category: "booking" | "cleaning" | "laundry" | "linen" | "maintenance" | "shopping";
 };
 
 type ActionsResponse = {
   actions?: Action[];
 };
-
-function getActionInitial(actionType: string): string {
-  const upper = String(actionType ?? "").toUpperCase();
-  if (upper.includes("BIANCHERIA")) return "B";
-  if (upper.includes("PULIZIA") || upper.includes("LETTO")) return "P";
-  if (upper.includes("LAVATRICI") || upper.includes("LAVAND")) return "L";
-  if (upper.includes("MANUT")) return "M";
-  return "S";
-}
 
 export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
   const [actions, setActions] = useState<Action[]>([]);
@@ -90,28 +81,16 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
       title: `Prenotazione · ${b.guests} ospiti`,
       start: b.check_in,
       end: b.check_out,
-      color: ACTION_COLORS.booking,
+      category: "booking",
     }));
 
     const actionEvents: CalendarEvent[] = actions.map((a) => {
       const category = getActionCategory(a.action_type);
-      const actionLabel = getActionInitial(a.action_type);
-      const color =
-        category === "cleaning"
-          ? ACTION_COLORS.cleaning
-          : category === "laundry"
-            ? ACTION_COLORS.laundry
-            : category === "linen"
-              ? ACTION_COLORS.linen
-              : category === "maintenance"
-                ? ACTION_COLORS.maintenance
-                : ACTION_COLORS.shopping;
-
       return {
         id: `action-${a.id}`,
-        title: actionLabel,
+        title: getActionTypeLabel(a.action_type),
         start: a.action_date,
-        color,
+        category,
       };
     });
 
@@ -120,7 +99,11 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
 
   return (
     <div className="calendar-modern space-y-4">
-      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      {error ? (
+        <p className="rounded-xl border border-semantic-error/30 bg-semantic-error/8 p-3 text-sm text-text-primary">
+          {error}
+        </p>
+      ) : null}
       <FullCalendar
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
@@ -140,7 +123,11 @@ export default function CalendarClient({ bookings }: { bookings: Booking[] }) {
         displayEventTime={false}
         firstDay={1}
         height={520}
-        eventClassNames={() => ["calendar-event"]}
+        eventClassNames={(info) => ["calendar-event", `calendar-event--${info.event.extendedProps.category}`]}
+        eventDidMount={(info) => {
+          info.el.title = info.event.title;
+          info.el.setAttribute("aria-label", info.event.title);
+        }}
         datesSet={(info) => {
           const nextFrom = info.startStr.slice(0, 10);
           const nextTo = formatLocalDateIT(new Date(info.end.getTime() - 24 * 60 * 60 * 1000));

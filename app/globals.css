@@ -1,88 +1,89 @@
 @import "tailwindcss";
 
 :root {
-  --background: 36 42% 94%;
-  --foreground: 35 53% 7%;
-  --sidebar-bg: 338 68% 17%;
-  --brand: 47 86% 69%;
-  --brand-light: 47 86% 69%;
-  --canvas: 338 68% 17%;
-  --surface: 338 56% 27%;
-  --primary: 339 55% 46%;
-  --surface-1: 42 56% 98%;
-  --surface-2: 36 34% 92%;
-  --surface-3: 37 28% 88%;
-  --border-subtle: 31 31% 84%;
-  --border-default: 30 24% 77%;
-  --text-primary: 30 60% 8%;
-  --text-secondary: 28 25% 45%;
-  --text-tertiary: 28 20% 55%;
-}
+  /* Palette Alva Host (IMPLEMENTATION_PLAN_UI_UX.md) */
+  --canvas: 42 50% 96%;
+  --surface: 0 0% 100%;
+  --surface-muted: 338 24% 96%;
+  --surface-raised: 0 0% 100%;
 
-.dark {
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
-  --sidebar-bg: 224 71% 5%;
-  --brand: 47 86% 69%;
-  --brand-light: 47 86% 69%;
-  --canvas: 338 68% 17%;
-  --surface: 338 56% 27%;
-  --primary: 221 83% 53%;
+  --text-primary: 338 68% 17%;
+  --text-secondary: 338 12% 27%;
+  --text-muted: 336 12% 35%;
+
+  --brand-dark: 338 68% 17%;
+  --brand-hover: 338 56% 27%;
+  --brand-primary: 340 55% 46%;
+  --brand-secondary: 338 67% 63%;
+
+  --border-strong: 336 53% 35%;
+  --gold: 44 85% 68%;
+
+  --semantic-error: 16 74% 52%;
+  --semantic-warning: 33 72% 45%;
+  --semantic-success: 152 33% 36%;
+  --semantic-info: 207 38% 36%;
+
+  /* Motion (piano UI/UX, sezione Geometria) */
+  --motion-fast: 150ms;
+  --motion-panel: 200ms;
 }
 
 @theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-sidebar-bg: hsl(var(--sidebar-bg));
-  --color-brand: hsl(var(--brand));
   --color-canvas: hsl(var(--canvas));
   --color-surface: hsl(var(--surface));
-  --color-primary: hsl(var(--primary));
-  --color-surface-1: hsl(var(--surface-1));
-  --color-surface-2: hsl(var(--surface-2));
-  --color-surface-3: hsl(var(--surface-3));
-  --color-border-subtle: hsl(var(--border-subtle));
-  --color-border-default: hsl(var(--border-default));
+
+  /* Palette Alva Host (IMPLEMENTATION_PLAN_UI_UX.md) */
+  --color-surface-muted: hsl(var(--surface-muted));
+  --color-surface-raised: hsl(var(--surface-raised));
   --color-text-primary: hsl(var(--text-primary));
   --color-text-secondary: hsl(var(--text-secondary));
-  --color-text-tertiary: hsl(var(--text-tertiary));
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-text-muted: hsl(var(--text-muted));
+  --color-brand-dark: hsl(var(--brand-dark));
+  --color-brand-hover: hsl(var(--brand-hover));
+  --color-brand-primary: hsl(var(--brand-primary));
+  --color-brand-secondary: hsl(var(--brand-secondary));
+  --color-border-strong: hsl(var(--border-strong));
+  --color-gold: hsl(var(--gold));
+  --color-semantic-error: hsl(var(--semantic-error));
+  --color-semantic-warning: hsl(var(--semantic-warning));
+  --color-semantic-success: hsl(var(--semantic-success));
+  --color-semantic-info: hsl(var(--semantic-info));
+
+  --font-sans: var(--font-public-sans);
+  --font-display: var(--font-fraunces);
 }
 
 body {
-  background:
-    radial-gradient(circle at top, rgba(245, 200, 66, 0.2), transparent 32%),
-    linear-gradient(180deg, #fdf8f1 0%, #f4ede2 100%);
-  color: hsl(var(--foreground));
-  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+  background: hsl(var(--canvas));
+  color: hsl(var(--text-primary));
+  font-family: var(--font-public-sans), "Segoe UI", sans-serif;
   min-height: 100vh;
 }
 
 ::selection {
-  background: rgba(245, 200, 66, 0.35);
+  background: hsl(var(--gold) / 0.35);
   color: hsl(var(--text-primary));
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-black/5 px-4 py-2.5 text-sm font-semibold text-brand shadow-[0_12px_28px_rgba(92,21,38,0.18)] transition duration-200 hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(92,21,38,0.22)] active:translate-y-0 active:scale-[0.99];
-    background: linear-gradient(135deg, #561120 0%, #7a2339 100%);
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-hover active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-border-subtle bg-surface-1 px-4 py-2.5 text-sm font-medium text-text-primary shadow-[0_8px_24px_rgba(66,32,12,0.05)] transition duration-200 hover:-translate-y-px hover:bg-white active:translate-y-0 active:scale-[0.99];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-border-strong/25 bg-surface px-4 py-2.5 text-sm font-medium text-text-primary transition-colors duration-150 hover:bg-surface-muted active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium text-text-secondary transition duration-200 hover:bg-white/60 hover:text-text-primary;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors duration-150 hover:bg-surface-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 shadow-[0_8px_20px_rgba(190,24,93,0.08)] transition duration-200 hover:-translate-y-px hover:bg-rose-100 active:translate-y-0 active:scale-[0.99];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-semantic-error/35 bg-semantic-error/10 px-4 py-2.5 text-sm font-medium text-text-primary transition-colors duration-150 hover:bg-semantic-error/15 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-sm {
-    @apply h-9 rounded-xl px-3 py-0 text-xs;
+    @apply h-9 rounded-lg px-3 py-0 text-xs;
   }
   .input-base {
-    @apply h-11 w-full rounded-2xl border border-border-default bg-surface-1 px-3.5 text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_1px_2px_rgba(80,40,20,0.04)] transition placeholder:text-text-tertiary focus:border-sidebar-bg focus:bg-white focus:outline-none focus:ring-4 focus:ring-sidebar-bg/10;
+    @apply h-11 w-full rounded-xl border border-border-strong/25 bg-surface px-3.5 text-text-primary transition-colors placeholder:text-text-muted focus:border-brand-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-brand-primary/20;
     font-size: 16px;
     line-height: 1.5;
   }
@@ -92,57 +93,49 @@ body {
       line-height: 1.25rem;
     }
   }
-  .label-base {
-    @apply text-[10px] font-bold uppercase tracking-[.06em] text-text-secondary;
+  select.input-base {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238A2A50' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px;
+    padding-right: 2.5rem;
   }
-  .page-header-icon {
-    @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(250,242,232,0.98))] text-sidebar-bg shadow-[0_12px_30px_rgba(92,21,38,0.12)];
+  input[type="date"].input-base,
+  input[type="month"].input-base {
+    color-scheme: light;
+  }
+  input[type="date"].input-base::-webkit-calendar-picker-indicator,
+  input[type="month"].input-base::-webkit-calendar-picker-indicator {
+    filter: invert(17%) sepia(45%) saturate(1874%) hue-rotate(305deg) brightness(92%) contrast(93%);
+    cursor: pointer;
+  }
+  .label-base {
+    @apply text-[11px] font-bold uppercase tracking-[.06em] text-text-secondary;
   }
   .page-header-eyebrow {
     @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary;
   }
   .surface-link {
-    @apply rounded-2xl border border-border-subtle bg-surface-1 px-4 py-3 text-sm text-text-primary shadow-[0_8px_24px_rgba(66,32,12,0.04)] transition duration-200 hover:-translate-y-px hover:bg-white;
+    @apply rounded-xl border border-border-strong/12 bg-surface px-4 py-3 text-sm text-text-primary transition-colors duration-150 hover:bg-surface-muted;
   }
   .auth-shell {
-    @apply relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-6 lg:px-8;
-    background:
-      radial-gradient(circle at top, rgba(245, 200, 66, 0.28), transparent 28%),
-      radial-gradient(circle at bottom right, rgba(122, 35, 57, 0.12), transparent 26%),
-      linear-gradient(180deg, #fbf5ec 0%, #f3eadc 100%);
+    @apply relative flex min-h-screen items-center justify-center bg-canvas px-4 py-10 sm:px-6 lg:px-8;
   }
   .auth-shell-panel {
-    @apply relative z-10 w-full max-w-xl rounded-[32px] border border-white/70 bg-[rgba(255,252,247,0.88)] p-6 shadow-[0_24px_80px_rgba(63,30,12,0.14)] backdrop-blur sm:p-8;
-  }
-  .auth-shell-glow {
-    @apply pointer-events-none absolute rounded-full blur-3xl;
-  }
-  .auth-shell-glow--top {
-    top: -8rem;
-    left: 12%;
-    height: 16rem;
-    width: 16rem;
-    background: rgba(245, 200, 66, 0.16);
-  }
-  .auth-shell-glow--bottom {
-    right: 8%;
-    bottom: -10rem;
-    height: 18rem;
-    width: 18rem;
-    background: rgba(122, 35, 57, 0.14);
+    @apply relative z-10 w-full max-w-xl rounded-2xl border border-border-strong/12 bg-surface-raised p-6 sm:p-8;
   }
 }
 
 .calendar-shell {
-  background: linear-gradient(180deg, #fffdf8 0%, #f4efe6 100%);
-  border: 1px solid #e7dfd2;
-  border-radius: 20px;
-  box-shadow: 0 18px 40px rgba(58, 42, 22, 0.08);
+  background: hsl(var(--surface-raised));
+  border: 1px solid hsl(var(--border-strong) / 0.12);
+  border-radius: 16px;
 }
 
 .calendar-modern .fc {
-  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
-  color: #2f261c;
+  font-family: var(--font-public-sans), "Segoe UI", sans-serif;
+  color: hsl(var(--text-primary));
 }
 
 .calendar-modern .fc-toolbar.fc-header-toolbar {
@@ -158,31 +151,52 @@ body {
 }
 
 .calendar-modern .fc-button {
-  background: #fff7ec;
-  border: 1px solid #e5d4bf;
-  color: #2f261c;
-  border-radius: 999px;
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--border-strong) / 0.22);
+  color: hsl(var(--text-secondary));
+  border-radius: 10px;
   padding: 0.4rem 0.8rem;
   font-weight: 600;
   box-shadow: none;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
 }
 
 .calendar-modern .fc-button:hover,
-.calendar-modern .fc-button:focus,
+.calendar-modern .fc-button:focus {
+  background: hsl(var(--brand-primary) / 0.08);
+  border-color: hsl(var(--brand-primary) / 0.4);
+  color: hsl(var(--brand-primary));
+}
+
+.calendar-modern .fc-button:focus-visible {
+  outline: 2px solid hsl(var(--brand-primary) / 0.35);
+  outline-offset: 2px;
+}
+
 .calendar-modern .fc-button-primary:not(:disabled).fc-button-active {
-  background: #f2e4d1;
-  border-color: #d9c4a7;
-  color: #2f261c;
+  background: hsl(var(--brand-primary));
+  border-color: hsl(var(--brand-primary));
+  color: white;
+}
+
+.calendar-modern .fc-button:disabled {
+  background: hsl(var(--surface-muted));
+  border-color: hsl(var(--border-strong) / 0.12);
+  color: hsl(var(--text-muted));
+  opacity: 0.72;
 }
 
 .calendar-modern .fc-theme-standard .fc-scrollgrid,
 .calendar-modern .fc-theme-standard td,
 .calendar-modern .fc-theme-standard th {
-  border-color: rgba(120, 100, 80, 0.18);
+  border-color: hsl(var(--border-strong) / 0.14);
 }
 
 .calendar-modern .fc-col-header-cell-cushion {
-  color: #7a6a58;
+  color: hsl(var(--text-secondary));
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -191,31 +205,89 @@ body {
 }
 
 .calendar-modern .fc-daygrid-day-number {
-  color: #2f261c;
+  color: hsl(var(--text-primary));
   font-weight: 700;
   font-size: 0.88rem;
   padding: 0.4rem;
 }
 
 .calendar-modern .fc-daygrid-day.fc-day-today {
-  background: rgba(245, 200, 66, 0.15);
-  border: 1.5px solid rgba(245, 200, 66, 0.45);
-  border-radius: 6px;
+  background: hsl(var(--brand-primary) / 0.1);
+  box-shadow: inset 0 0 0 1px hsl(var(--brand-primary) / 0.5);
 }
 
 .calendar-modern .fc-event {
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
-  padding: 0.15rem 0.4rem;
-  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
+}
+
+.calendar-modern .fc-event.calendar-event--booking {
+  --fc-event-bg-color: hsl(var(--brand-primary) / 0.2);
+  --fc-event-border-color: hsl(var(--brand-primary) / 0.5);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+}
+
+.calendar-modern .fc-event.calendar-event--cleaning {
+  --fc-event-bg-color: rgb(62 125 138 / 0.18);
+  --fc-event-border-color: rgb(62 125 138 / 0.48);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+}
+
+.calendar-modern .fc-event.calendar-event--laundry {
+  --fc-event-bg-color: hsl(var(--brand-secondary) / 0.22);
+  --fc-event-border-color: hsl(var(--brand-secondary) / 0.55);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+}
+
+.calendar-modern .fc-event.calendar-event--linen {
+  --fc-event-bg-color: rgb(107 91 149 / 0.18);
+  --fc-event-border-color: rgb(107 91 149 / 0.48);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+}
+
+.calendar-modern .fc-event.calendar-event--maintenance {
+  --fc-event-bg-color: rgb(140 98 57 / 0.2);
+  --fc-event-border-color: rgb(140 98 57 / 0.52);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+}
+
+.calendar-modern .fc-event.calendar-event--shopping {
+  --fc-event-bg-color: hsl(var(--border-strong) / 0.18);
+  --fc-event-border-color: hsl(var(--border-strong) / 0.48);
+  --fc-event-text-color: hsl(var(--text-primary));
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+}
+
+.calendar-modern .fc-event .fc-event-main {
+  color: var(--fc-event-text-color);
 }
 
 .calendar-modern .fc-event-title {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .calendar-modern .fc-daygrid-day-events {
@@ -238,47 +310,11 @@ body {
   align-items: center;
   gap: 0.4rem 0.7rem;
   font-size: 0.78rem;
-  color: #6b5e4f;
-}
-
-.calendar-legend-token {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.1rem;
-  height: 1.1rem;
-  border-radius: 4px;
-  font-weight: 700;
-  color: #fff;
+  color: hsl(var(--text-secondary));
 }
 
 .calendar-legend-text {
   margin-right: 0.2rem;
-}
-
-.calendar-legend-token--booking {
-  background: #3b82f6;
-}
-
-.calendar-legend-token--cleaning {
-  background: #16a34a;
-}
-
-.calendar-legend-token--linen {
-  background: #facc15;
-  color: #3f3426;
-}
-
-.calendar-legend-token--laundry {
-  background: #ea580c;
-}
-
-.calendar-legend-token--maintenance {
-  background: #7e22ce;
-}
-
-.calendar-legend-token--shopping {
-  background: #64748b;
 }
 
 .calendar-modern .fc-daygrid-event-dot {
@@ -291,8 +327,15 @@ body {
   }
 
   .calendar-modern .fc-event {
-    font-size: 0.65rem;
-    padding: 0.08rem 0.24rem;
+    font-size: 0.62rem;
+    line-height: 1.15;
+    padding: 0.1rem 0.3rem;
+    white-space: normal;
+  }
+
+  .calendar-modern .fc-daygrid-day.fc-day-today {
+    background: hsl(var(--brand-primary) / 0.16);
+    box-shadow: inset 0 0 0 1.5px hsl(var(--brand-primary) / 0.7);
   }
 
   .calendar-shell {
@@ -302,12 +345,5 @@ body {
   .calendar-legend {
     font-size: 0.7rem;
     gap: 0.35rem 0.55rem;
-  }
-
-  .calendar-legend-token {
-    min-width: 1.1rem;
-    height: 1.1rem;
-    font-size: 0.65rem;
-    padding: 0 0.25rem;
   }
 }

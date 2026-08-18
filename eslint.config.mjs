@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Nested .next builds from secondary worktrees (e.g. .claude/worktrees/*/.next)
+    // are not matched by the unanchored patterns above.
+    "**/.next/**",
+    ".worktrees/**",
+    ".claude/worktrees/**",
   ]),
 ]);
 

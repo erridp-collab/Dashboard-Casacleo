@@ -34,7 +34,7 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
 
   return (
     <form action={formAction} className="space-y-5">
-      <div className="rounded-[24px] border border-border-subtle bg-white/60 px-4 py-4 text-sm text-text-secondary">
+      <div className="rounded-xl border border-border-strong/12 bg-surface-muted px-4 py-3 text-sm text-text-secondary">
         {helperText}
       </div>
 
@@ -51,7 +51,7 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
             className="input-base"
             placeholder="Es. Alva Milano"
           />
-          <p className="mt-2 text-xs text-text-tertiary">Nome visibile nelle schermate operative e nei riferimenti interni.</p>
+          <p className="mt-2 text-xs text-text-muted">Nome visibile nelle schermate operative e nei riferimenti interni.</p>
         </div>
 
         <div>
@@ -101,14 +101,14 @@ export function WorkspaceSettingsForm({ organization, mode }: WorkspaceSettingsF
             className="input-base"
             placeholder="Facoltativo"
           />
-          <p className="mt-2 text-xs text-text-tertiary">Utile per avere un riferimento operativo chiaro in onboarding e supporto.</p>
+          <p className="mt-2 text-xs text-text-muted">Utile per avere un riferimento operativo chiaro in onboarding e supporto.</p>
         </div>
       </div>
 
       {state?.error ? <InlineAlert tone="error">{state.error}</InlineAlert> : null}
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-text-tertiary">
+        <p className="text-xs text-text-muted">
           {mode === "onboarding"
             ? "Puoi modificare questi dati anche dopo, da Impostazioni."
             : "Le modifiche si applicano subito alla tua attività."}

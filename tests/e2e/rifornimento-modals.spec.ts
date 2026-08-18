@@ -92,7 +92,7 @@ test.describe("rifornimento kpi modals", () => {
       .toBe("A_META");
 
     // UI reflects the change too: the button now reads as active/pressed.
-    await expect(row.getByRole("button", { name: "A metà" })).toHaveClass(/bg-amber-100/);
+    await expect(row.getByRole("button", { name: "A metà" })).toHaveClass(/bg-semantic-warning/);
     await expect(secondRow).toBeVisible();
   });
 

@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
       title="Password dimenticata"
       subtitle="Inserisci la tua email e ti invieremo un link per impostare una nuova password."
       footer={
-        <Link href="/login" className="font-semibold text-sidebar-bg transition hover:text-primary">
+        <Link href="/login" className="font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-hover">
           Torna al login
         </Link>
       }
