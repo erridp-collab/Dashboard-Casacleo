@@ -31,7 +31,10 @@ export function TopBar() {
   const hasOwnPrimaryCta = pathname.startsWith("/bookings");
 
   return (
-    <header className="sticky top-0 z-40 bg-brand-dark">
+    <header
+      className="sticky top-0 z-40 bg-brand-dark"
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+    >
       <div className="mx-auto flex w-full max-w-[1240px] items-center gap-2 px-4 py-3 sm:px-6 lg:px-6">
         <Link
           href="/"

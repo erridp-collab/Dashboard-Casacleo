@@ -56,8 +56,8 @@ export default function FinanceCharts({ rows, months }: { rows: ChartRow[]; mont
                   boxShadow: "0 8px 24px rgba(74,14,36,0.12)",
                 }}
               />
-              <Bar dataKey="revenue" fill={CHART_COLORS.revenue} radius={[6, 6, 0, 0]} />
-              <Bar dataKey="expenses" fill={CHART_COLORS.expenses} radius={[6, 6, 0, 0]} />
+              <Bar dataKey="revenue" name="Entrate" fill={CHART_COLORS.revenue} radius={[6, 6, 0, 0]} />
+              <Bar dataKey="expenses" name="Spese" fill={CHART_COLORS.expenses} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -97,6 +97,7 @@ export default function FinanceCharts({ rows, months }: { rows: ChartRow[]; mont
               <Line
                 type="monotone"
                 dataKey="occupancyRate"
+                name="Tasso occupazione"
                 stroke={CHART_COLORS.occupancy}
                 strokeWidth={2.5}
                 dot={{ r: 3 }}
