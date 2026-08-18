@@ -465,6 +465,45 @@ Nota sui test di integrazione: girano contro il DB hosted. Ogni test crea e puli
 
 Migration: nuove migration vanno create in `supabase/migrations/` e applicate manualmente dalla dashboard Supabase hosted (SQL editor) oppure via `npx.cmd supabase db push --db-url <connection_string>`.
 
+### Sessione browser reale per test/misure manuali (senza fixture Playwright)
+
+Per verifiche che servono una sessione autenticata *vera* (non la fixture `createOwnerFlowFixture` di `tests/e2e/helpers.ts`, che crea un'org temporanea) — es. misurare performance reali, controllare un flusso a occhio, prendere uno screenshot di stato — si può aprire un Chromium visibile, far loggare l'utente a mano, e poi guidare quella stessa sessione via CDP. Non serve `chromium-cli` (non disponibile su Windows in questo ambiente): basta `playwright`, già presente in `node_modules` (dipendenza di `@playwright/test`).
+
+**1. Apri un Chromium visibile con debug remoto** (in background, resta acceso):
+
+```bash
+NODE_PATH="<repo>/node_modules" node script-lancio.js
+```
+dove `script-lancio.js`:
+```js
+const { chromium } = require("playwright");
+(async () => {
+  const browser = await chromium.launch({ headless: false, args: ["--remote-debugging-port=9222"] });
+  const page = await (await browser.newContext()).newPage();
+  await page.goto("http://localhost:3000/login");
+  await new Promise(() => {}); // resta vivo
+})();
+```
+
+**2. L'utente fa login a mano** nella finestra che si apre — niente credenziali gestite dall'agente.
+
+**3. Un secondo script si riconnette alla stessa sessione già autenticata** e la guida:
+
+```js
+const { chromium } = require("playwright");
+const browser = await chromium.connectOverCDP("http://localhost:9222");
+const page = browser.contexts()[0].pages()[0]; // la pagina già loggata
+// da qui: page.click(...), page.on("console", ...), page.on("response", ...), ecc.
+```
+
+**Gotcha:**
+- `NODE_PATH` è necessario solo se lo script vive fuori dalla repo (es. scratchpad): la risoluzione dei moduli di Node parte dalla directory dello script, non dalla cwd.
+- **Mai chiamare `browser.close()`** sul browser ottenuto da `connectOverCDP` — su una connessione CDP chiude anche la finestra reale dell'utente, non solo la disconnessione logica. Per chiudere davvero: `taskkill` sul PID in ascolto sulla porta di debug (`netstat -ano | grep :9222`).
+- Per una baseline di produzione: build (`npm run build`), poi `PORT=3002 npm start` (porta diversa per non toccare il dev server esistente su 3000), nuova finestra Chromium su una nuova porta di debug (es. 9223), nuovo login.
+- Redirigere `npm start`/`npm run dev` su file (`... | tee server.log`) per poter leggere i log `[perf]` lato server dopo, non solo l'header HTTP di risposta.
+
+Usato per la prima volta il 2026-08-17 per misurare la baseline performance reale (vedi "Audit Performance & Sicurezza Tenant" sopra) — click reali, console reale, sessione reale, zero fixture temporanee nel DB.
+
 ## Verification Status
 
 Ultimo stato verde verificato (2026-07-09):
