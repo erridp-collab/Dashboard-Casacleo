@@ -22,6 +22,11 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+    // Senza questo, un'azione (click/fill/press) su un locator che non
+    // risolve mai a nessun elemento resta appesa indefinitamente invece di
+    // fallire con un errore chiaro (successo il 2026-08-20: un locator reso
+    // stale dal cambio di stato di una riga è rimasto appeso 10+ minuti).
+    actionTimeout: 20_000,
   },
   webServer: {
     command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
