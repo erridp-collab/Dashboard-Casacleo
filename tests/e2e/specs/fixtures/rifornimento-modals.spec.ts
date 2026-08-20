@@ -5,8 +5,8 @@ import {
   getProductQuantityByName,
   getSupabase,
   type OwnerFlowFixture,
-} from "./helpers";
-import { resolveProductSchema } from "../../lib/products-schema";
+} from "../../helpers/fixtures";
+import { resolveProductSchema } from "../../../../lib/products-schema";
 
 test.describe("rifornimento kpi modals", () => {
   let fixture: OwnerFlowFixture;

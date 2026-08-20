@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { formatCurrencyIT } from "../../lib/format";
+import { formatCurrencyIT } from "../../../../lib/format";
 import {
   today,
   addDays,
@@ -12,7 +12,7 @@ import {
   getProductQuantityByName,
   listBookingActionTypes,
   type OwnerFlowFixture,
-} from "./helpers";
+} from "../../helpers/fixtures";
 
 test.describe("owner flow", () => {
   test.describe.configure({ mode: "serial" });
