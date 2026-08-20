@@ -7,6 +7,14 @@ const authFile = path.join(__dirname, "playwright/.auth/user.json");
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
+  // fullyParallel:false ordina solo i test DENTRO un file — Playwright usa
+  // comunque più worker in parallelo TRA file diversi di default. Le spec
+  // sotto specs/ girano sull'account personale condiviso (non su
+  // un'organizzazione usa-e-getta): due file in parallelo possono
+  // interferire sugli stessi dati reali (successo il 2026-08-20:
+  // actions-cleaning e bookings in parallelo si sono pestati i piedi).
+  // L'intera suite deve girare seriale.
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   timeout: 120_000,
