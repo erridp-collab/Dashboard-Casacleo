@@ -31,11 +31,25 @@ export function ConfirmDialog({
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
 
+  // Porta il focus sul pannello e blocca lo scroll solo all'apertura.
+  // Dipende SOLO da `open`: se dipendesse anche da `onCancel` (spesso una
+  // funzione inline, quindi un riferimento nuovo ad ogni render del
+  // chiamante), qualunque re-render del chiamante mentre il dialog è aperto
+  // farebbe ripartire questo effect — stesso bug corretto in
+  // components/drawer.tsx il 2026-08-19.
   useEffect(() => {
     if (!open) return;
     triggerRef.current = document.activeElement;
     panelRef.current?.focus();
     document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -57,11 +71,7 @@ export function ConfirmDialog({
     }
 
     document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
-      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
-    };
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onCancel]);
 
   if (!open) return null;
