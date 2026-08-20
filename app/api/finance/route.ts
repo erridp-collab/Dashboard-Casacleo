@@ -1,3 +1,4 @@
+import { isBookingRevenueInSelectedMonth } from "@/lib/finance-entries";
 import { monthKey, toNumber } from "@/lib/format";
 import { errJson, okJson } from "@/lib/http/apiResponse";
 import { formatLocalDateIT } from "@/lib/localDate";
@@ -64,8 +65,6 @@ export async function GET(req: Request) {
     const selectedMonth = monthKey(selectedMonthDate);
 
     const { start, end } = getMonthWindow(months, selectedMonthDate);
-    const monthStart = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth(), 1);
-    const monthEnd = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0);
 
     const supabase = supabaseAdmin();
     const [{ data: bookings, error: bookingsErr }, expensesRes] = await timed(
@@ -165,8 +164,10 @@ export async function GET(req: Request) {
         monthPoints[month].occupiedDays += overlapDays(checkIn, checkOut, bucketStart, bucketEnd);
       }
 
-      const overlapsSelected = checkOut > monthStart && checkIn <= monthEnd;
-      if (overlapsSelected && amount > 0) {
+      // L'incasso appartiene per intero al mese del check-in, anche per
+      // soggiorni a cavallo di due mesi (es. 29 agosto -> 4 settembre).
+      const belongsToSelectedMonth = isBookingRevenueInSelectedMonth(checkIn, selectedMonthDate);
+      if (belongsToSelectedMonth && amount > 0) {
         entries.push({
           id: String(row.id ?? `booking-${checkInStr}-${checkOutStr}`),
           date: checkInStr,
