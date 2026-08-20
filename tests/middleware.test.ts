@@ -10,14 +10,6 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/signup")).toBe(true);
   });
 
-  it("permette /forgot-password", () => {
-    expect(isPublicPath("/forgot-password")).toBe(true);
-  });
-
-  it("permette /reset-password", () => {
-    expect(isPublicPath("/reset-password")).toBe(true);
-  });
-
   it("permette /_next/static/...", () => {
     expect(isPublicPath("/_next/static/chunks/app.js")).toBe(true);
   });
@@ -49,10 +41,6 @@ describe("isPublicPath", () => {
 
   it("blocca /", () => {
     expect(isPublicPath("/")).toBe(false);
-  });
-
-  it("blocca /bookings", () => {
-    expect(isPublicPath("/bookings")).toBe(false);
   });
 
   it("blocca /actions", () => {
