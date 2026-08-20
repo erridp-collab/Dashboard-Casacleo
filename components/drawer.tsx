@@ -59,9 +59,19 @@ export function Drawer({ open, onClose, title, subtitle, children, widthClassNam
     };
   }, [open]);
 
+  // Sposta il focus sul pannello solo all'apertura. Deve dipendere SOLO da
+  // `mounted`: se dipendesse anche da `onClose` (spesso una funzione inline,
+  // quindi un riferimento nuovo ad ogni render del chiamante), qualunque
+  // digitazione in un campo del drawer — che aggiorna lo stato del form e
+  // quindi ri-renderizza il chiamante — farebbe ripartire questo effect e
+  // strapperebbe il focus dall'input al pannello dopo ogni singolo tasto.
   useEffect(() => {
     if (!mounted) return;
     panelRef.current?.focus();
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {

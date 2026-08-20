@@ -20,7 +20,7 @@ import { markDataVisible } from "@/lib/perf/navMarks";
 type BookingForm = {
   check_in: string;
   check_out: string;
-  guests: number;
+  guests: string;
   channel: string;
   notes: string;
   total_amount: string;
@@ -39,7 +39,7 @@ function buildInitialForm(): BookingForm {
   return {
     check_in: today,
     check_out: addDaysLocalIT(today, 1),
-    guests: 2,
+    guests: "2",
     channel: "airbnb",
     notes: "",
     total_amount: "",
@@ -119,12 +119,18 @@ export default function BookingsPage() {
       setError("Importo non valido");
       return;
     }
+    const parsedGuests = Number(form.guests);
+    if (!Number.isFinite(parsedGuests) || parsedGuests < 1) {
+      setError("Numero ospiti non valido");
+      return;
+    }
     setLoading(true);
     const result = await clientFetchJson<{ booking_id?: string }>("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        guests: parsedGuests,
         total_amount: parsedAmount,
       }),
     });
@@ -655,7 +661,7 @@ export default function BookingsPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="booking-guests" className="label-base">Ospiti</label>
-            <input id="booking-guests" name="guests" className="input-base" type="number" inputMode="numeric" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: Number(e.target.value) }))} />
+            <input id="booking-guests" name="guests" className="input-base" type="number" inputMode="numeric" min={1} value={form.guests} onChange={(e) => setForm((p) => ({ ...p, guests: e.target.value }))} />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="booking-channel" className="label-base">Canale</label>
