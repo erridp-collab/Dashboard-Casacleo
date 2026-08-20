@@ -2,15 +2,17 @@ import { expect, test } from "@playwright/test";
 import { clearRealistically, expectKeepsFocus, typeRealistically } from "../helpers/interactions";
 import { e2eTag } from "../helpers/session";
 import { addDays, today } from "../helpers/fixtures";
-import { createBookingViaDrawer, deleteBookingByTag } from "../helpers/bookings";
+import { createBookingViaDrawer, deleteBookingByTag, uniqueFutureDayOffset } from "../helpers/bookings";
 
 test.describe("actions & cleaning", () => {
   test("completes a PULIZIA action through the modal and logs a maintenance note @smoke", async ({ page }) => {
     const tag = e2eTag("actions-cleaning");
-    // Checkout lontano nel futuro e quindi unico: evita di dover distinguere
-    // la nostra azione PULIZIA da quelle reali già presenti nell'account.
-    const checkIn = addDays(today(), 410);
-    const checkOut = addDays(today(), 412);
+    // Checkout lontano nel futuro e "jitterizzato" per run: un offset fisso
+    // collide con eventuali residui rimasti da run precedenti nello stesso
+    // giorno di calendario (successo il 2026-08-20).
+    const offset = uniqueFutureDayOffset(2400);
+    const checkIn = addDays(today(), offset);
+    const checkOut = addDays(today(), offset + 2);
 
     await createBookingViaDrawer(page, {
       checkIn,

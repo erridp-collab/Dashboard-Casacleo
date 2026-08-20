@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { clearRealistically, expectKeepsFocus, typeRealistically } from "../helpers/interactions";
 import { e2eTag } from "../helpers/session";
 import { addDays, today } from "../helpers/fixtures";
-import { createBookingViaDrawer, deleteBookingByTag } from "../helpers/bookings";
+import { createBookingViaDrawer, deleteBookingByTag, uniqueFutureDayOffset } from "../helpers/bookings";
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -53,7 +53,8 @@ test.describe("finance", () => {
     // Costruisce un soggiorno che attraversa davvero un cambio mese,
     // indipendentemente da quando gira il test: l'ultimo giorno di un mese
     // abbastanza lontano nel futuro da non collidere con altri dati.
-    const anchor = addDays(today(), 400);
+    // L'offset è "jitterizzato" per run, non fisso — vedi uniqueFutureDayOffset.
+    const anchor = addDays(today(), uniqueFutureDayOffset(1800));
     const [ay, am] = anchor.split("-").map(Number);
     const lastDayOfMonth = new Date(ay, am, 0); // giorno 0 del mese successivo = ultimo giorno del mese corrente
     const checkInDate = lastDayOfMonth;

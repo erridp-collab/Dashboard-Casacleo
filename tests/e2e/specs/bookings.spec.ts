@@ -2,21 +2,22 @@ import { expect, test } from "@playwright/test";
 import { clearRealistically, expectKeepsFocus, typeRealistically } from "../helpers/interactions";
 import { e2eTag } from "../helpers/session";
 import { addDays, today } from "../helpers/fixtures";
-import { createBookingViaDrawer, deleteBookingByTag, findBookingRow } from "../helpers/bookings";
+import { createBookingViaDrawer, deleteBookingByTag, findBookingRow, uniqueFutureDayOffset } from "../helpers/bookings";
 
 test.describe("bookings CRUD", () => {
-  // Date relative a oggi, ben distanziate tra loro e nel futuro: prenotazioni
-  // con date fisse nel passato o sovrapposte tra run diverse vengono
-  // rifiutate dal validatore anti-sovrapposizione dell'app (scoperto il
-  // 2026-08-20 debuggando questa stessa spec).
+  // Date relative a oggi e "jitterizzate" per run (uniqueFutureDayOffset):
+  // un offset fisso collide con eventuali residui di run precedenti nello
+  // stesso giorno di calendario, rifiutato dal validatore anti-sovrapposizione
+  // dell'app (scoperto il 2026-08-20 rilanciando la suite molte volte).
   const base = today();
 
   test("creates a booking through the drawer and shows it in the list @smoke", async ({ page }) => {
     const tag = e2eTag("bookings-create");
+    const offset = uniqueFutureDayOffset(200);
     try {
       await createBookingViaDrawer(page, {
-        checkIn: addDays(base, 200),
-        checkOut: addDays(base, 202),
+        checkIn: addDays(base, offset),
+        checkOut: addDays(base, offset + 2),
         guests: "3",
         channel: "booking.com",
         amount: "199.00",
@@ -31,10 +32,11 @@ test.describe("bookings CRUD", () => {
 
   test("edits an existing booking's guest count without losing keystrokes", async ({ page }) => {
     const tag = e2eTag("bookings-edit");
+    const offset = uniqueFutureDayOffset(600);
     try {
       await createBookingViaDrawer(page, {
-        checkIn: addDays(base, 210),
-        checkOut: addDays(base, 211),
+        checkIn: addDays(base, offset),
+        checkOut: addDays(base, offset + 1),
         guests: "2",
         channel: "airbnb",
         amount: "80.00",
@@ -64,9 +66,10 @@ test.describe("bookings CRUD", () => {
 
   test("deletes a booking via the confirm dialog", async ({ page }) => {
     const tag = e2eTag("bookings-delete");
+    const offset = uniqueFutureDayOffset(1200);
     await createBookingViaDrawer(page, {
-      checkIn: addDays(base, 220),
-      checkOut: addDays(base, 221),
+      checkIn: addDays(base, offset),
+      checkOut: addDays(base, offset + 1),
       guests: "2",
       channel: "airbnb",
       amount: "60.00",

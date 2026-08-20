@@ -1,5 +1,20 @@
 import { expect, type Page } from "@playwright/test";
 
+/**
+ * Offset in giorni, unico ad ogni chiamata (non solo ad ogni file), da usare
+ * al posto di una costante fissa tipo `+410` per calcolare check-in/check-out
+ * nei test. Un offset fisso è identico ogni volta che la suite gira nello
+ * stesso giorno di calendario: se un run precedente lascia anche un solo
+ * residuo (es. una run interrotta prima della pulizia), il run successivo
+ * collide sulla stessa identica data, bloccato dal validatore
+ * anti-sovrapposizione dell'app (successo il 2026-08-20, dopo aver rilanciato
+ * la suite molte volte nello stesso giorno). `baseOffsetDays` sposta l'intero
+ * range lontano da dati reali; la parte random lo rende diverso ad ogni run.
+ */
+export function uniqueFutureDayOffset(baseOffsetDays: number): number {
+  return baseOffsetDays + (Date.now() % 500);
+}
+
 /** Trova la riga della tabella prenotazioni che contiene `tag` (tipicamente nella colonna Note). */
 export function findBookingRow(page: Page, tag: string) {
   return page.locator("tr", { hasText: tag }).first();
