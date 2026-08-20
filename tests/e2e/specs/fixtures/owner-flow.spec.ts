@@ -27,7 +27,7 @@ test.describe("owner flow", () => {
     await cleanupOwnerFlowFixture(fixture);
   });
 
-  test("completes onboarding and validates downstream booking, action, inventory, and finance flows", async ({
+  test("completes onboarding and validates downstream booking, action, inventory, and finance flows @smoke", async ({
     page,
   }) => {
     const checkIn = today();
