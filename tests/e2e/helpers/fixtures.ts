@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { LinenRole } from "../../lib/linen-roles";
-import { addDaysLocalIT, todayLocalIT } from "../../lib/localDate";
-import { resolveProductSchema } from "../../lib/products-schema";
+import type { LinenRole } from "../../../lib/linen-roles";
+import { addDaysLocalIT, todayLocalIT } from "../../../lib/localDate";
+import { resolveProductSchema } from "../../../lib/products-schema";
+import "./loadEnv";
 
 type TestSupabase = ReturnType<typeof supabaseTest>;
 
@@ -34,26 +33,6 @@ const SEEDED_LINEN_PRODUCTS: SeededProduct[] = [
   { name: "Tappetino doccia", linenRole: "tappetino_doccia", quantity: 10, threshold: 1 },
   { name: "Strofinacci", linenRole: "mappina_cucina", quantity: 10, threshold: 1 },
 ];
-
-function loadEnv(): void {
-  const envPath = path.resolve(process.cwd(), ".env.local");
-  if (!fs.existsSync(envPath)) return;
-
-  const raw = fs.readFileSync(envPath, "utf-8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    const eqIndex = trimmed.indexOf("=");
-    if (eqIndex === -1) continue;
-
-    const key = trimmed.slice(0, eqIndex).trim();
-    const value = trimmed.slice(eqIndex + 1).trim().replace(/^["']|["']$/g, "");
-    if (!process.env[key]) process.env[key] = value;
-  }
-}
-
-loadEnv();
 
 export function supabaseTest() {
   const url = process.env.SUPABASE_URL ?? "";
