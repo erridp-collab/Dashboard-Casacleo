@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { formatCurrencyIT } from "../../lib/format";
 import {
   today,
   addDays,
@@ -143,8 +144,8 @@ test.describe("owner flow", () => {
     await page.goto("/finance");
     await expect(page.getByRole("heading", { name: "Spese", exact: true })).toBeVisible();
     await expect(page.getByText(`Booking ${checkIn} -> ${checkOut} (airbnb)`)).toBeVisible();
-    await expect(page.getByText("+ EUR 345.00")).toBeVisible();
+    await expect(page.getByText(`+ ${formatCurrencyIT(345)}`)).toBeVisible();
     await expect(page.locator("main").getByText("Rifornimento", { exact: true })).toBeVisible();
-    await expect(page.getByText("- EUR 34.50")).toBeVisible();
+    await expect(page.getByText(`- ${formatCurrencyIT(34.5)}`)).toBeVisible();
   });
 });
