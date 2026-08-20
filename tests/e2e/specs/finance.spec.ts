@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { clearRealistically, expectKeepsFocus, typeRealistically } from "../helpers/interactions";
 import { e2eTag } from "../helpers/session";
 import { addDays, today } from "../helpers/fixtures";
+import { createBookingViaDrawer, deleteBookingByTag } from "../helpers/bookings";
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -63,16 +64,14 @@ test.describe("finance", () => {
     const checkOutMonth = ym(checkOutDate);
     expect(checkInMonth).not.toBe(checkOutMonth);
 
-    await page.goto("/bookings");
-    await page.getByRole("button", { name: "Nuova prenotazione" }).first().click();
-    await page.getByLabel("Check-in").fill(checkIn);
-    await page.getByLabel("Check-out").fill(checkOut);
-    await page.getByLabel("Ospiti").fill("2");
-    await page.locator("#booking-channel").fill("airbnb");
-    await page.locator('input[name="total_amount"]').fill("500.00");
-    await page.getByLabel("Note").fill(tag);
-    await page.getByRole("button", { name: "Crea prenotazione" }).click();
-    await expect(page.locator("tr", { hasText: tag })).toBeVisible();
+    await createBookingViaDrawer(page, {
+      checkIn,
+      checkOut,
+      guests: "2",
+      channel: "airbnb",
+      amount: "500.00",
+      note: tag,
+    });
 
     try {
       const checkInMonthResp = await page.evaluate(
@@ -95,12 +94,7 @@ test.describe("finance", () => {
       expect(entryInCheckInMonth.amount).toBe(500);
       expect(entryInCheckOutMonth, "l'incasso NON deve comparire nel mese del check-out").toBeUndefined();
     } finally {
-      const row = page.locator("tr", { hasText: tag }).first();
-      await row.getByRole("button", { name: "Elimina" }).click();
-      const confirmDialog = page.getByRole("alertdialog", { name: "Eliminare la prenotazione?" });
-      await confirmDialog.waitFor({ state: "visible" });
-      await confirmDialog.getByRole("button", { name: "Elimina" }).click();
-      await expect(row).toBeHidden();
+      await deleteBookingByTag(page, tag);
     }
   });
 });
