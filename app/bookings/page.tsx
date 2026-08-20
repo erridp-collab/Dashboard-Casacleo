@@ -77,6 +77,7 @@ export default function BookingsPage() {
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
   const [bookingActions, setBookingActions] = useState<Record<string, Action[]>>({});
   const [amountDraftById, setAmountDraftById] = useState<Record<string, string>>({});
+  const [guestsDraftById, setGuestsDraftById] = useState<Record<string, string>>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(true);
@@ -109,6 +110,7 @@ export default function BookingsPage() {
         rows.map((b: Booking) => [b.id, b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount)]),
       ),
     );
+    setGuestsDraftById(Object.fromEntries(rows.map((b: Booking) => [b.id, String(b.guests)])));
     markDataVisible("bookings");
   }
 
@@ -156,13 +158,18 @@ export default function BookingsPage() {
       setError("Importo non valido");
       return;
     }
+    const parsedGuests = Number(guestsDraftById[id] ?? "");
+    if (!Number.isFinite(parsedGuests) || parsedGuests < 1) {
+      setError("Numero ospiti non valido");
+      return;
+    }
     const result = await clientFetchJson<{ booking?: Booking }>(`/api/bookings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         check_in: row.check_in,
         check_out: row.check_out,
-        guests: row.guests,
+        guests: parsedGuests,
         channel: row.channel,
         notes: row.notes,
         total_amount: parsedAmount,
@@ -179,7 +186,7 @@ export default function BookingsPage() {
     setBookings((prev) =>
       prev.map((b) =>
         b.id === id
-          ? { ...b, check_in: row.check_in, check_out: row.check_out, guests: row.guests, channel: row.channel, notes: row.notes, total_amount: parsedAmount }
+          ? { ...b, check_in: row.check_in, check_out: row.check_out, guests: parsedGuests, channel: row.channel, notes: row.notes, total_amount: parsedAmount }
           : b,
       ),
     );
@@ -367,7 +374,7 @@ export default function BookingsPage() {
                       <div className="mt-3 grid gap-2">
                         <input name={`check_in_m_${b.id}`} className="input-base" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
                         <input name={`check_out_m_${b.id}`} className="input-base" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
-                        <input name={`guests_m_${b.id}`} className="input-base" type="number" value={b.guests} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))} />
+                        <input name={`guests_m_${b.id}`} className="input-base" type="number" value={guestsDraftById[b.id] ?? ""} onChange={(e) => setGuestsDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
                         <input name={`channel_m_${b.id}`} className="input-base" value={b.channel ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, channel: e.target.value } : x)))} />
                         <input name={`total_amount_m_${b.id}`} className="input-base" type="text" inputMode="decimal" value={amountDraftById[b.id] ?? ""} onChange={(e) => setAmountDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
                         <input name={`notes_m_${b.id}`} className="input-base" value={b.notes ?? ""} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, notes: e.target.value } : x)))} />
@@ -514,8 +521,8 @@ export default function BookingsPage() {
                                 className="input-base h-9 w-20 text-xs"
                                 type="number"
                                 min={1}
-                                value={b.guests}
-                                onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guests: Number(e.target.value) } : x)))}
+                                value={guestsDraftById[b.id] ?? ""}
+                                onChange={(e) => setGuestsDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))}
                               />
                             ) : (
                               <span className="text-text-primary">{b.guests}</span>
@@ -592,6 +599,7 @@ export default function BookingsPage() {
                                       ...prev,
                                       [b.id]: b.total_amount === null || b.total_amount === undefined ? "" : String(b.total_amount),
                                     }));
+                                    setGuestsDraftById((prev) => ({ ...prev, [b.id]: String(b.guests) }));
                                     setEditId(b.id);
                                   }}
                                 >
