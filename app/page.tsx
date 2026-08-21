@@ -46,7 +46,7 @@ export default function DashboardPage() {
     try {
       const today = todayLocalIT();
       const [bookingsRes, actionsRes] = await Promise.all([
-        clientFetchJson<BookingsResponse>("/api/bookings", { signal }),
+        clientFetchJson<BookingsResponse>(`/api/bookings?from=${today}&includeCleaningStatus=false`, { signal }),
         clientFetchJson<ActionsResponse>(`/api/actions?from=${today}&to=${today}`, { signal }),
       ]);
 

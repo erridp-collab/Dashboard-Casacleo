@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { expenseRestockDetail } from "@/lib/data/finance";
 import { isBookingRevenueInSelectedMonth } from "@/lib/finance-entries";
 
 describe("isBookingRevenueInSelectedMonth", () => {
@@ -23,5 +24,38 @@ describe("isBookingRevenueInSelectedMonth", () => {
     const checkIn = new Date(2026, 6, 15); // 15 luglio 2026
     const selectedMonth = new Date(2026, 7, 1); // agosto 2026
     expect(isBookingRevenueInSelectedMonth(checkIn, selectedMonth)).toBe(false);
+  });
+});
+
+describe("expenseRestockDetail", () => {
+  const expense = {
+    origin: "automatica_da_rifornimento",
+    source_action_id: "action-a",
+    source_action: {
+      id: "action-a",
+      organization_id: "org-a",
+      details: "Sapone: 2",
+    },
+  };
+
+  it("returns details only for the authorized tenant and matching action", () => {
+    expect(expenseRestockDetail(expense, "org-a")).toBe("Sapone: 2");
+  });
+
+  it("rejects a nested action belonging to another tenant", () => {
+    expect(expenseRestockDetail(expense, "org-b")).toBeNull();
+  });
+
+  it("rejects a mismatched embedded action id", () => {
+    expect(
+      expenseRestockDetail(
+        { ...expense, source_action: { ...expense.source_action, id: "action-b" } },
+        "org-a",
+      ),
+    ).toBeNull();
+  });
+
+  it("does not expose action details on manual expenses", () => {
+    expect(expenseRestockDetail({ ...expense, origin: "manuale" }, "org-a")).toBeNull();
   });
 });

@@ -506,11 +506,11 @@ Usato per la prima volta il 2026-08-17 per misurare la baseline performance real
 
 ## Verification Status
 
-Ultimo stato verde verificato (2026-07-09):
+Ultimo stato verde verificato (2026-08-21, dopo la Fase 2 performance):
 
 - `npx tsc --noEmit` — verde
-- `npm run lint` — verde
-- `npm test` — verde
+- `npx eslint .` — verde
+- `npx vitest run` — verde, **153/153 test su 31 file**
 - cutover hosted completato il 2026-05-25
 - UI polish completo (12 task: CSS tokens, Card, KpiCard, TopBar/BottomNav, ActionBadges, page headers, btn-*/input-base su tutte le pagine, calendar amber, Recharts brand colors, dashboard KPI-first)
 - mobile UX completato (card prenotazioni compatte, FAB, tab inventario, import collassato, rimozione testo ridondante)
@@ -648,7 +648,7 @@ Verificato: 120/120 test passano, build pulita, verifica end-to-end reale con br
 
 ```
 Fase 1 — Misurazione                                    FATTA (mergiata su dev)
-Fase 2 — DAL + getRequestContext() request-scoped        PROSSIMA
+Fase 2 — DAL + auth parallela request-scoped             FATTA (2026-08-21, vedi sotto)
 Fase 3 — Server Components con dati iniziali             (il sintomo dichiarato: "ci mette un attimo")
 Fase 4 — Cache client + stale-while-revalidate
 Fase 5 — Chiusura PT-2/PT-3/PT-4/PT-5 sopra
@@ -657,6 +657,58 @@ Fase 7 — Round-trip delle mutazioni (syncShoppingAction condizionale, ecc.)
 Fase 8 — Valutazione client RLS-enforced per PT-1 (il più invasivo, va fatto a DAL consolidato)
 Fase 9 — Cleanup: schema {id,qty} hardcoded, fallback date rimossi, select espliciti, service worker
 ```
+
+### Fase 2 (DAL + auth parallela) — COMPLETATA 2026-08-21
+
+Eseguita senza un piano formale dedicato (continuazione ad-hoc della Fase 1), verificata con la
+suite completa prima del commit: `npx tsc --noEmit` verde, `npx eslint .` verde, `npx vitest run`
+**153/153 test verdi su 31 file** (era 120/120 su 23 file all'inizio della Fase 1).
+
+Aggiunto:
+
+- `lib/data/` — DAL leggero, tre moduli: `organizations.ts`, `bookings.ts`, `finance.ts`. Ogni
+  modulo esporta la `select` con join annidato PostgREST e una funzione pura di proiezione riga
+  che **rivalida il tenant sulla riga annidata** invece di fidarsi ciecamente del join (difesa in
+  profondità: PostgREST già filtra la relazione embedded per tenant, ma il codice applicativo non
+  si fida e ricontrolla `organization_id` sulla riga innestata prima di usarla).
+- `lib/supabaseAuth.ts` — `verifyAccessTokenSubject()`: legge il subject dal JWT via
+  `auth.getClaims()` (verifica locale di firma/scadenza, non un round-trip Supabase). Usato **solo
+  come euristica di performance** per far partire la query membership in parallelo a `getUser()`
+  autoritativo — mai per autorizzare da solo: se il subject "speculativo" non coincide con quello
+  restituito da `getUser()`, il risultato speculativo viene scartato e la query membership rifatta
+  con l'id autoritativo. Applicato sia in `proxy.ts` (fase `mw-claims`) sia in
+  `requireOrganizationContext()` (fase `claims`).
+- `lib/timing/requestTiming.ts` — `navigationId()`: propaga un id di navigazione lato client
+  (`lib/perf/navMarks.ts`, header `x-navigation-id` iniettato da `lib/http/clientFetch.ts`) fino al
+  log `[perf]` della route, per correlare un singolo click utente con tutte le chiamate API che
+  genera, non solo con una singola richiesta.
+- `components/navigation-feedback.tsx` + `app/loading.tsx` — barra di progresso in alto durante la
+  navigazione (eventi custom `NAVIGATION_START_EVENT`/`NAVIGATION_END_EVENT` da `navMarks.ts`) e
+  skeleton di caricamento route-level, per dare un feedback visivo immediato al click prima che i
+  dati arrivino.
+- `scripts/perf-measure.mjs` — automatizza il protocollo manuale di `docs/perf/measuring.md`:
+  apre una sessione Chromium autenticata via `storageState` di Playwright, naviga N volte su
+  ciascuna delle 5 pagine, misura click→dato-visibile e riporta min/p50/p75/p95.
+
+Modificato (query, non solo timing):
+
+- `GET /api/bookings` — join annidato con `actions` per lo stato pulizia in **una sola query**
+  invece di due round-trip separati; nuovo parametro `?from=` per filtrare per data e
+  `?includeCleaningStatus=false` per saltare il join quando non serve. La Dashboard (`app/page.tsx`)
+  ora chiama `/api/bookings?from=<oggi>&includeCleaningStatus=false` — **chiude PT-6/BT-11** per il
+  percorso caldo della Dashboard (prima caricava tutte le prenotazioni di sempre ad ogni apertura).
+  `/bookings` continua a chiamare senza `from` (serve lo storico completo lì).
+- `GET /api/finance` — join annidato con `actions` (`source_action`) per i dettagli rifornimento
+  invece di una query separata post-fetch; fallback automatico allo schema legacy (senza FK/colonna
+  `expense_date`) se il join fallisce, per restare compatibile con deployment non ancora migrati.
+- `findPrimaryOrganizationForUser()` — join annidato `user_roles → organizations` in una query
+  invece di due (membership poi record organizzazione separato).
+- Nuovo test `tests/integration/tenant-isolation.integration.test.ts`: "la query embedded
+  restituisce in un round-trip solo booking e azioni di org A" e "...dettagli rifornimento solo per
+  org A" — verificano che i nuovi join non trapelino dati cross-tenant sul DB hosted reale.
+
+Non toccato in questa fase: PT-1 (RLS bypassata da `service_role`, resta Fase 8), PT-3/PT-4/PT-5
+(BT-9/BT-10/BT-11 residuo — vedi sotto), Server Components (Fase 3).
 
 **Regola cache tenant — sempre esplicita, vale per tutte le fasi successive**: mai memorizzare sessione, `userId`, `organizationId`, `role`, membership o dati tenant in variabili globali/module-scope. Solo memoization request-scoped o cache con chiave tenant esplicita e isolamento verificato. Dati globali/immutabili/tecnici (es. lo schema prodotti in `lib/products-schema.ts:10`, TTL 30s) possono restare in cache di modulo — è il precedente già in codice, citato come esempio di cosa NON copiare per dati tenant quando si tocca la Fase 2.
 
@@ -786,7 +838,11 @@ Aperto. Vedi PT-4. Percorso principale di scrittura magazzino, `security definer
 
 ### BT-11: Filtri tenant/data mancanti minori
 
-Aperto. Vedi PT-5 (due `.eq("organization_id")` mancanti in `lib/stock.ts:184` e `lib/product-quantity.ts:80`, non sfruttabili oggi) e PT-6 (`/api/bookings` senza filtro data, cresce senza limite). Bassa priorità, da chiudere insieme al refactor DAL.
+Parzialmente chiuso il 2026-08-21. PT-6 (`/api/bookings` senza filtro data) risolto per il percorso
+Dashboard: nuovo parametro `?from=`, usato da `app/page.tsx` — vedi "Fase 2 (DAL + auth parallela)"
+sopra. Resta aperto PT-5 (due `.eq("organization_id")` mancanti in `lib/stock.ts:184` e
+`lib/product-quantity.ts:80`, non sfruttabili oggi) e la pagina `/bookings` stessa continua a
+caricare tutto lo storico (nessun filtro data lì, per design — serve la lista completa).
 
 ### Prossimi passi
 
@@ -920,8 +976,10 @@ Aprire subito questi file per riprendere:
 - `supabase/migrations/20260507150000_add_multi_tenant_foundation.sql`
 - `supabase/migrations/20260618100000_add_linen_role.sql`
 - `tests/integration/helpers.ts`
-- `docs/perf/measuring.md` — protocollo di misurazione prima/dopo
-- `lib/timing/serverTiming.ts`, `lib/timing/requestTiming.ts`, `lib/perf/navMarks.ts` — strumentazione Fase 1
+- `docs/perf/measuring.md` — protocollo di misurazione prima/dopo (manuale + automatizzato)
+- `lib/timing/serverTiming.ts`, `lib/timing/requestTiming.ts`, `lib/perf/navMarks.ts` — strumentazione Fase 1 + correlazione navigazione Fase 2
+- `lib/data/organizations.ts`, `lib/data/bookings.ts`, `lib/data/finance.ts` — DAL Fase 2 (select con join + proiezione tenant-safe)
+- `scripts/perf-measure.mjs` — misurazione automatizzata click→dato-visibile
 
 ## Bottom Line
 
@@ -934,14 +992,16 @@ Stato attuale:
 - organizzazione "Casa Cleo" configurata con owner `erri.dp@gmail.com`
 - repo di riferimento: `Dashboard-Casacleo/main` su GitHub (watched da Vercel)
 - remote git locale: solo `casacleo` (alva rimosso)
-- backlog tecnico BT-1/2/3/4/5/6 tutti chiusi; BT-7/8/9/10/11 aperti (sicurezza tenant, vedi sotto)
+- backlog tecnico BT-1/2/3/4/5/6 tutti chiusi; BT-11 parzialmente chiuso (2026-08-21); BT-7/8/9/10 aperti (sicurezza tenant, vedi sotto)
 - email transazionale attiva: `noreply@mail.alva.land` via Resend, dominio verificato
 - linen_role system e ProductCatalogEditor live (2026-06-18/19)
 - copy UI interamente in italiano, senza stati DB grezzi né anglicismi decorativi (2026-07-09)
-- audit performance + Fase 1 (misurazione) completata e mergiata su `dev` (2026-08-17): vedi "Audit Performance & Sicurezza Tenant" sopra per baseline e piano di fasi
+- UI/UX: `IMPLEMENTATION_PLAN_UI_UX.md` (piano di riferimento) e l'audit di rifinitura del 2026-08-15 sostanzialmente implementati — Fraunces/Public Sans, dialog/drawer/sheet condivisi, TopBar/BottomNav accessibili, Rifornimento su KPI cliccabili + drawer, catalogo prodotti senza card-in-card
+- E2E: fondamenta (`tests/e2e/setup|helpers|specs`, `npm run verify`, hook pre-push) completate il 2026-08-20; specs Fase 1 (bookings, actions-cleaning, inventory-restock, finance) aggiunte il 2026-08-20/21
+- audit performance: Fase 1 (misurazione) mergiata il 2026-08-17, Fase 2 (DAL + auth parallela) completata il 2026-08-21 — vedi "Audit Performance & Sicurezza Tenant" sopra per baseline e dettaglio Fase 2
 
 Prossimi passi in ordine:
 
-1. Fase 2 performance — DAL + `getRequestContext()` request-scoped, poi Fase 3 (Server Components), Fase 4 (cache client) — vedi piano di fasi in "Audit Performance & Sicurezza Tenant"
-2. BT-7..BT-11 — chiudere insieme al DAL della Fase 2
+1. Fase 3 performance — Server Components con dati iniziali, poi Fase 4 (cache client) — vedi piano di fasi in "Audit Performance & Sicurezza Tenant"
+2. BT-7/8/9/10 — sicurezza tenant residua (RLS bypassata da `service_role`, `resolveOrganizationId()` che fallisce aperto, codice morto, RPC magazzino senza scoping)
 3. U1–U3 / F1–F4 — miglioramenti UX e funzionali low effort (vedi sezione dedicata)

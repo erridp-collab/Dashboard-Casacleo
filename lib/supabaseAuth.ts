@@ -147,3 +147,19 @@ export async function verifySessionTokens(tokens: SessionTokens | null): Promise
     refreshed: true,
   };
 }
+
+/**
+ * Returns the JWT subject only after Supabase has verified signature and expiry.
+ * This is a performance hint, never the authoritative authentication result:
+ * callers must still await verifySessionTokens() before using any prefetched data.
+ */
+export async function verifyAccessTokenSubject(tokens: SessionTokens | null): Promise<string | null> {
+  if (!tokens?.accessToken) return null;
+
+  const authClient = supabaseAuthClient();
+  const { data, error } = await authClient.auth.getClaims(tokens.accessToken);
+  if (error) return null;
+
+  const subject = data?.claims?.sub;
+  return typeof subject === "string" && subject.trim() ? subject : null;
+}

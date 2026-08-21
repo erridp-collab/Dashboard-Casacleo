@@ -1,11 +1,48 @@
 const CLICK_MARK_PREFIX = "nav:";
 const CLICK_SUFFIX = ":click";
 const VISIBLE_SUFFIX = ":visible";
+export const NAVIGATION_ID_HEADER = "x-alva-navigation-id";
+export const NAVIGATION_START_EVENT = "alva:navigation-start";
+export const NAVIGATION_END_EVENT = "alva:navigation-end";
+
+type ActiveNavigation = {
+  id: string;
+  route: string;
+};
+
+let activeNavigation: ActiveNavigation | null = null;
+const scheduledPaints = new Set<string>();
+
+function clickMark(route: string): string {
+  return `${CLICK_MARK_PREFIX}${route}${CLICK_SUFFIX}`;
+}
+
+function visibleMark(route: string): string {
+  return `${CLICK_MARK_PREFIX}${route}${VISIBLE_SUFFIX}`;
+}
+
+export function activeNavigationId(): string | null {
+  return activeNavigation?.id ?? null;
+}
+
+function emitNavigationEvent(name: string, navigation: ActiveNavigation): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(name, { detail: navigation }));
+}
 
 /** Called on nav-link click. Marks the start of a "how long until data is on screen" window. */
 export function markNavClick(route: string): void {
-  if (typeof performance === "undefined") return;
-  performance.mark(`${CLICK_MARK_PREFIX}${route}${CLICK_SUFFIX}`);
+  if (typeof performance === "undefined" || typeof crypto === "undefined") return;
+
+  if (activeNavigation) {
+    performance.clearMarks(clickMark(activeNavigation.route));
+    performance.clearMeasures(visibleMark(activeNavigation.route));
+    scheduledPaints.delete(activeNavigation.id);
+  }
+
+  activeNavigation = { id: crypto.randomUUID(), route };
+  performance.mark(clickMark(route));
+  emitNavigationEvent(NAVIGATION_START_EVENT, activeNavigation);
 }
 
 /**
@@ -16,16 +53,38 @@ export function markNavClick(route: string): void {
  */
 export function markDataVisible(route: string): void {
   if (typeof performance === "undefined") return;
-  const clickMark = `${CLICK_MARK_PREFIX}${route}${CLICK_SUFFIX}`;
-  const visibleMark = `${CLICK_MARK_PREFIX}${route}${VISIBLE_SUFFIX}`;
+  const navigation = activeNavigation;
+  const routeClickMark = clickMark(route);
+  const routeVisibleMark = visibleMark(route);
 
-  if (performance.getEntriesByName(clickMark, "mark").length === 0) return;
+  if (!navigation || navigation.route !== route) return;
+  if (performance.getEntriesByName(routeClickMark, "mark").length === 0) return;
+  if (scheduledPaints.has(navigation.id)) return;
 
-  try {
-    const measure = performance.measure(visibleMark, clickMark);
-    console.log(`[perf] nav:${route} click-to-visible ${measure.duration.toFixed(1)}ms`);
-  } finally {
-    performance.clearMarks(clickMark);
-    performance.clearMeasures(visibleMark);
+  scheduledPaints.add(navigation.id);
+
+  const finishMeasurement = () => {
+    if (activeNavigation?.id !== navigation.id) return;
+
+    try {
+      const measure = performance.measure(routeVisibleMark, routeClickMark);
+      console.log(
+        `[perf] nav:${route} click-to-painted ${measure.duration.toFixed(1)}ms navId=${navigation.id}`,
+      );
+    } finally {
+      performance.clearMarks(routeClickMark);
+      performance.clearMeasures(routeVisibleMark);
+      scheduledPaints.delete(navigation.id);
+      activeNavigation = null;
+      emitNavigationEvent(NAVIGATION_END_EVENT, navigation);
+    }
+  };
+
+  // setState only schedules a React update. Two animation frames ensure the
+  // committed UI has reached a paint opportunity before we stop the clock.
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => requestAnimationFrame(finishMeasurement));
+  } else {
+    finishMeasurement();
   }
 }

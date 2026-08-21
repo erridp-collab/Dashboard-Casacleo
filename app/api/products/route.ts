@@ -4,7 +4,7 @@ import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { syncShoppingAction } from "@/lib/stock";
 import { isLinenRole } from "@/lib/linen-roles";
-import { attachRouteTiming, requestId } from "@/lib/timing/requestTiming";
+import { attachRouteTiming, navigationId, requestId } from "@/lib/timing/requestTiming";
 import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 type ProductPatch = {
@@ -14,7 +14,9 @@ type ProductPatch = {
 };
 
 export async function GET(req: Request) {
+  const startedAt = performance.now();
   const reqId = requestId(req);
+  const navId = navigationId(req);
   try {
     const auth = await requireRouteContext();
     if (!auth.ok) return auth.response;
@@ -47,7 +49,10 @@ export async function GET(req: Request) {
         updated_at: row.updated_at === null || row.updated_at === undefined ? undefined : String(row.updated_at),
       };
     });
-    return attachRouteTiming(okJson({ products }), reqId, "/api/products", phases);
+    return attachRouteTiming(okJson({ products }), reqId, "/api/products", phases, {
+      navigationId: navId,
+      wallMs: performance.now() - startedAt,
+    });
   } catch (e: unknown) {
     console.error("[GET /api/products]", e);
     return errJson("Errore interno del server", 500);
