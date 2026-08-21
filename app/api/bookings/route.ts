@@ -1,8 +1,9 @@
 import { errJson, okJson } from "@/lib/http/apiResponse";
 import { scheduleBookingDomainResync } from "@/lib/booking-automation";
+import { BOOKING_SELECT, BOOKING_WITH_ACTIONS_SELECT, bookingWithCleaningStatus } from "@/lib/data/bookings";
 import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { attachRouteTiming, requestId } from "@/lib/timing/requestTiming";
+import { attachRouteTiming, navigationId, requestId } from "@/lib/timing/requestTiming";
 import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 type CreateBookingPayload = {
@@ -47,64 +48,68 @@ async function hasDateConflict(checkIn: string, checkOut: string, organizationId
 }
 
 export async function GET(req: Request) {
+  const startedAt = performance.now();
   const reqId = requestId(req);
+  const navId = navigationId(req);
   try {
     const auth = await requireRouteContext();
     if (!auth.ok) return auth.response;
     const { organizationId } = auth.context;
     const phases: TimingEntry[] = [...auth.timing];
 
-    const supabase = supabaseAdmin();
-    const { data, error } = await timed(phases, "db-bookings", () =>
-      supabase
-        .from("bookings")
-        .select("id, check_in, check_out, guests, channel, notes, total_amount")
-        .eq("organization_id", organizationId)
-        .order("check_in", { ascending: true }),
-    );
-
-    if (error) {
-      console.error("[GET /api/bookings] db error", error);
-      return errJson("Errore nel recupero delle prenotazioni", 400);
+    const { searchParams } = new URL(req.url);
+    const from = searchParams.get("from");
+    const includeCleaningStatus = searchParams.get("includeCleaningStatus") !== "false";
+    if (from && !isValidIsoDate(from)) {
+      return errJson("Formato data non valido (YYYY-MM-DD)", 400);
     }
 
-    const bookings = data ?? [];
-    const bookingIds = bookings.map((row) => String(row.id)).filter(Boolean);
-    const cleaningStatusByBookingId = new Map<string, "DA_FARE" | "FATTO" | null>();
+    const supabase = supabaseAdmin();
+    let bookings;
 
-    if (bookingIds.length > 0) {
-      const { data: actionsData, error: actionsErr } = await timed(phases, "db-actions-status", () =>
-        supabase
-          .from("actions")
-          .select("booking_id, action_type, status")
+    if (includeCleaningStatus) {
+      const { data, error } = await timed(phases, "db-bookings-with-cleaning", () => {
+        let query = supabase
+          .from("bookings")
+          .select(BOOKING_WITH_ACTIONS_SELECT)
           .eq("organization_id", organizationId)
-          .in("booking_id", bookingIds),
-      );
+          .eq("actions.organization_id", organizationId)
+          .order("check_in", { ascending: true });
+        if (from) query = query.gte("check_out", from);
+        return query;
+      });
 
-      if (actionsErr) {
-        console.error("[GET /api/bookings] actions db error", actionsErr);
-        return errJson("Errore nel recupero dello stato pulizie", 400);
+      if (error) {
+        console.error("[GET /api/bookings] db error", error);
+        return errJson("Errore nel recupero delle prenotazioni", 400);
       }
+      bookings = (data ?? []).map((row) => bookingWithCleaningStatus(row, organizationId));
+    } else {
+      const { data, error } = await timed(phases, "db-bookings", () => {
+        let query = supabase
+          .from("bookings")
+          .select(BOOKING_SELECT)
+          .eq("organization_id", organizationId)
+          .order("check_in", { ascending: true });
+        if (from) query = query.gte("check_out", from);
+        return query;
+      });
 
-      for (const row of actionsData ?? []) {
-        const bookingId = row.booking_id ? String(row.booking_id) : "";
-        const actionType = String(row.action_type ?? "").toUpperCase();
-        const status = row.status === "FATTO" ? "FATTO" : row.status === "DA_FARE" ? "DA_FARE" : null;
-        if (!bookingId || !actionType.includes("PULIZIA")) continue;
-        cleaningStatusByBookingId.set(bookingId, status);
+      if (error) {
+        console.error("[GET /api/bookings] db error", error);
+        return errJson("Errore nel recupero delle prenotazioni", 400);
       }
+      bookings = (data ?? []).map((row) => bookingWithCleaningStatus(row, organizationId));
     }
 
     return attachRouteTiming(
       okJson({
-        bookings: bookings.map((row: Record<string, unknown>) => ({
-          ...row,
-          cleaning_status: cleaningStatusByBookingId.get(String(row.id)) ?? null,
-        })),
+        bookings,
       }),
       reqId,
       "/api/bookings",
       phases,
+      { navigationId: navId, wallMs: performance.now() - startedAt },
     );
   } catch (e: unknown) {
     console.error("[GET /api/bookings]", e);

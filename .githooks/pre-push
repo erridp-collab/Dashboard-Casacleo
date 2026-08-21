@@ -1,0 +1,5 @@
+#!/bin/sh
+# Blocca il push se la suite di verifica (unit + smoke E2E) non passa.
+# Attivato una tantum con: git config core.hooksPath .githooks
+echo "pre-push: running npm run verify..."
+npm run verify

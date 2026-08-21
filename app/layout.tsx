@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/page-container";
 import { ToastContainer } from "@/components/toast";
 import { SwRegister } from "@/components/sw-register";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
+import { NavigationFeedback } from "@/components/navigation-feedback";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -48,6 +49,7 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body className={`${fraunces.variable} ${publicSans.variable} min-h-screen bg-canvas text-text-primary antialiased`}>
+        <NavigationFeedback />
         <SwRegister />
         <PwaInstallPrompt />
         <div className="min-h-screen">

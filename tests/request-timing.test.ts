@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { attachRouteTiming, logRequestTiming, requestId } from "@/lib/timing/requestTiming";
+import {
+  attachRouteTiming,
+  logRequestTiming,
+  navigationId,
+  requestId,
+} from "@/lib/timing/requestTiming";
 
 describe("requestId", () => {
   it("reuses the x-request-id header when present", () => {
@@ -12,6 +17,22 @@ describe("requestId", () => {
   it("generates a new id when the header is missing", () => {
     const req = new Request("http://localhost/api/actions");
     expect(requestId(req)).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
+
+describe("navigationId", () => {
+  it("accepts only UUID navigation ids used for telemetry", () => {
+    const req = new Request("http://localhost/api/actions", {
+      headers: { "x-alva-navigation-id": "f47ac10b-58cc-4372-a567-0e02b2c3d479" },
+    });
+    expect(navigationId(req)).toBe("f47ac10b-58cc-4372-a567-0e02b2c3d479");
+  });
+
+  it("rejects arbitrary client-provided values", () => {
+    const req = new Request("http://localhost/api/actions", {
+      headers: { "x-alva-navigation-id": "forged-tenant-value" },
+    });
+    expect(navigationId(req)).toBeNull();
   });
 });
 

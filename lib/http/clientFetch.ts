@@ -1,3 +1,5 @@
+import { activeNavigationId, NAVIGATION_ID_HEADER } from "@/lib/perf/navMarks";
+
 type ErrorPayload = {
   error?: string;
 };
@@ -39,7 +41,17 @@ export async function clientFetchJson<T>(
   init?: RequestInit,
 ): Promise<ClientFetchResult<T>> {
   try {
-    const response = await fetch(input, init);
+    const navigationId = activeNavigationId();
+    let requestInit = init;
+
+    if (navigationId) {
+      const headers = new Headers(input instanceof Request ? input.headers : undefined);
+      new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
+      headers.set(NAVIGATION_ID_HEADER, navigationId);
+      requestInit = { ...init, headers };
+    }
+
+    const response = await fetch(input, requestInit);
     const text = await response.text();
 
     let payload: unknown = null;

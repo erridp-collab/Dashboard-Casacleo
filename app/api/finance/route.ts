@@ -1,9 +1,11 @@
+import { isBookingRevenueInSelectedMonth } from "@/lib/finance-entries";
+import { EXPENSE_WITH_SOURCE_ACTION_SELECT, expenseRestockDetail } from "@/lib/data/finance";
 import { monthKey, toNumber } from "@/lib/format";
 import { errJson, okJson } from "@/lib/http/apiResponse";
 import { formatLocalDateIT } from "@/lib/localDate";
 import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { attachRouteTiming, requestId } from "@/lib/timing/requestTiming";
+import { attachRouteTiming, navigationId, requestId } from "@/lib/timing/requestTiming";
 import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 type FinanceEntry = {
@@ -50,8 +52,16 @@ function parseMonthInput(monthInput: string | null): Date {
   return new Date(year, month - 1, 1);
 }
 
+function isMissingExpenseActionRelation(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const message = String(error.message ?? "").toLowerCase();
+  return String(error.code ?? "") === "PGRST200" || message.includes("expenses_source_action_id_fkey");
+}
+
 export async function GET(req: Request) {
+  const startedAt = performance.now();
   const reqId = requestId(req);
+  const navId = navigationId(req);
   try {
     const auth = await requireRouteContext();
     if (!auth.ok) return auth.response;
@@ -64,8 +74,6 @@ export async function GET(req: Request) {
     const selectedMonth = monthKey(selectedMonthDate);
 
     const { start, end } = getMonthWindow(months, selectedMonthDate);
-    const monthStart = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth(), 1);
-    const monthEnd = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 0);
 
     const supabase = supabaseAdmin();
     const [{ data: bookings, error: bookingsErr }, expensesRes] = await timed(
@@ -81,23 +89,40 @@ export async function GET(req: Request) {
             .lte("check_in", formatLocalDateIT(end)),
           supabase
             .from("expenses")
-            .select("*")
+            .select(EXPENSE_WITH_SOURCE_ACTION_SELECT)
             .eq("organization_id", organizationId)
+            .eq("source_action.organization_id", organizationId)
             .gte("expense_date", formatLocalDateIT(start))
             .lte("expense_date", formatLocalDateIT(end)),
         ]),
     );
 
-    let expenses = expensesRes.data;
+    let expenses = expensesRes.data as unknown as Record<string, unknown>[] | null;
     let expensesErr = expensesRes.error;
+    let usesLegacyExpenseProjection = false;
 
     if (expensesErr && String(expensesErr.code) === "42703" && String(expensesErr.message).includes("expense_date")) {
-      const retry = await supabase
-        .from("expenses")
-        .select("*")
-        .eq("organization_id", organizationId)
-        .gte("date", formatLocalDateIT(start))
-        .lte("date", formatLocalDateIT(end));
+      usesLegacyExpenseProjection = true;
+      const retry = await timed(phases, "db-expenses-legacy-date", () =>
+        supabase
+          .from("expenses")
+          .select("*")
+          .eq("organization_id", organizationId)
+          .gte("date", formatLocalDateIT(start))
+          .lte("date", formatLocalDateIT(end)),
+      );
+      expenses = retry.data;
+      expensesErr = retry.error;
+    } else if (isMissingExpenseActionRelation(expensesErr)) {
+      usesLegacyExpenseProjection = true;
+      const retry = await timed(phases, "db-expenses-legacy-relation", () =>
+        supabase
+          .from("expenses")
+          .select("*")
+          .eq("organization_id", organizationId)
+          .gte("expense_date", formatLocalDateIT(start))
+          .lte("expense_date", formatLocalDateIT(end)),
+      );
       expenses = retry.data;
       expensesErr = retry.error;
     }
@@ -111,27 +136,30 @@ export async function GET(req: Request) {
       return errJson("Errore nel recupero dei dati finanziari", 400);
     }
 
-    // Rifornimenti automatici store the restocked product list on the
-    // linked action's `details` column, not on the expense itself — fetch
-    // it so the UI can show it collapsed instead of on the main row.
-    const restockActionIds = [
-      ...new Set(
-        (expenses ?? [])
-          .filter((raw) => String((raw as Record<string, unknown>).origin) === "automatica_da_rifornimento")
-          .map((raw) => (raw as Record<string, unknown>).source_action_id)
-          .filter((id): id is string => typeof id === "string" && id.length > 0),
-      ),
-    ];
+    // Current schemas return refill details in the expenses round-trip.
+    // Keep the separate lookup only for deployments missing the FK/date migration.
     const restockDetailsByActionId = new Map<string, string>();
-    if (restockActionIds.length > 0) {
-      const { data: restockActions } = await supabase
-        .from("actions")
-        .select("id, details")
-        .eq("organization_id", organizationId)
-        .in("id", restockActionIds);
-      for (const raw of restockActions ?? []) {
-        const row = raw as Record<string, unknown>;
-        if (row.details) restockDetailsByActionId.set(String(row.id), String(row.details));
+    if (usesLegacyExpenseProjection) {
+      const restockActionIds = [
+        ...new Set(
+          (expenses ?? [])
+            .filter((row) => String(row.origin) === "automatica_da_rifornimento")
+            .map((row) => row.source_action_id)
+            .filter((id): id is string => typeof id === "string" && id.length > 0),
+        ),
+      ];
+      if (restockActionIds.length > 0) {
+        const { data: restockActions } = await timed(phases, "db-restock-details-legacy", () =>
+          supabase
+            .from("actions")
+            .select("id, details")
+            .eq("organization_id", organizationId)
+            .in("id", restockActionIds),
+        );
+        for (const raw of restockActions ?? []) {
+          const row = raw as Record<string, unknown>;
+          if (row.details) restockDetailsByActionId.set(String(row.id), String(row.details));
+        }
       }
     }
 
@@ -165,8 +193,10 @@ export async function GET(req: Request) {
         monthPoints[month].occupiedDays += overlapDays(checkIn, checkOut, bucketStart, bucketEnd);
       }
 
-      const overlapsSelected = checkOut > monthStart && checkIn <= monthEnd;
-      if (overlapsSelected && amount > 0) {
+      // L'incasso appartiene per intero al mese del check-in, anche per
+      // soggiorni a cavallo di due mesi (es. 29 agosto -> 4 settembre).
+      const belongsToSelectedMonth = isBookingRevenueInSelectedMonth(checkIn, selectedMonthDate);
+      if (belongsToSelectedMonth && amount > 0) {
         entries.push({
           id: String(row.id ?? `booking-${checkInStr}-${checkOutStr}`),
           date: checkInStr,
@@ -190,7 +220,8 @@ export async function GET(req: Request) {
       if (key === selectedMonth && amount > 0) {
         const sourceActionId = row.source_action_id;
         const detail =
-          typeof sourceActionId === "string" ? restockDetailsByActionId.get(sourceActionId) ?? null : null;
+          expenseRestockDetail(row, organizationId) ??
+          (typeof sourceActionId === "string" ? restockDetailsByActionId.get(sourceActionId) ?? null : null);
         entries.push({
           id: String(row.id ?? `expense-${date}-${amount}`),
           date,
@@ -246,6 +277,7 @@ export async function GET(req: Request) {
       reqId,
       "/api/finance",
       phases,
+      { navigationId: navId, wallMs: performance.now() - startedAt },
     );
   } catch (e: unknown) {
     console.error("[GET /api/finance]", e);

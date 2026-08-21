@@ -3,7 +3,7 @@ import { errJson, okJson } from "@/lib/http/apiResponse";
 import { requireRouteContext } from "@/lib/routeAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { ActionStatus } from "@/types/db";
-import { attachRouteTiming, requestId } from "@/lib/timing/requestTiming";
+import { attachRouteTiming, navigationId, requestId } from "@/lib/timing/requestTiming";
 import { timed, type TimingEntry } from "@/lib/timing/serverTiming";
 
 type PatchActionPayload =
@@ -52,7 +52,9 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  const startedAt = performance.now();
   const reqId = requestId(req);
+  const navId = navigationId(req);
   try {
     const auth = await requireRouteContext();
     if (!auth.ok) return auth.response;
@@ -92,7 +94,10 @@ export async function GET(req: Request) {
     }
 
     if (error) return errJson(error.message, 400);
-    return attachRouteTiming(okJson({ actions: data ?? [] }), reqId, "/api/actions", phases);
+    return attachRouteTiming(okJson({ actions: data ?? [] }), reqId, "/api/actions", phases, {
+      navigationId: navId,
+      wallMs: performance.now() - startedAt,
+    });
   } catch (e: unknown) {
     console.error("[GET /api/actions]", e);
     return errJson("Errore interno del server", 500);

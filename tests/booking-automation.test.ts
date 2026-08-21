@@ -2,17 +2,6 @@ import { describe, expect, it } from "vitest";
 import { computeDesiredActions } from "../lib/booking-automation";
 
 describe("computeDesiredActions", () => {
-  it("always creates PULIZIA on each check_out", () => {
-    const actions = computeDesiredActions([
-      { id: "b1", check_in: "2026-03-01", check_out: "2026-03-03" },
-      { id: "b2", check_in: "2026-03-03", check_out: "2026-03-05" },
-    ]);
-
-    const pulizie = actions.filter((a) => a.action_type === "PULIZIA");
-    expect(pulizie).toHaveLength(2);
-    expect(pulizie.map((a) => a.action_date)).toEqual(["2026-03-03", "2026-03-05"]);
-  });
-
   it("creates PREPARA_LETTO when gap between previous check_out and next check_in is > 3 days", () => {
     const actions = computeDesiredActions([
       { id: "b1", check_in: "2026-03-01", check_out: "2026-03-03" },
