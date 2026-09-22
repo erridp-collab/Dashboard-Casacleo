@@ -18,6 +18,7 @@ import { formatCurrencyIT, formatDateIT, formatMonthLongIT } from "@/lib/format"
 import { markDataVisible } from "@/lib/perf/navMarks";
 
 type BookingForm = {
+  guest_reference: string;
   check_in: string;
   check_out: string;
   guests: string;
@@ -37,6 +38,7 @@ type ActionsResponse = {
 function buildInitialForm(): BookingForm {
   const today = todayLocalIT();
   return {
+    guest_reference: "",
     check_in: today,
     check_out: addDaysLocalIT(today, 1),
     guests: "2",
@@ -172,6 +174,7 @@ export default function BookingsPage() {
         guests: parsedGuests,
         channel: row.channel,
         notes: row.notes,
+        guest_reference: row.guest_reference,
         total_amount: parsedAmount,
       }),
     });
@@ -186,7 +189,7 @@ export default function BookingsPage() {
     setBookings((prev) =>
       prev.map((b) =>
         b.id === id
-          ? { ...b, check_in: row.check_in, check_out: row.check_out, guests: parsedGuests, channel: row.channel, notes: row.notes, total_amount: parsedAmount }
+          ? { ...b, check_in: row.check_in, check_out: row.check_out, guests: parsedGuests, channel: row.channel, notes: row.notes, guest_reference: row.guest_reference, total_amount: parsedAmount }
           : b,
       ),
     );
@@ -341,6 +344,7 @@ export default function BookingsPage() {
                 const cleaningDone = b.cleaning_status === "FATTO";
                 const displayAmount = amountDraftById[b.id] !== "" ? amountDraftById[b.id] : b.total_amount;
                 const nights = nightsBetween(b.check_in, b.check_out);
+                const hasReference = Boolean(b.guest_reference?.trim());
 
                 return (
                   <article key={b.id} className="rounded-xl border border-border-strong/12 bg-surface-raised p-3">
@@ -355,7 +359,10 @@ export default function BookingsPage() {
                       </span>
                     </div>
 
-                    <p className="mt-1.5 text-sm font-bold text-text-primary">
+                    {hasReference ? (
+                      <p className="mt-1.5 truncate text-sm font-bold text-text-primary">{b.guest_reference}</p>
+                    ) : null}
+                    <p className={`text-text-primary ${hasReference ? "mt-0.5 text-xs font-medium text-text-secondary" : "mt-1.5 text-sm font-bold"}`}>
                       {formatDateIT(b.check_in)} → {formatDateIT(b.check_out)}
                     </p>
                     <p className="text-xs text-text-secondary">
@@ -372,6 +379,13 @@ export default function BookingsPage() {
 
                     {isEditing && (
                       <div className="mt-3 grid gap-2">
+                        <input
+                          name={`guest_reference_m_${b.id}`}
+                          className="input-base"
+                          placeholder="Riferimento (facoltativo)"
+                          value={b.guest_reference ?? ""}
+                          onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guest_reference: e.target.value } : x)))}
+                        />
                         <input name={`check_in_m_${b.id}`} className="input-base" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
                         <input name={`check_out_m_${b.id}`} className="input-base" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
                         <input name={`guests_m_${b.id}`} className="input-base" type="number" value={guestsDraftById[b.id] ?? ""} onChange={(e) => setGuestsDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
@@ -478,6 +492,7 @@ export default function BookingsPage() {
                     const isEditing = editId === b.id;
                     const cleaningDone = b.cleaning_status === "FATTO";
                     const nights = nightsBetween(b.check_in, b.check_out);
+                    const hasReference = Boolean(b.guest_reference?.trim());
 
                     return (
                       <Fragment key={b.id}>
@@ -485,6 +500,14 @@ export default function BookingsPage() {
                           <TableCell>
                             {isEditing ? (
                               <div className="flex flex-col gap-1.5">
+                                <input
+                                  aria-label="Riferimento"
+                                  name={`guest_reference_${b.id}`}
+                                  className="input-base h-9 text-xs"
+                                  placeholder="Riferimento (facoltativo)"
+                                  value={b.guest_reference ?? ""}
+                                  onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guest_reference: e.target.value } : x)))}
+                                />
                                 <input
                                   aria-label="Check-in"
                                   name={`check_in_${b.id}`}
@@ -504,7 +527,10 @@ export default function BookingsPage() {
                               </div>
                             ) : (
                               <div>
-                                <p className="font-semibold text-text-primary">
+                                {hasReference ? (
+                                  <p className="font-semibold text-text-primary">{b.guest_reference}</p>
+                                ) : null}
+                                <p className={hasReference ? "text-xs text-text-secondary" : "font-semibold text-text-primary"}>
                                   {formatDateIT(b.check_in)} → {formatDateIT(b.check_out)}
                                 </p>
                                 <p className="text-xs text-text-secondary">
@@ -659,6 +685,18 @@ export default function BookingsPage() {
 
       <Drawer open={showForm} onClose={() => setShowForm(false)} title="Nuova prenotazione">
         <div className="grid gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="booking-guest-reference" className="label-base">Riferimento (facoltativo)</label>
+            <input
+              id="booking-guest-reference"
+              name="guest_reference"
+              className="input-base"
+              value={form.guest_reference}
+              onChange={(e) => setForm((p) => ({ ...p, guest_reference: e.target.value }))}
+              placeholder="Nome ospite o promemoria (es. Marco, famiglia Rossi)"
+              autoComplete="off"
+            />
+          </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="booking-check-in" className="label-base">Check-in</label>
             <input id="booking-check-in" name="check_in" className="input-base" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />
