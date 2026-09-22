@@ -13,6 +13,7 @@ type CreateBookingPayload = {
   channel?: string | null;
   notes?: string | null;
   total_amount?: number | string | null;
+  guest_reference?: string | null;
 };
 
 function toAmount(value: unknown): number | null {
@@ -143,6 +144,9 @@ export async function POST(req: Request) {
     if (total_amount !== undefined && total_amount !== null && parsedAmount === null) {
       return errJson("Importo non valido", 400);
     }
+    if (body.guest_reference !== undefined && body.guest_reference !== null && typeof body.guest_reference !== "string") {
+      return errJson("Riferimento non valido", 400);
+    }
 
     const conflict = await hasDateConflict(check_in, check_out, organizationId);
     if (conflict) {
@@ -157,6 +161,7 @@ export async function POST(req: Request) {
       channel: channel ?? null,
       notes: notes ?? null,
       total_amount: parsedAmount,
+      guest_reference: body.guest_reference?.trim() ? body.guest_reference.trim() : null,
     };
 
     const supabase = supabaseAdmin();

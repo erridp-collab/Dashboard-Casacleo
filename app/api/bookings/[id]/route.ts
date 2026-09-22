@@ -10,6 +10,7 @@ type UpdateBookingPayload = {
   channel?: string | null;
   notes?: string | null;
   total_amount?: number | string | null;
+  guest_reference?: string | null;
 };
 
 const UUID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -127,7 +128,7 @@ export async function GET(
     const supabase = supabaseAdmin();
     let { data, error } = await supabase
       .from("bookings")
-      .select("id, check_in, check_out, guests, channel, notes, total_amount, created_at")
+      .select("id, check_in, check_out, guests, channel, notes, total_amount, guest_reference, created_at")
       .eq("organization_id", organizationId)
       .eq("id", id)
       .maybeSingle();
@@ -139,7 +140,7 @@ export async function GET(
         .eq("organization_id", organizationId)
         .eq("id", id)
         .maybeSingle();
-      data = retry.data ? { ...retry.data, total_amount: null } : retry.data;
+      data = retry.data ? { ...retry.data, total_amount: null, guest_reference: null } : retry.data;
       error = retry.error;
     }
 
@@ -184,6 +185,12 @@ export async function PATCH(
     if (body.guests !== undefined) updates.guests = body.guests;
     if (body.channel !== undefined) updates.channel = body.channel;
     if (body.notes !== undefined) updates.notes = body.notes;
+    if (body.guest_reference !== undefined) {
+      if (body.guest_reference !== null && typeof body.guest_reference !== "string") {
+        return errJson("Riferimento non valido", 400);
+      }
+      updates.guest_reference = body.guest_reference?.trim() ? body.guest_reference.trim() : null;
+    }
 
     if (Object.keys(updates).length === 0) {
       return errJson("No updates provided", 400);
@@ -234,7 +241,7 @@ export async function PATCH(
       .update(updates)
       .eq("organization_id", organizationId)
       .eq("id", id)
-      .select("id, check_in, check_out, guests, channel, notes, total_amount, created_at")
+      .select("id, check_in, check_out, guests, channel, notes, total_amount, guest_reference, created_at")
       .maybeSingle();
 
     // Backward-compatible fallback when total_amount is not present in older schemas.
@@ -252,7 +259,7 @@ export async function PATCH(
         .select("id, check_in, check_out, guests, channel, notes, created_at")
         .maybeSingle();
 
-      data = retry.data ? { ...retry.data, total_amount: null } : retry.data;
+      data = retry.data ? { ...retry.data, total_amount: null, guest_reference: null } : retry.data;
       error = retry.error;
     }
 
