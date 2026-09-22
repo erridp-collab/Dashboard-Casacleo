@@ -549,9 +549,20 @@ export default function ActionsPage() {
     const t = setTimeout(() => {
       void loadActions();
     }, 0);
+    // Niente `actionsAbortRef.current?.abort()` qui: `actionsAbortRef` è
+    // condiviso anche con `applyExplicitRange` (deep-link dal Riepilogo).
+    // Quando questo effect si ri-esegue per un cambio di `loadActions`
+    // innescato da `applyExplicitRange` (che cambia `monthCursor`), il
+    // cleanup dell'istanza PRECEDENTE di questo effect scattava dopo che
+    // `applyExplicitRange` aveva già rimpiazzato `actionsAbortRef.current`
+    // con il controller della propria fetch a range esplicito — abortendo
+    // quella fetch corretta come danno collaterale, invece della fetch
+    // (superata) del mese corrente. Ogni funzione che avvia una fetch
+    // (loadActions, applyExplicitRange) già annulla da sé il controller
+    // precedente prima di partire: questo cleanup deve solo evitare che un
+    // timeout non ancora scattato parta a effect concluso.
     return () => {
       clearTimeout(t);
-      actionsAbortRef.current?.abort();
     };
   }, [loadActions]);
 
