@@ -143,4 +143,40 @@ test.describe("actions & cleaning", () => {
       await deleteBookingByTag(page, tag);
     }
   });
+
+  test("il modale cambio biancheria spiega l'effetto sul magazzino prima di salvare", async ({ page }) => {
+    const tag = e2eTag("linen-confirm-copy");
+    const offset = uniqueFutureDayOffset(2800);
+    const checkIn = addDays(today(), offset);
+    const checkOut = addDays(today(), offset + 1);
+
+    await createBookingViaDrawer(page, {
+      checkIn,
+      checkOut,
+      guests: "2",
+      channel: "airbnb",
+      amount: "70.00",
+      note: tag,
+    });
+
+    try {
+      const resyncResult = await page.evaluate(async () => {
+        const response = await fetch("/api/bookings/resync", { method: "POST" });
+        return { ok: response.ok, status: response.status };
+      });
+      expect(resyncResult.ok, `resync fallita con status ${resyncResult.status}`).toBe(true);
+
+      await page.goto("/actions");
+      await page.getByRole("button", { name: "Periodo personalizzato" }).click();
+      await page.locator("#actions-from-date").fill(checkOut);
+      await page.locator("#actions-to-date").fill(checkOut);
+      await page.getByRole("button", { name: "Applica periodo" }).click();
+
+      await page.getByRole("button", { name: /biancheria/i }).click();
+      await expect(page.getByText("le scorte disponibili si riducono")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Conferma cambio biancheria" })).toBeVisible();
+    } finally {
+      await deleteBookingByTag(page, tag);
+    }
+  });
 });

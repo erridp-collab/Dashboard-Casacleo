@@ -819,10 +819,11 @@ export default function ActionsPage() {
       <ActionModalShell
         open={Boolean(linenAction)}
         title="Cambio biancheria"
+        subtitle="Indica i pezzi che porti via da lavare: le scorte disponibili si riducono di queste quantità."
         error={linenError}
         loadingLabel="Caricamento suggerimenti..."
         isBusy={linenLoading}
-        saveLabel="Salva"
+        saveLabel="Conferma cambio biancheria"
         onSave={() => void confirmLinenUsage()}
         onClose={() => setLinenAction(null)}
       >
@@ -831,6 +832,11 @@ export default function ActionsPage() {
           fields={LINEN_FIELDS}
           onChange={(key, value) => setLinenDraft((prev) => ({ ...prev, [key]: value }))}
         />
+        {summarizeSelection(linenDraft, LINEN_FIELDS, "Verrà scalato dal magazzino") ? (
+          <p className="mt-3 text-xs text-text-muted">
+            {summarizeSelection(linenDraft, LINEN_FIELDS, "Verrà scalato dal magazzino")}
+          </p>
+        ) : null}
       </ActionModalShell>
 
       <ActionModalShell
