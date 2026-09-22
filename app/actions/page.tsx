@@ -303,6 +303,7 @@ export default function ActionsPage() {
   const [toDraft, setToDraft] = useState(to);
   const [error, setError] = useState("");
   const actionsAbortRef = useRef<AbortController | null>(null);
+  const skipNextAutoLoadRef = useRef(false);
 
   const loadActions = useCallback(async () => {
     setError("");
@@ -541,6 +542,10 @@ export default function ActionsPage() {
   }
 
   useEffect(() => {
+    if (skipNextAutoLoadRef.current) {
+      skipNextAutoLoadRef.current = false;
+      return;
+    }
     const t = setTimeout(() => {
       void loadActions();
     }, 0);
@@ -549,6 +554,56 @@ export default function ActionsPage() {
       actionsAbortRef.current?.abort();
     };
   }, [loadActions]);
+
+  const applyExplicitRange = useCallback(async (rangeFrom: string, rangeTo: string) => {
+    if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) {
+      setError("Periodo non valido");
+      return null;
+    }
+    const nextMonthCursor = rangeFrom.slice(0, 8) + "01";
+    setMonthCursor((prev) => {
+      if (prev !== nextMonthCursor) skipNextAutoLoadRef.current = true;
+      return nextMonthCursor;
+    });
+    setShowAdvancedRange(true);
+    setFromDraft(rangeFrom);
+    setToDraft(rangeTo);
+    setError("");
+    actionsAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    actionsAbortRef.current = ctrl;
+    const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${rangeFrom}&to=${rangeTo}`, { signal: ctrl.signal });
+    if (!result.ok) {
+      if (!result.aborted) setError(result.error ?? "Non è stato possibile caricare le azioni");
+      return null;
+    }
+    setActions(result.data.actions ?? []);
+    return result.data.actions ?? [];
+  }, []);
+
+  // Deep-link dal Riepilogo (?from=&to=&openActionId=): letto solo dopo il
+  // mount, mai durante il render (stesso pattern di app/bookings/page.tsx
+  // per ?new=1 — niente lettura di window server-side né al primo render
+  // client, per evitare mismatch di idratazione).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const rangeFrom = params.get("from");
+      const rangeTo = params.get("to");
+      const openActionId = params.get("openActionId");
+      if (!rangeFrom || !rangeTo) return;
+      window.history.replaceState(null, "", "/actions");
+      void (async () => {
+        const loaded = await applyExplicitRange(rangeFrom, rangeTo);
+        if (openActionId && loaded) {
+          const target = loaded.find((a) => a.id === openActionId);
+          if (target) openActionDetail(target);
+        }
+      })();
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const visibleActions = useMemo(
     () => (showDone ? actions : actions.filter((a) => a.status !== "FATTO")),
@@ -651,19 +706,7 @@ export default function ActionsPage() {
             <button
               type="button"
               className="btn-secondary self-end"
-              onClick={() => {
-                if (!fromDraft || !toDraft || fromDraft > toDraft) {
-                  setError("Periodo non valido");
-                  return;
-                }
-                setMonthCursor(fromDraft.slice(0, 8) + "01");
-                void (async () => {
-                  setError("");
-                  const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${fromDraft}&to=${toDraft}`);
-                  if (!result.ok) return setError(result.error ?? "Non è stato possibile caricare le azioni");
-                  setActions(result.data.actions ?? []);
-                })();
-              }}
+              onClick={() => void applyExplicitRange(fromDraft, toDraft)}
             >
               Applica periodo
             </button>
