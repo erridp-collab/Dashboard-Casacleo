@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { CalendarDays, CalendarOff, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
 import { addDaysLocalIT, parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
-import { formatCurrencyIT, formatDateIT, formatMonthLongIT } from "@/lib/format";
+import { formatCurrencyIT, formatDateIT } from "@/lib/format";
 import { markDataVisible } from "@/lib/perf/navMarks";
 
 type BookingForm = {
@@ -87,7 +87,9 @@ export default function BookingsPage() {
   // client identici, niente lettura di window durante il render) e si apre
   // via effect quando arriva ?new=1 dal CTA globale nella TopBar.
   const [showForm, setShowForm] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
+  type BookingViewFilter = "attive" | "concluse" | "tutte";
+  const [viewFilter, setViewFilter] = useState<BookingViewFilter>("attive");
+  const [searchQuery, setSearchQuery] = useState("");
   const [expandedMenuId, setExpandedMenuId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -252,12 +254,26 @@ export default function BookingsPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const visibleBookings = useMemo(
-    () => (showCompleted ? bookings : bookings.filter((booking) => booking.cleaning_status !== "FATTO")),
-    [bookings, showCompleted],
-  );
+  const visibleBookings = useMemo(() => {
+    const today = todayLocalIT();
+    const byStatus = bookings.filter((b) => {
+      if (viewFilter === "tutte") return true;
+      if (viewFilter === "concluse") return b.check_out < today;
+      return b.check_out >= today; // "attive" — stesso confine della card Riepilogo
+    });
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return byStatus;
+    return byStatus.filter((b) =>
+      [b.guest_reference, b.channel, b.notes].some((field) => (field ?? "").toLowerCase().includes(query)),
+    );
+  }, [bookings, viewFilter, searchQuery]);
 
-  const headerSubtitle = `${bookings.length} prenotazion${bookings.length === 1 ? "e" : "i"} · ${formatMonthLongIT(todayLocalIT())}`;
+  const VIEW_FILTER_LABEL: Record<BookingViewFilter, string> = {
+    attive: "attive",
+    concluse: "concluse",
+    tutte: "tutte",
+  };
+  const headerSubtitle = `${visibleBookings.length} prenotazion${visibleBookings.length === 1 ? "e" : "i"} ${VIEW_FILTER_LABEL[viewFilter]}`;
 
   return (
     <section className="space-y-6">
@@ -273,18 +289,34 @@ export default function BookingsPage() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-text-secondary">
-          Visibili: {visibleBookings.length} su {bookings.length}
-        </p>
-        <label className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-strong/20 px-3 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            checked={showCompleted}
-            onChange={(e) => setShowCompleted(e.target.checked)}
-            className="h-4 w-4 accent-brand-primary"
-          />
-          Mostra completate
-        </label>
+        <div className="inline-flex rounded-lg border border-border-strong/20 bg-surface-muted p-1">
+          {(
+            [
+              ["attive", "Attive"],
+              ["concluse", "Concluse"],
+              ["tutte", "Tutte"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setViewFilter(value)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+                viewFilter === value ? "bg-surface-raised text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <input
+          type="search"
+          aria-label="Cerca prenotazione"
+          placeholder="Cerca per riferimento, canale o note..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="input-base h-10 w-full sm:w-64"
+        />
       </div>
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
@@ -330,7 +362,7 @@ export default function BookingsPage() {
             <p className="max-w-[280px] text-sm text-text-secondary">
               {bookings.length === 0
                 ? "Aggiungi la prima prenotazione con il pulsante 'Nuova prenotazione' qui sopra."
-                : "Tutte le prenotazioni sono già state pulite (le prenotazioni completate sono nascoste)."}
+                : "Nessuna prenotazione corrisponde al filtro o alla ricerca attuali."}
             </p>
           </div>
         ) : (
