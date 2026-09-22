@@ -15,6 +15,11 @@ export function uniqueFutureDayOffset(baseOffsetDays: number): number {
   return baseOffsetDays + (Date.now() % 500);
 }
 
+/** Come uniqueFutureDayOffset ma per date nel passato: usato per generare azioni "arretrate" di test senza collidere con dati reali recenti. */
+export function uniquePastDayOffset(baseOffsetDays: number): number {
+  return -(baseOffsetDays + (Date.now() % 500));
+}
+
 /** Trova la riga della tabella prenotazioni che contiene `tag` (tipicamente nella colonna Note). */
 export function findBookingRow(page: Page, tag: string) {
   return page.locator("tr", { hasText: tag }).first();
