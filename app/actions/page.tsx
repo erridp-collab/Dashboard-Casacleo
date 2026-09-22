@@ -754,7 +754,8 @@ export default function ActionsPage() {
         actionId={cleaningAction?.id ?? null}
         actionDate={cleaningAction?.action_date ?? ""}
         onClose={() => setCleaningAction(null)}
-        onSaved={() => {
+        onSaved={(actionId) => {
+          setActions((prev) => prev.map((action) => (action.id === actionId ? { ...action, status: "FATTO" } : action)));
           setCleaningAction(null);
           toast("Check pulizie salvato!", "success");
           void loadActions();

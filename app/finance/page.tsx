@@ -56,6 +56,11 @@ type MovementFilter = "tutti" | "entrate" | "spese";
 
 const EXPENSE_CATEGORIES = ["Pulizie", "Rifornimento", "Manutenzione", "Utenze", "Affitto", "Commissioni", "Altro"];
 
+function expenseOriginLabel(origin: string): string | null {
+  if (origin === "manuale") return null;
+  return "Automatica";
+}
+
 function currentMonthKey() {
   return todayLocalIT().slice(0, 7);
 }
@@ -270,6 +275,7 @@ export default function FinancePage() {
           <div className="divide-y divide-border-strong/10">
             {visibleEntries.map((row) => {
               const isIncome = row.type === "ENTRATA";
+              const originLabel = expenseOriginLabel(row.origin);
               return (
                 <div key={row.id} className="py-2.5">
                   <div className="flex items-start justify-between gap-2">
@@ -277,11 +283,11 @@ export default function FinancePage() {
                       <p className="truncate text-sm font-medium text-text-primary">{row.description}</p>
                       <p className="text-xs text-text-secondary">
                         {formatDateIT(row.date)} · {row.category}
-                        {row.origin !== "manuale" && (
+                        {originLabel ? (
                           <span className="ml-1.5 rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] text-text-secondary">
-                            {row.origin}
+                            {originLabel}
                           </span>
-                        )}
+                        ) : null}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">

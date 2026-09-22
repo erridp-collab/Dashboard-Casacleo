@@ -73,4 +73,74 @@ test.describe("actions & cleaning", () => {
       await deleteBookingByTag(page, tag);
     }
   });
+
+  test("completes an external cleaning without configured cleaning products @smoke", async ({ page }) => {
+    const tag = e2eTag("external-cleaning-empty-stock");
+    const offset = uniqueFutureDayOffset(2600);
+    const checkIn = addDays(today(), offset);
+    const checkOut = addDays(today(), offset + 2);
+
+    await createBookingViaDrawer(page, {
+      checkIn,
+      checkOut,
+      guests: "2",
+      channel: "airbnb",
+      amount: "120.00",
+      note: tag,
+    });
+
+    const resyncResult = await page.evaluate(async () => {
+      const response = await fetch("/api/bookings/resync", { method: "POST" });
+      return { ok: response.ok, status: response.status };
+    });
+    expect(resyncResult.ok, `resync fallita con status ${resyncResult.status}`).toBe(true);
+
+    try {
+      await page.addInitScript(() => {
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+          const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+          const pathname = new URL(requestUrl, window.location.origin).pathname;
+          if (pathname === "/api/products" && method.toUpperCase() === "GET") {
+            return new Response(JSON.stringify({ products: [] }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          return originalFetch(input, init);
+        };
+      });
+
+      await page.goto("/actions");
+      await page.getByRole("button", { name: "Periodo personalizzato" }).click();
+      await page.locator("#actions-from-date").fill(checkOut);
+      await page.locator("#actions-to-date").fill(checkOut);
+      await page.getByRole("button", { name: "Applica periodo" }).click();
+
+      await page.getByRole("button", { name: /Pulizia/ }).click();
+      await page.getByRole("button", { name: "Servizio esterno" }).click();
+      await page.getByLabel("Ore di pulizia esterna").fill("1.5");
+      await page.getByLabel("Tariffa oraria (€/ora)").fill("10");
+      await expect(page.getByText("Nessun prodotto di pulizia configurato.")).toBeVisible();
+
+      await page.getByRole("button", { name: "Salva check pulizie" }).click();
+
+      await expect(page.getByText("Missing updates[]")).toHaveCount(0);
+      await expect(page.getByText("Check pulizie salvato!")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Check pulizie" })).toBeHidden();
+
+      await page.getByRole("checkbox", { name: "Mostra completate" }).check();
+      await expect(page.getByText("Completata").first()).toBeVisible();
+
+      await page.goto("/finance");
+      const expenseDescription = page.getByText("Pulizia esterna - €15.00", { exact: true }).first();
+      await expect(expenseDescription).toBeVisible();
+      const expenseMetadata = expenseDescription.locator("xpath=following-sibling::p[1]");
+      await expect(expenseMetadata).toContainText("Automatica");
+      await expect(expenseMetadata).not.toContainText("automatica_da_pulizia");
+    } finally {
+      await deleteBookingByTag(page, tag);
+    }
+  });
 });
