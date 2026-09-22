@@ -2,7 +2,7 @@
 import { expect, test } from "@playwright/test";
 import { e2eTag } from "../helpers/session";
 import { addDays, today } from "../helpers/fixtures";
-import { createBookingViaDrawer, deleteBookingByTag, uniquePastDayOffset } from "../helpers/bookings";
+import { createPastBookingViaDrawer, deleteBookingByTag, uniquePastDayOffset } from "../helpers/bookings";
 
 test.describe("dashboard — azioni arretrate", () => {
   test("un'azione DA_FARE con data passata compare in 'Arretrate', non in 'Da completare: 0'", async ({ page }) => {
@@ -12,7 +12,11 @@ test.describe("dashboard — azioni arretrate", () => {
     const checkOut = addDays(today(), offset + 2);
 
     try {
-      await createBookingViaDrawer(page, {
+      // check_out è nel passato: usa createPastBookingViaDrawer, non
+      // createBookingViaDrawer — dal Task 8 il filtro di default "Attive"
+      // (check_out >= oggi) nasconderebbe subito la riga appena creata e
+      // farebbe fallire l'asserzione di visibilità interna dell'helper.
+      await createPastBookingViaDrawer(page, {
         checkIn,
         checkOut,
         guests: "2",
