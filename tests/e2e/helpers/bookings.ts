@@ -61,7 +61,15 @@ export async function deleteBookingByTag(page: Page, tag: string): Promise<void>
   const present = await row
     .waitFor({ state: "visible", timeout: 15000 })
     .then(() => true)
-    .catch(() => false);
+    .catch((err: unknown) => {
+      // Solo un timeout ("la riga non è mai comparsa") significa "niente da
+      // pulire". Qualunque altro errore (pagina/contesto crashato, frame
+      // staccato, navigazione interrotta) va rilanciato: inghiottirlo qui
+      // nasconderebbe un fallimento reale della pulizia dietro lo stesso
+      // "non esiste" silenzioso che questa funzione doveva eliminare.
+      if (err instanceof Error && err.name === "TimeoutError") return false;
+      throw err;
+    });
   if (!present) return;
 
   await row.getByRole("button", { name: "Elimina" }).click();
