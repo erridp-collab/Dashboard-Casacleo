@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Booking } from "@/types/db";
 
-export const BOOKING_SELECT = "id, check_in, check_out, guests, channel, notes, total_amount";
+export const BOOKING_SELECT = "id, check_in, check_out, guests, channel, notes, total_amount, guest_reference";
 
 export const BOOKING_WITH_ACTIONS_SELECT = `
   id,
@@ -12,6 +12,7 @@ export const BOOKING_WITH_ACTIONS_SELECT = `
   channel,
   notes,
   total_amount,
+  guest_reference,
   actions!actions_booking_id_fkey (
     organization_id,
     booking_id,
@@ -49,6 +50,7 @@ export function bookingWithCleaningStatus(row: Record<string, unknown>, organiza
     guests: Number(row.guests ?? 0),
     channel: row.channel == null ? null : String(row.channel),
     notes: row.notes == null ? null : String(row.notes),
+    guest_reference: row.guest_reference == null ? null : String(row.guest_reference),
     total_amount: amount != null && Number.isFinite(amount) ? amount : null,
     cleaning_status: cleaningStatus,
   } satisfies Booking;

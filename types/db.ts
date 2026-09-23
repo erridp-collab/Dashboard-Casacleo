@@ -27,6 +27,7 @@ export interface Booking {
   guests: number;
   channel: string | null;
   notes: string | null;
+  guest_reference: string | null;
   total_amount?: number | null;
   cleaning_status?: ActionStatus | null;
   created_at?: string;

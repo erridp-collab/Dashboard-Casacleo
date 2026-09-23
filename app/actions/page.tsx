@@ -280,7 +280,10 @@ function ActionModalShell({
 
 export default function ActionsPage() {
   const [monthCursor, setMonthCursor] = useState(() => `${todayLocalIT().slice(0, 7)}-01`);
-  const { from, to, label: monthLabel } = useMemo(() => monthRange(monthCursor), [monthCursor]);
+  const { from: monthFrom, to: monthTo, label: monthLabel } = useMemo(() => monthRange(monthCursor), [monthCursor]);
+  const [explicitRange, setExplicitRange] = useState<{ from: string; to: string } | null>(null);
+  const from = explicitRange?.from ?? monthFrom;
+  const to = explicitRange?.to ?? monthTo;
   const [actions, setActions] = useState<Action[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [linenAction, setLinenAction] = useState<Action | null>(null);
@@ -303,6 +306,7 @@ export default function ActionsPage() {
   const [toDraft, setToDraft] = useState(to);
   const [error, setError] = useState("");
   const actionsAbortRef = useRef<AbortController | null>(null);
+  const skipNextAutoLoadRef = useRef(false);
 
   const loadActions = useCallback(async () => {
     setError("");
@@ -541,14 +545,78 @@ export default function ActionsPage() {
   }
 
   useEffect(() => {
+    if (skipNextAutoLoadRef.current) {
+      skipNextAutoLoadRef.current = false;
+      return;
+    }
     const t = setTimeout(() => {
       void loadActions();
     }, 0);
+    // Niente `actionsAbortRef.current?.abort()` qui: `actionsAbortRef` è
+    // condiviso anche con `applyExplicitRange` (deep-link dal Riepilogo).
+    // Quando questo effect si ri-esegue per un cambio di `loadActions`
+    // innescato da `applyExplicitRange` (che cambia `monthCursor`), il
+    // cleanup dell'istanza PRECEDENTE di questo effect scattava dopo che
+    // `applyExplicitRange` aveva già rimpiazzato `actionsAbortRef.current`
+    // con il controller della propria fetch a range esplicito — abortendo
+    // quella fetch corretta come danno collaterale, invece della fetch
+    // (superata) del mese corrente. Ogni funzione che avvia una fetch
+    // (loadActions, applyExplicitRange) già annulla da sé il controller
+    // precedente prima di partire: questo cleanup deve solo evitare che un
+    // timeout non ancora scattato parta a effect concluso.
     return () => {
       clearTimeout(t);
-      actionsAbortRef.current?.abort();
     };
   }, [loadActions]);
+
+  const applyExplicitRange = useCallback(async (rangeFrom: string, rangeTo: string) => {
+    if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) {
+      setError("Periodo non valido");
+      return null;
+    }
+    setExplicitRange((prev) => {
+      if (!prev || prev.from !== rangeFrom || prev.to !== rangeTo) skipNextAutoLoadRef.current = true;
+      return { from: rangeFrom, to: rangeTo };
+    });
+    setShowAdvancedRange(true);
+    setFromDraft(rangeFrom);
+    setToDraft(rangeTo);
+    setError("");
+    actionsAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    actionsAbortRef.current = ctrl;
+    const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${rangeFrom}&to=${rangeTo}`, { signal: ctrl.signal });
+    if (!result.ok) {
+      if (!result.aborted) setError(result.error ?? "Non è stato possibile caricare le azioni");
+      return null;
+    }
+    setActions(result.data.actions ?? []);
+    return result.data.actions ?? [];
+  }, []);
+
+  // Deep-link dal Riepilogo (?from=&to=&openActionId=): letto solo dopo il
+  // mount, mai durante il render (stesso pattern di app/bookings/page.tsx
+  // per ?new=1 — niente lettura di window server-side né al primo render
+  // client, per evitare mismatch di idratazione).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const rangeFrom = params.get("from");
+      const rangeTo = params.get("to");
+      const openActionId = params.get("openActionId");
+      if (!rangeFrom || !rangeTo) return;
+      window.history.replaceState(null, "", "/actions");
+      void (async () => {
+        const loaded = await applyExplicitRange(rangeFrom, rangeTo);
+        if (openActionId && loaded) {
+          const target = loaded.find((a) => a.id === openActionId);
+          if (target) openActionDetail(target);
+        }
+      })();
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const visibleActions = useMemo(
     () => (showDone ? actions : actions.filter((a) => a.status !== "FATTO")),
@@ -560,7 +628,7 @@ export default function ActionsPage() {
     <section className="space-y-6">
       <PageHeader
         title="Azioni"
-        subtitle={`${visibleActions.length} azion${visibleActions.length === 1 ? "e" : "i"} · ${monthLabel}`}
+        subtitle={`${visibleActions.length} azion${visibleActions.length === 1 ? "e" : "i"} · ${explicitRange ? "periodo personalizzato" : monthLabel}`}
       />
 
       <Card>
@@ -574,6 +642,7 @@ export default function ActionsPage() {
                 const d = new Date(monthCursor);
                 d.setMonth(d.getMonth() - 1);
                 setMonthCursor(monthStartKey(d));
+                setExplicitRange(null);
               }}
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -587,6 +656,7 @@ export default function ActionsPage() {
                 const d = new Date(monthCursor);
                 d.setMonth(d.getMonth() + 1);
                 setMonthCursor(monthStartKey(d));
+                setExplicitRange(null);
               }}
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -651,19 +721,7 @@ export default function ActionsPage() {
             <button
               type="button"
               className="btn-secondary self-end"
-              onClick={() => {
-                if (!fromDraft || !toDraft || fromDraft > toDraft) {
-                  setError("Periodo non valido");
-                  return;
-                }
-                setMonthCursor(fromDraft.slice(0, 8) + "01");
-                void (async () => {
-                  setError("");
-                  const result = await clientFetchJson<ActionsResponse>(`/api/actions?from=${fromDraft}&to=${toDraft}`);
-                  if (!result.ok) return setError(result.error ?? "Non è stato possibile caricare le azioni");
-                  setActions(result.data.actions ?? []);
-                })();
-              }}
+              onClick={() => void applyExplicitRange(fromDraft, toDraft)}
             >
               Applica periodo
             </button>
@@ -754,7 +812,8 @@ export default function ActionsPage() {
         actionId={cleaningAction?.id ?? null}
         actionDate={cleaningAction?.action_date ?? ""}
         onClose={() => setCleaningAction(null)}
-        onSaved={() => {
+        onSaved={(actionId) => {
+          setActions((prev) => prev.map((action) => (action.id === actionId ? { ...action, status: "FATTO" } : action)));
           setCleaningAction(null);
           toast("Check pulizie salvato!", "success");
           void loadActions();
@@ -764,10 +823,11 @@ export default function ActionsPage() {
       <ActionModalShell
         open={Boolean(linenAction)}
         title="Cambio biancheria"
+        subtitle="Indica i pezzi che porti via da lavare: le scorte disponibili si riducono di queste quantità."
         error={linenError}
         loadingLabel="Caricamento suggerimenti..."
         isBusy={linenLoading}
-        saveLabel="Salva"
+        saveLabel="Conferma cambio biancheria"
         onSave={() => void confirmLinenUsage()}
         onClose={() => setLinenAction(null)}
       >
@@ -776,6 +836,11 @@ export default function ActionsPage() {
           fields={LINEN_FIELDS}
           onChange={(key, value) => setLinenDraft((prev) => ({ ...prev, [key]: value }))}
         />
+        {summarizeSelection(linenDraft, LINEN_FIELDS, "Verrà scalato dal magazzino") ? (
+          <p className="mt-3 text-xs text-text-muted">
+            {summarizeSelection(linenDraft, LINEN_FIELDS, "Verrà scalato dal magazzino")}
+          </p>
+        ) : null}
       </ActionModalShell>
 
       <ActionModalShell

@@ -14,10 +14,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { CalendarDays, CalendarOff, PenLine, Plus, Save, Trash2 } from "lucide-react";
 import type { Action, Booking } from "@/types/db";
 import { addDaysLocalIT, parseLocalDateIT, todayLocalIT } from "@/lib/localDate";
-import { formatCurrencyIT, formatDateIT, formatMonthLongIT } from "@/lib/format";
+import { formatCurrencyIT, formatDateIT } from "@/lib/format";
 import { markDataVisible } from "@/lib/perf/navMarks";
 
 type BookingForm = {
+  guest_reference: string;
   check_in: string;
   check_out: string;
   guests: string;
@@ -37,6 +38,7 @@ type ActionsResponse = {
 function buildInitialForm(): BookingForm {
   const today = todayLocalIT();
   return {
+    guest_reference: "",
     check_in: today,
     check_out: addDaysLocalIT(today, 1),
     guests: "2",
@@ -85,7 +87,9 @@ export default function BookingsPage() {
   // client identici, niente lettura di window durante il render) e si apre
   // via effect quando arriva ?new=1 dal CTA globale nella TopBar.
   const [showForm, setShowForm] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
+  type BookingViewFilter = "attive" | "concluse" | "tutte";
+  const [viewFilter, setViewFilter] = useState<BookingViewFilter>("attive");
+  const [searchQuery, setSearchQuery] = useState("");
   const [expandedMenuId, setExpandedMenuId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -172,6 +176,7 @@ export default function BookingsPage() {
         guests: parsedGuests,
         channel: row.channel,
         notes: row.notes,
+        guest_reference: row.guest_reference,
         total_amount: parsedAmount,
       }),
     });
@@ -186,7 +191,7 @@ export default function BookingsPage() {
     setBookings((prev) =>
       prev.map((b) =>
         b.id === id
-          ? { ...b, check_in: row.check_in, check_out: row.check_out, guests: parsedGuests, channel: row.channel, notes: row.notes, total_amount: parsedAmount }
+          ? { ...b, check_in: row.check_in, check_out: row.check_out, guests: parsedGuests, channel: row.channel, notes: row.notes, guest_reference: row.guest_reference, total_amount: parsedAmount }
           : b,
       ),
     );
@@ -249,12 +254,26 @@ export default function BookingsPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const visibleBookings = useMemo(
-    () => (showCompleted ? bookings : bookings.filter((booking) => booking.cleaning_status !== "FATTO")),
-    [bookings, showCompleted],
-  );
+  const visibleBookings = useMemo(() => {
+    const today = todayLocalIT();
+    const byStatus = bookings.filter((b) => {
+      if (viewFilter === "tutte") return true;
+      if (viewFilter === "concluse") return b.check_out < today;
+      return b.check_out >= today; // "attive" — stesso confine della card Riepilogo
+    });
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return byStatus;
+    return byStatus.filter((b) =>
+      [b.guest_reference, b.channel, b.notes].some((field) => (field ?? "").toLowerCase().includes(query)),
+    );
+  }, [bookings, viewFilter, searchQuery]);
 
-  const headerSubtitle = `${bookings.length} prenotazion${bookings.length === 1 ? "e" : "i"} · ${formatMonthLongIT(todayLocalIT())}`;
+  const VIEW_FILTER_LABEL: Record<BookingViewFilter, string> = {
+    attive: "attive",
+    concluse: "concluse",
+    tutte: "tutte",
+  };
+  const headerSubtitle = `${visibleBookings.length} prenotazion${visibleBookings.length === 1 ? "e" : "i"} ${VIEW_FILTER_LABEL[viewFilter]}`;
 
   return (
     <section className="space-y-6">
@@ -270,18 +289,34 @@ export default function BookingsPage() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-text-secondary">
-          Visibili: {visibleBookings.length} su {bookings.length}
-        </p>
-        <label className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-strong/20 px-3 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            checked={showCompleted}
-            onChange={(e) => setShowCompleted(e.target.checked)}
-            className="h-4 w-4 accent-brand-primary"
-          />
-          Mostra completate
-        </label>
+        <div className="inline-flex rounded-lg border border-border-strong/20 bg-surface-muted p-1">
+          {(
+            [
+              ["attive", "Attive"],
+              ["concluse", "Concluse"],
+              ["tutte", "Tutte"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setViewFilter(value)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+                viewFilter === value ? "bg-surface-raised text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <input
+          type="search"
+          aria-label="Cerca prenotazione"
+          placeholder="Cerca per riferimento, canale o note..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="input-base h-10 w-full sm:w-64"
+        />
       </div>
 
       {error ? <InlineAlert tone="error">{error}</InlineAlert> : null}
@@ -327,7 +362,7 @@ export default function BookingsPage() {
             <p className="max-w-[280px] text-sm text-text-secondary">
               {bookings.length === 0
                 ? "Aggiungi la prima prenotazione con il pulsante 'Nuova prenotazione' qui sopra."
-                : "Tutte le prenotazioni sono già state pulite (le prenotazioni completate sono nascoste)."}
+                : "Nessuna prenotazione corrisponde al filtro o alla ricerca attuali."}
             </p>
           </div>
         ) : (
@@ -341,6 +376,7 @@ export default function BookingsPage() {
                 const cleaningDone = b.cleaning_status === "FATTO";
                 const displayAmount = amountDraftById[b.id] !== "" ? amountDraftById[b.id] : b.total_amount;
                 const nights = nightsBetween(b.check_in, b.check_out);
+                const hasReference = Boolean(b.guest_reference?.trim());
 
                 return (
                   <article key={b.id} className="rounded-xl border border-border-strong/12 bg-surface-raised p-3">
@@ -355,7 +391,10 @@ export default function BookingsPage() {
                       </span>
                     </div>
 
-                    <p className="mt-1.5 text-sm font-bold text-text-primary">
+                    {hasReference ? (
+                      <p className="mt-1.5 truncate text-sm font-bold text-text-primary">{b.guest_reference}</p>
+                    ) : null}
+                    <p className={`text-text-primary ${hasReference ? "mt-0.5 text-xs font-medium text-text-secondary" : "mt-1.5 text-sm font-bold"}`}>
                       {formatDateIT(b.check_in)} → {formatDateIT(b.check_out)}
                     </p>
                     <p className="text-xs text-text-secondary">
@@ -372,6 +411,13 @@ export default function BookingsPage() {
 
                     {isEditing && (
                       <div className="mt-3 grid gap-2">
+                        <input
+                          name={`guest_reference_m_${b.id}`}
+                          className="input-base"
+                          placeholder="Riferimento (facoltativo)"
+                          value={b.guest_reference ?? ""}
+                          onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guest_reference: e.target.value } : x)))}
+                        />
                         <input name={`check_in_m_${b.id}`} className="input-base" type="date" value={b.check_in} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_in: e.target.value } : x)))} />
                         <input name={`check_out_m_${b.id}`} className="input-base" type="date" value={b.check_out} onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, check_out: e.target.value } : x)))} />
                         <input name={`guests_m_${b.id}`} className="input-base" type="number" value={guestsDraftById[b.id] ?? ""} onChange={(e) => setGuestsDraftById((prev) => ({ ...prev, [b.id]: e.target.value }))} />
@@ -478,6 +524,7 @@ export default function BookingsPage() {
                     const isEditing = editId === b.id;
                     const cleaningDone = b.cleaning_status === "FATTO";
                     const nights = nightsBetween(b.check_in, b.check_out);
+                    const hasReference = Boolean(b.guest_reference?.trim());
 
                     return (
                       <Fragment key={b.id}>
@@ -485,6 +532,14 @@ export default function BookingsPage() {
                           <TableCell>
                             {isEditing ? (
                               <div className="flex flex-col gap-1.5">
+                                <input
+                                  aria-label="Riferimento"
+                                  name={`guest_reference_${b.id}`}
+                                  className="input-base h-9 text-xs"
+                                  placeholder="Riferimento (facoltativo)"
+                                  value={b.guest_reference ?? ""}
+                                  onChange={(e) => setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, guest_reference: e.target.value } : x)))}
+                                />
                                 <input
                                   aria-label="Check-in"
                                   name={`check_in_${b.id}`}
@@ -504,7 +559,10 @@ export default function BookingsPage() {
                               </div>
                             ) : (
                               <div>
-                                <p className="font-semibold text-text-primary">
+                                {hasReference ? (
+                                  <p className="font-semibold text-text-primary">{b.guest_reference}</p>
+                                ) : null}
+                                <p className={hasReference ? "text-xs text-text-secondary" : "font-semibold text-text-primary"}>
                                   {formatDateIT(b.check_in)} → {formatDateIT(b.check_out)}
                                 </p>
                                 <p className="text-xs text-text-secondary">
@@ -659,6 +717,18 @@ export default function BookingsPage() {
 
       <Drawer open={showForm} onClose={() => setShowForm(false)} title="Nuova prenotazione">
         <div className="grid gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="booking-guest-reference" className="label-base">Riferimento (facoltativo)</label>
+            <input
+              id="booking-guest-reference"
+              name="guest_reference"
+              className="input-base"
+              value={form.guest_reference}
+              onChange={(e) => setForm((p) => ({ ...p, guest_reference: e.target.value }))}
+              placeholder="Nome ospite o promemoria (es. Marco, famiglia Rossi)"
+              autoComplete="off"
+            />
+          </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="booking-check-in" className="label-base">Check-in</label>
             <input id="booking-check-in" name="check_in" className="input-base" type="date" value={form.check_in} onChange={(e) => setForm((p) => ({ ...p, check_in: e.target.value }))} />

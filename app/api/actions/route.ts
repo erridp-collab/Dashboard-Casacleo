@@ -65,6 +65,7 @@ export async function GET(req: Request) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const bookingId = searchParams.get("bookingId");
+    const status = searchParams.get("status");
 
     const supabase = supabaseAdmin();
     let q = supabase
@@ -76,6 +77,7 @@ export async function GET(req: Request) {
     if (from) q = q.gte("action_date", from);
     if (to) q = q.lte("action_date", to);
     if (bookingId) q = q.eq("booking_id", bookingId);
+    if (status) q = q.eq("status", status);
 
     let { data, error } = await timed(phases, "db-actions", () => q);
 
@@ -88,6 +90,7 @@ export async function GET(req: Request) {
       if (from) retryQ = retryQ.gte("action_date", from);
       if (to) retryQ = retryQ.lte("action_date", to);
       if (bookingId) retryQ = retryQ.eq("booking_id", bookingId);
+      if (status) retryQ = retryQ.eq("status", status);
       const retry = await timed(phases, "db-actions-retry", () => retryQ);
       data = (retry.data ?? []).map((row: Record<string, unknown>) => ({ ...row, amount: null })) as typeof data;
       error = retry.error;

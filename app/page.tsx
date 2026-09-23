@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 
 const CalendarClient = dynamic(() => import("@/app/calendar/calendar-client"), { ssr: false });
 import { Card, CardHeader } from "@/components/card";
@@ -11,10 +12,11 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { KpiCardSkeleton } from "@/components/skeleton";
 import type { Action, Booking } from "@/types/db";
-import { todayLocalIT } from "@/lib/localDate";
+import { addDaysLocalIT, todayLocalIT } from "@/lib/localDate";
 import { formatDateLongIT } from "@/lib/format";
 import { ACTION_COLORS } from "@/lib/actionMeta";
 import { markDataVisible } from "@/lib/perf/navMarks";
+import { computeDashboardActionMetrics } from "@/lib/dashboardMetrics";
 
 type BookingsResponse = {
   bookings?: Booking[];
@@ -39,15 +41,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const router = useRouter();
 
   async function loadData(signal?: AbortSignal) {
     setError("");
     setLoading(true);
     try {
       const today = todayLocalIT();
-      const [bookingsRes, actionsRes] = await Promise.all([
+      const yesterday = addDaysLocalIT(today, -1);
+      const [bookingsRes, todayActionsRes, overdueActionsRes] = await Promise.all([
         clientFetchJson<BookingsResponse>(`/api/bookings?from=${today}&includeCleaningStatus=false`, { signal }),
         clientFetchJson<ActionsResponse>(`/api/actions?from=${today}&to=${today}`, { signal }),
+        clientFetchJson<ActionsResponse>(`/api/actions?status=DA_FARE&to=${yesterday}`, { signal }),
       ]);
 
       if (!bookingsRes.ok) {
@@ -55,14 +60,19 @@ export default function DashboardPage() {
         setError(bookingsRes.error || "Non è stato possibile caricare le prenotazioni");
         return;
       }
-      if (!actionsRes.ok) {
-        if (actionsRes.aborted) return;
-        setError(actionsRes.error || "Non è stato possibile caricare le azioni");
+      if (!todayActionsRes.ok) {
+        if (todayActionsRes.aborted) return;
+        setError(todayActionsRes.error || "Non è stato possibile caricare le azioni");
+        return;
+      }
+      if (!overdueActionsRes.ok) {
+        if (overdueActionsRes.aborted) return;
+        setError(overdueActionsRes.error || "Non è stato possibile caricare le azioni");
         return;
       }
 
       setBookings(bookingsRes.data.bookings ?? []);
-      setActions(actionsRes.data.actions ?? []);
+      setActions([...(todayActionsRes.data.actions ?? []), ...(overdueActionsRes.data.actions ?? [])]);
       markDataVisible("dashboard");
     } catch (e: unknown) {
       console.error("Dashboard load failed", e);
@@ -86,7 +96,10 @@ export default function DashboardPage() {
   }, []);
 
   const today = todayLocalIT();
-  const openActions = useMemo(() => actions.filter((a) => a.status === "DA_FARE").length, [actions]);
+  const { todayActions, openToday, overdueOpen } = useMemo(
+    () => computeDashboardActionMetrics(actions, today),
+    [actions, today],
+  );
   const activeOrUpcomingBookings = useMemo(
     () => bookings.filter((b) => b.check_out >= today).length,
     [bookings, today],
@@ -109,19 +122,23 @@ export default function DashboardPage() {
           <>
             <KpiCard
               title="Azioni oggi"
-              value={String(actions.length)}
-              subtitle={`${openActions} da fare`}
-              status={actions.length === 0 ? "neutral" : openActions > 0 ? "warn" : "ok"}
+              value={String(todayActions.length)}
+              subtitle={`${openToday} da fare`}
+              status={todayActions.length === 0 ? "neutral" : openToday > 0 ? "warn" : "ok"}
+              onClick={() => router.push(`/actions?from=${today}&to=${today}`)}
             />
             <KpiCard
-              title="Da completare"
-              value={String(openActions)}
-              status={openActions === 0 ? "ok" : openActions >= 3 ? "critical" : "warn"}
+              title="Arretrate"
+              value={String(overdueOpen.length)}
+              subtitle="da fare, da prima di oggi"
+              status={overdueOpen.length > 0 ? "critical" : "ok"}
+              onClick={() => router.push(`/actions?from=2000-01-01&to=${addDaysLocalIT(today, -1)}`)}
             />
             <KpiCard
               title="Prenotazioni attive/prossime"
               value={String(activeOrUpcomingBookings)}
               status={activeOrUpcomingBookings > 0 ? "ok" : "neutral"}
+              onClick={() => router.push("/bookings")}
             />
           </>
         )}

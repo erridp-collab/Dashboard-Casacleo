@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Wrench } from "lucide-react";
 import { Drawer } from "@/components/drawer";
+import { clientFetchJson } from "@/lib/http/clientFetch";
 
 type StockStatus = "PIENO" | "A_META" | "TERMINATO";
 type CleaningMode = null | "SELF" | "EXTERNAL";
@@ -17,7 +18,7 @@ type Props = {
   actionId: string | null;
   actionDate: string;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (actionId: string) => void;
 };
 
 const STATUS_CONFIG: Record<StockStatus, { label: string; bg: string; text: string; dot: string }> = {
@@ -114,7 +115,22 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
         const rate = Number(externalRate.replace(",", ".").trim());
         externalAmount = Number((hours * rate).toFixed(2));
       }
-      await fetch("/api/actions", {
+      // Se l'organizzazione non ha prodotti di pulizia, non c'e nulla da
+      // aggiornare: l'endpoint rifiuta correttamente un array vuoto.
+      if (products.length > 0) {
+        const stockResult = await clientFetchJson<{ ok?: boolean }>("/api/products/stock-status", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            updates: products.map((p) => ({ id: p.id, stock_status: p.status })),
+          }),
+        });
+        if (!stockResult.ok) {
+          throw new Error(stockResult.error ?? "Errore salvataggio scorte");
+        }
+      }
+
+      const actionResult = await clientFetchJson<{ ok?: boolean }>("/api/actions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -123,17 +139,8 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
           completion: mode === "EXTERNAL" ? { mode: "EXTERNAL", external_amount: externalAmount } : { mode: "SELF" },
         }),
       });
-
-      const statusRes = await fetch("/api/products/stock-status", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          updates: products.map((p) => ({ id: p.id, stock_status: p.status })),
-        }),
-      });
-      if (!statusRes.ok) {
-        const d = await statusRes.json();
-        throw new Error(d.error ?? "Errore salvataggio scorte");
+      if (!actionResult.ok) {
+        throw new Error(actionResult.error ?? "Errore salvataggio pulizia");
       }
 
       const note = maintenanceNote.trim();
@@ -150,7 +157,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
         }).catch(() => null);
       }
 
-      onSaved();
+      onSaved(actionId);
     } catch (e: unknown) {
       setError(String((e as Error)?.message ?? e));
     } finally {
@@ -268,7 +275,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                 <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-muted" />
               ))}
             </div>
-          ) : (
+          ) : products.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
               {products.map((p) => {
                 const cfg = STATUS_CONFIG[p.status];
@@ -288,6 +295,10 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
                 );
               })}
             </div>
+          ) : (
+            <p className="rounded-xl bg-surface-muted px-3 py-3 text-sm text-text-secondary">
+              Nessun prodotto di pulizia configurato.
+            </p>
           )}
         </div>
 
@@ -308,7 +319,7 @@ export function CleaningModal({ actionId, actionDate, onClose, onSaved }: Props)
           ) : null}
         </div>
 
-        {error ? <p className="text-sm text-text-primary">{error}</p> : null}
+        {error ? <p className="text-sm text-semantic-error">{error}</p> : null}
       </div>
     </Drawer>
   );
