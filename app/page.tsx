@@ -48,9 +48,11 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const today = todayLocalIT();
-      const [bookingsRes, actionsRes] = await Promise.all([
+      const yesterday = addDaysLocalIT(today, -1);
+      const [bookingsRes, todayActionsRes, overdueActionsRes] = await Promise.all([
         clientFetchJson<BookingsResponse>(`/api/bookings?from=${today}&includeCleaningStatus=false`, { signal }),
-        clientFetchJson<ActionsResponse>(`/api/actions?to=${today}`, { signal }),
+        clientFetchJson<ActionsResponse>(`/api/actions?from=${today}&to=${today}`, { signal }),
+        clientFetchJson<ActionsResponse>(`/api/actions?status=DA_FARE&to=${yesterday}`, { signal }),
       ]);
 
       if (!bookingsRes.ok) {
@@ -58,14 +60,19 @@ export default function DashboardPage() {
         setError(bookingsRes.error || "Non è stato possibile caricare le prenotazioni");
         return;
       }
-      if (!actionsRes.ok) {
-        if (actionsRes.aborted) return;
-        setError(actionsRes.error || "Non è stato possibile caricare le azioni");
+      if (!todayActionsRes.ok) {
+        if (todayActionsRes.aborted) return;
+        setError(todayActionsRes.error || "Non è stato possibile caricare le azioni");
+        return;
+      }
+      if (!overdueActionsRes.ok) {
+        if (overdueActionsRes.aborted) return;
+        setError(overdueActionsRes.error || "Non è stato possibile caricare le azioni");
         return;
       }
 
       setBookings(bookingsRes.data.bookings ?? []);
-      setActions(actionsRes.data.actions ?? []);
+      setActions([...(todayActionsRes.data.actions ?? []), ...(overdueActionsRes.data.actions ?? [])]);
       markDataVisible("dashboard");
     } catch (e: unknown) {
       console.error("Dashboard load failed", e);
