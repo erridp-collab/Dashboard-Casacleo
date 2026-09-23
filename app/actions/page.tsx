@@ -280,7 +280,10 @@ function ActionModalShell({
 
 export default function ActionsPage() {
   const [monthCursor, setMonthCursor] = useState(() => `${todayLocalIT().slice(0, 7)}-01`);
-  const { from, to, label: monthLabel } = useMemo(() => monthRange(monthCursor), [monthCursor]);
+  const { from: monthFrom, to: monthTo, label: monthLabel } = useMemo(() => monthRange(monthCursor), [monthCursor]);
+  const [explicitRange, setExplicitRange] = useState<{ from: string; to: string } | null>(null);
+  const from = explicitRange?.from ?? monthFrom;
+  const to = explicitRange?.to ?? monthTo;
   const [actions, setActions] = useState<Action[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [linenAction, setLinenAction] = useState<Action | null>(null);
@@ -571,10 +574,9 @@ export default function ActionsPage() {
       setError("Periodo non valido");
       return null;
     }
-    const nextMonthCursor = rangeFrom.slice(0, 8) + "01";
-    setMonthCursor((prev) => {
-      if (prev !== nextMonthCursor) skipNextAutoLoadRef.current = true;
-      return nextMonthCursor;
+    setExplicitRange((prev) => {
+      if (!prev || prev.from !== rangeFrom || prev.to !== rangeTo) skipNextAutoLoadRef.current = true;
+      return { from: rangeFrom, to: rangeTo };
     });
     setShowAdvancedRange(true);
     setFromDraft(rangeFrom);
@@ -626,7 +628,7 @@ export default function ActionsPage() {
     <section className="space-y-6">
       <PageHeader
         title="Azioni"
-        subtitle={`${visibleActions.length} azion${visibleActions.length === 1 ? "e" : "i"} · ${monthLabel}`}
+        subtitle={`${visibleActions.length} azion${visibleActions.length === 1 ? "e" : "i"} · ${explicitRange ? "periodo personalizzato" : monthLabel}`}
       />
 
       <Card>
@@ -640,6 +642,7 @@ export default function ActionsPage() {
                 const d = new Date(monthCursor);
                 d.setMonth(d.getMonth() - 1);
                 setMonthCursor(monthStartKey(d));
+                setExplicitRange(null);
               }}
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -653,6 +656,7 @@ export default function ActionsPage() {
                 const d = new Date(monthCursor);
                 d.setMonth(d.getMonth() + 1);
                 setMonthCursor(monthStartKey(d));
+                setExplicitRange(null);
               }}
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
